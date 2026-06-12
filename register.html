@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>관람 예약 · 부산패션위크</title>
+<meta name="description" content="2026 부산패션위크 — 쇼별 관람 좌석을 선착순으로 예약하세요." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<link rel="stylesheet" href="css/styles.css" />
+<style>
+  .rsv-wrap { max-width: 1080px; margin: 0 auto; padding: clamp(116px, 15vh, 170px) var(--pad) 140px; }
+  .back-link { display: inline-flex; gap: 8px; font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 22px; }
+  .back-link:hover { color: var(--coral); }
+
+  .rsv-head .idx { font-family: var(--mono); font-size: .76rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ocean); }
+  .rsv-head h1 { font-family: var(--disp); font-weight: 800; text-transform: uppercase; font-size: clamp(2.6rem, 9vw, 5.6rem); line-height: .9; margin: 12px 0 0; }
+  .rsv-head .kr { display: block; font-family: var(--kr); font-weight: 600; font-size: clamp(1rem, 2vw, 1.28rem); color: var(--ink-mute); margin-top: 14px; }
+
+  .rsv-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 4px; }
+  .rsv-meta span { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; }
+
+  /* tabs */
+  .rsv-tabs { display: inline-flex; gap: 4px; margin: 30px 0 8px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .rsv-tabs button { font-family: var(--kr); font-weight: 600; font-size: .9rem; color: var(--ink-mute); border: 0; background: transparent; border-radius: 9px; padding: 10px 20px; cursor: pointer; transition: all .16s; }
+  .rsv-tabs button.on { background: var(--ink); color: var(--paper); }
+
+  /* day groups */
+  .day-group { margin-top: 34px; }
+  .day-head { display: flex; align-items: baseline; gap: 14px; padding-bottom: 14px; border-bottom: 1.5px solid var(--ink); margin-bottom: 18px; }
+  .day-head .d { font-family: var(--disp); font-weight: 800; font-size: 1.5rem; text-transform: uppercase; letter-spacing: .02em; }
+  .day-head .dt { font-family: var(--mono); font-size: .76rem; letter-spacing: .08em; color: var(--ink-mute); text-transform: uppercase; }
+
+  .show-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+
+  .show-card { position: relative; text-align: left; background: var(--paper-2); border: 1.5px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; cursor: pointer; transition: border-color .16s, box-shadow .16s, transform .12s; font-family: var(--kr); }
+  .show-card:hover { border-color: color-mix(in oklch, var(--ocean) 50%, var(--line)); }
+  .show-card.sel { border-color: var(--ocean); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ocean) 16%, transparent); }
+  .show-card.full { cursor: not-allowed; opacity: .55; }
+  .show-card.full:hover { border-color: var(--line); }
+
+  .sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .sc-time { font-family: var(--mono); font-size: .82rem; font-weight: 700; letter-spacing: .04em; color: var(--ocean); }
+  .sc-check { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); flex: none; display: grid; place-items: center; color: transparent; font-size: .8rem; transition: all .16s; }
+  .show-card.sel .sc-check { background: var(--ocean); border-color: var(--ocean); color: #fff; }
+
+  .sc-title { font-family: var(--disp); font-weight: 700; font-size: 1.42rem; line-height: 1.05; margin: 12px 0 4px; letter-spacing: .01em; }
+  .sc-ko { font-family: var(--kr); font-weight: 600; font-size: .9rem; color: var(--ink); margin-bottom: 4px; }
+  .sc-venue { font-size: .84rem; color: var(--ink-mute); }
+  .tbd-tag { display: inline-block; font-family: var(--mono); font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ocean); background: color-mix(in oklch, var(--ocean) 11%, transparent); border-radius: 999px; padding: 4px 10px; margin-top: 11px; }
+
+  .cap { margin-top: 15px; }
+  .cap-bar { height: 6px; border-radius: 999px; background: color-mix(in oklch, var(--ink) 9%, transparent); overflow: hidden; }
+  .cap-fill { height: 100%; border-radius: 999px; background: var(--ocean); transition: width .3s; }
+  .cap-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: .78rem; }
+  .cap-remain { font-weight: 700; }
+  .cap-remain.low { color: var(--coral); }
+  .cap-total { font-family: var(--mono); font-size: .68rem; color: var(--ink-mute); letter-spacing: .04em; }
+  .full-pill { font-family: var(--mono); font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--coral); border: 1.5px solid currentColor; border-radius: 999px; padding: 4px 11px; }
+
+  /* sticky selection bar */
+  .sel-bar { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 130%); width: min(620px, calc(100% - 32px)); background: var(--ink); color: var(--paper); border-radius: 16px; padding: 14px 16px 14px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 18px 50px -12px rgba(0,0,0,.5); z-index: 60; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+  .sel-bar.show { transform: translate(-50%, 0); }
+  .sel-bar .lab { font-family: var(--kr); font-size: .94rem; }
+  .sel-bar .lab b { font-family: var(--mono); }
+  .sel-bar .go { font-family: var(--kr); font-weight: 700; font-size: .94rem; color: var(--ink); background: var(--paper); border: 0; border-radius: 11px; padding: 12px 22px; cursor: pointer; white-space: nowrap; transition: background .16s; }
+  .sel-bar .go:hover { background: color-mix(in oklch, var(--coral) 30%, var(--paper)); }
+
+  /* sheet overlay */
+  .sheet { position: fixed; inset: 0; background: color-mix(in oklch, var(--ink) 55%, transparent); backdrop-filter: blur(4px); z-index: 80; display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: clamp(20px, 6vh, 70px) 16px 60px; }
+  .sheet.show { display: flex; }
+  .sheet-card { background: var(--paper); border-radius: 22px; width: min(640px, 100%); padding: clamp(24px, 4vw, 40px); box-shadow: 0 30px 80px -20px rgba(0,0,0,.5); }
+  .sheet-card h2 { font-family: var(--disp); font-weight: 800; font-size: clamp(1.8rem, 4vw, 2.4rem); text-transform: uppercase; margin: 0; line-height: .95; }
+  .sheet-card .sub { font-family: var(--kr); color: var(--ink-mute); font-size: .94rem; margin: 10px 0 0; }
+  .sheet-close { float: right; font-family: var(--mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); background: none; border: 0; cursor: pointer; padding: 4px; }
+  .sheet-close:hover { color: var(--coral); }
+
+  /* chosen shows summary */
+  .chosen { margin: 22px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+  .chosen-row { display: flex; align-items: center; gap: 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 14px; font-family: var(--kr); }
+  .chosen-row .ct { font-family: var(--mono); font-size: .76rem; font-weight: 700; color: var(--ocean); white-space: nowrap; }
+  .chosen-row .cn { font-weight: 600; font-size: .92rem; flex: 1; }
+  .chosen-row .cx { color: var(--ink-mute); cursor: pointer; border: 0; background: none; font-size: 1rem; padding: 2px 4px; }
+  .chosen-row .cx:hover { color: var(--coral); }
+
+  /* form */
+  form.rsv-form { margin-top: 22px; display: flex; flex-direction: column; gap: 16px; }
+  .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 540px) { .f-row { grid-template-columns: 1fr; } }
+  .f label { display: block; font-family: var(--kr); font-size: .84rem; font-weight: 600; margin-bottom: 7px; }
+  .f label .req { color: var(--coral); }
+  .f input { width: 100%; box-sizing: border-box; font-family: var(--kr); font-size: .96rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; transition: border .18s, box-shadow .18s; }
+  .f input:focus { outline: none; border-color: var(--ocean); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ocean) 16%, transparent); }
+  .agree { display: flex; align-items: flex-start; gap: 11px; font-family: var(--kr); font-size: .86rem; color: var(--ink-soft); }
+  .agree input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: var(--ocean); }
+  .err-msg { color: var(--coral); font-family: var(--kr); font-size: .82rem; display: none; }
+  .err-msg.show { display: block; }
+
+  /* tickets */
+  .tickets { display: flex; flex-direction: column; gap: 14px; margin: 24px 0 6px; }
+  .ticket { display: flex; gap: 16px; align-items: center; border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; background: var(--paper-2); }
+  .ticket.in { border-color: color-mix(in oklch, var(--ocean) 45%, var(--line)); background: color-mix(in oklch, var(--ocean) 7%, var(--paper-2)); }
+  .ticket .qr { width: 104px; height: 104px; flex: none; background: #fff; border-radius: 10px; padding: 7px; box-sizing: border-box; border: 1px solid var(--line); }
+  .ticket .qr svg { width: 100%; height: 100%; display: block; }
+  .ticket .ti { flex: 1; min-width: 0; font-family: var(--kr); }
+  .ticket .ti .tt { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--ocean); text-transform: uppercase; }
+  .ticket .ti .tn { font-family: var(--disp); font-weight: 700; font-size: 1.3rem; line-height: 1.05; margin: 5px 0 4px; }
+  .ticket .ti .tv { font-size: .82rem; color: var(--ink-mute); }
+  .ticket .ti .code { font-family: var(--mono); font-weight: 700; font-size: .96rem; letter-spacing: .04em; margin-top: 9px; }
+  .ticket .ti .badge { display: inline-block; font-family: var(--mono); font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-top: 9px; }
+  .badge.ok { background: color-mix(in oklch, var(--ocean) 14%, transparent); color: var(--ocean); }
+  .badge.entered { background: color-mix(in oklch, var(--coral) 16%, transparent); color: var(--coral); }
+  .ticket .tcancel { font-family: var(--mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-mute); background: none; border: 0; cursor: pointer; align-self: flex-start; }
+  .ticket .tcancel:hover { color: var(--coral); }
+
+  .note-line { font-family: var(--kr); font-size: .86rem; color: var(--ink-mute); background: color-mix(in oklch, var(--ocean) 8%, transparent); border: 1px solid color-mix(in oklch, var(--ocean) 24%, transparent); border-radius: 12px; padding: 14px 16px; margin-top: 18px; line-height: 1.55; }
+  .fail-line { background: color-mix(in oklch, var(--coral) 9%, transparent); border-color: color-mix(in oklch, var(--coral) 28%, transparent); color: color-mix(in oklch, var(--coral) 70%, var(--ink)); }
+
+  /* lookup */
+  .lookup-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 30px; }
+  .lookup-bar .f { flex: 1; min-width: 220px; }
+  .lookup-empty { font-family: var(--kr); color: var(--ink-mute); font-size: .92rem; padding: 30px 0; }
+
+  .closed-note { display: none; font-family: var(--kr); padding: 28px; border-radius: 16px; text-align: center; background: color-mix(in oklch, var(--ink) 6%, transparent); border: 1px solid var(--line); color: var(--ink-mute); margin-top: 30px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav" data-solid="true">
+  <a class="brand" href="index.html" aria-label="부산패션위크 홈"><b>BUSAN</b><span class="bul">●</span><b>FW</b></a>
+  <div class="nav-links">
+    <a href="index.html#schedule">Schedule</a>
+    <a href="index.html#brands">Brands</a>
+    <a href="archive.html">Archive</a>
+    <a href="index.html#visit">Visit</a>
+  </div>
+  <a href="register.html" class="nav-cta">관람예약 · Reserve</a>
+</nav>
+
+<main class="rsv-wrap">
+  <a class="back-link" href="index.html">← 메인으로</a>
+  <header class="rsv-head">
+    <div class="idx">RESERVE — 관람 예약</div>
+    <h1>Reserve<span class="kr">2026 부산패션위크 · 쇼별 관람 좌석 예약</span></h1>
+  </header>
+
+  <div class="rsv-meta">
+    <span id="mShows">12 Shows</span>
+    <span id="mCap">쇼당 300석</span>
+    <span>전 좌석 무료</span>
+    <span>선착순 마감</span>
+  </div>
+
+  <div class="rsv-tabs">
+    <button data-pane="book" class="on">예약하기</button>
+    <button data-pane="lookup">내 예약 조회</button>
+  </div>
+
+  <!-- BOOK -->
+  <section id="bookPane">
+    <div class="closed-note" id="closedNote">현재 관람 예약 접수가 마감되었습니다. 다음 안내를 기다려 주세요.</div>
+    <div id="showGroups"></div>
+    <p class="note-line" id="bookNote" style="margin-top:26px"></p>
+  </section>
+
+  <!-- LOOKUP -->
+  <section id="lookupPane" class="hidden">
+    <p class="note-line">예약 시 입력한 <b>연락처</b>로 조회하면 발급된 QR과 예약번호를 다시 확인할 수 있습니다.</p>
+    <div class="lookup-bar">
+      <div class="f">
+        <label>연락처</label>
+        <input type="tel" id="lookupPhone" placeholder="010-0000-0000" />
+      </div>
+      <button class="btn primary" id="lookupBtn">조회 <span>→</span></button>
+    </div>
+    <div id="lookupResult"></div>
+  </section>
+</main>
+
+<!-- selection bar -->
+<div class="sel-bar" id="selBar">
+  <span class="lab"><b id="selCount">0</b>개 쇼 선택됨</span>
+  <button class="go" id="selGo">예약 진행 →</button>
+</div>
+
+<!-- form sheet -->
+<div class="sheet" id="formSheet">
+  <div class="sheet-card">
+    <button class="sheet-close" data-close="formSheet">닫기 ✕</button>
+    <h2>예약 정보</h2>
+    <p class="sub">선택한 쇼의 좌석을 확보합니다. 1인 1석 · 입력하신 정보로 QR이 발급됩니다.</p>
+    <div class="chosen" id="chosenList"></div>
+    <form class="rsv-form" id="rsvForm">
+      <div class="f-row">
+        <div class="f">
+          <label>이름 <span class="req">*</span></label>
+          <input type="text" id="fName" required placeholder="홍길동" />
+        </div>
+        <div class="f">
+          <label>연락처 <span class="req">*</span></label>
+          <input type="tel" id="fPhone" required placeholder="010-0000-0000" />
+        </div>
+      </div>
+      <div class="f">
+        <label>이메일 <span style="color:var(--ink-mute);font-weight:400">(선택)</span></label>
+        <input type="email" id="fEmail" placeholder="name@email.com" />
+      </div>
+      <label class="agree">
+        <input type="checkbox" id="fAgree" required />
+        <span>개인정보 수집·이용에 동의합니다. 예약 확인 및 현장 입장 목적으로만 사용됩니다. <span class="req">*</span></span>
+      </label>
+      <label class="agree">
+        <input type="checkbox" id="fMkt" />
+        <span>부산패션위크 소식·다음 회차 안내 등 마케팅 정보 수신에 동의합니다. (선택)</span>
+      </label>
+      <div class="err-msg" id="rsvErr">이름·연락처를 입력하고 필수 동의에 체크해 주세요.</div>
+      <button type="submit" class="btn primary" style="align-self:flex-start">좌석 예약하기 <span>→</span></button>
+    </form>
+  </div>
+</div>
+
+<!-- done sheet -->
+<div class="sheet" id="doneSheet">
+  <div class="sheet-card">
+    <button class="sheet-close" data-close="doneSheet">닫기 ✕</button>
+    <h2>예약 완료 ✓</h2>
+    <p class="sub">아래 QR을 <b>스크린샷으로 저장</b>해 두세요. 현장 입구에서 QR을 제시하면 확인 후 입장하실 수 있습니다.</p>
+    <div class="tickets" id="doneTickets"></div>
+    <p class="note-line" id="doneFail" style="display:none"></p>
+    <p class="note-line">연락처로 <b>내 예약 조회</b> 탭에서 언제든 다시 확인할 수 있습니다.</p>
+    <button class="btn ghost" data-close="doneSheet" style="margin-top:8px">확인</button>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer__bottom" style="border:0;margin:0">
+    <span>© 2026 BUSAN FASHION WEEK · Hosted by Busan Metropolitan City</span>
+    <span><a href="index.html" style="color:inherit">홈</a> · <a href="admin.html" style="color:inherit;opacity:.7">Admin</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/reserve.js"></script>
+</body>
+</html>

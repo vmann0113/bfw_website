@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archive · 부산패션위크</title>
+<meta name="description" content="역대 부산패션위크 아카이브 갤러리." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<link rel="stylesheet" href="css/styles.css" />
+<style>
+  .subpage { padding-top: clamp(120px, 16vh, 180px); }
+  .gal-head { padding: 0 var(--pad) clamp(36px, 6vh, 64px); }
+  .gal-head .idx { font-family: var(--mono); font-size: .76rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ocean); }
+  .gal-head h1 { font-family: var(--disp); font-weight: 800; text-transform: uppercase; font-size: clamp(3rem, 11vw, 9rem); line-height: .9; margin: 12px 0 0; }
+  .gal-head .kr { display: block; font-family: var(--kr); font-weight: 600; font-size: clamp(1rem, 2vw, 1.4rem); color: var(--ink-mute); margin-top: 16px; }
+  .gal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 2vw, 26px); padding: 0 var(--pad) clamp(60px, 10vh, 120px); }
+  .gal { position: relative; aspect-ratio: 4/5; overflow: hidden; background: var(--ink); display: flex; flex-direction: column; justify-content: flex-end; color: var(--paper); }
+  .gal__bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; transition: transform .6s var(--ease); }
+  .gal:hover .gal__bg { transform: scale(1.05); }
+  .gal__bg.empty { display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg, var(--cobalt) 0%, var(--teal-deep) 100%); }
+  .gal__bg.empty span { font-family: var(--disp); font-weight: 800; font-size: clamp(2.4rem, 5vw, 4rem); color: color-mix(in oklch, var(--paper) 30%, transparent); }
+  .gal::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(0deg, color-mix(in oklch, var(--ink) 90%, transparent), transparent 58%); }
+  .gal__meta { position: relative; z-index: 2; padding: 26px; }
+  .gal__yr { font-family: var(--disp); font-weight: 800; font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: .9; }
+  .gal__t { font-size: 1rem; color: color-mix(in oklch, var(--paper) 80%, transparent); margin-top: 8px; }
+  .back-link { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 22px; }
+  .back-link:hover { color: var(--coral); }
+  .gal-empty { padding: 80px var(--pad); text-align: center; color: var(--ink-mute); }
+  @media (max-width: 820px) { .gal-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 540px) { .gal-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav" data-solid="true">
+  <a class="brand" href="index.html" aria-label="부산패션위크 홈"><b>BUSAN</b><span class="bul">●</span><b>FW</b></a>
+  <div class="nav-links">
+    <a href="index.html#story">About</a>
+    <a href="index.html#schedule">Schedule</a>
+    <a href="index.html#brands">Brands</a>
+    <a href="archive.html">Archive</a>
+  </div>
+  <a href="register.html" class="nav-cta" id="navReserve">관람예약 · Reserve</a>
+</nav>
+
+<main class="subpage">
+  <header class="gal-head">
+    <a class="back-link" href="index.html">← 메인으로</a>
+    <div class="idx">ARCHIVE — 역대 부산패션위크</div>
+    <h1>Archive<span class="kr">해를 거듭하며 쌓아 온 부산 패션의 무대들</span></h1>
+  </header>
+  <section class="gal-grid" id="galGrid"></section>
+</main>
+
+<footer class="footer">
+  <div class="footer__bottom" style="border:0;margin:0">
+    <span>© 2026 BUSAN FASHION WEEK · Hosted by Busan Metropolitan City</span>
+    <span><a href="index.html" style="color:inherit">홈</a> · <a href="admin.html" style="color:inherit;opacity:.7">Admin</a></span>
+  </div>
+</footer>
+
+<script src="js/config.js"></script>
+<script>
+  (function () {
+    var cfg = window.BFW.load();
+    // brand
+    var b = cfg.brand, nav = document.querySelector(".nav .brand");
+    if (b.logo) nav.innerHTML = '<img class="brand-logo" src="' + b.logo + '" alt="">';
+    else nav.innerHTML = "<b>" + b.textPrimary + '</b><span class="bul">●</span><b>' + b.textSecondary + "</b>";
+
+    // hide the reserve CTA until reservation is published on the main site
+    var rcta = document.getElementById("navReserve");
+    if (rcta && !(cfg.reserve && cfg.reserve.published)) rcta.style.display = "none";
+
+    var grid = document.getElementById("galGrid");
+    var items = cfg.archive || [];
+    if (!items.length) {
+      grid.outerHTML = '<div class="gal-empty">준비중입니다.</div>';
+      return;
+    }
+    function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+    items.forEach(function (a) {
+      var href = a.link || "#";
+      var bg = a.image ? 'style="background-image:url(\'' + a.image + '\')"' : "";
+      var card = document.createElement("a");
+      card.className = "gal";
+      card.href = href;
+      if (a.link) { card.target = "_blank"; card.rel = "noopener"; }
+      card.innerHTML =
+        '<div class="gal__bg' + (a.image ? "" : " empty") + '" ' + bg + ">" +
+          (a.image ? "" : "<span>" + esc(a.year) + "</span>") +
+        "</div>" +
+        '<div class="gal__meta"><div class="gal__yr">' + esc(a.year) + "</div>" +
+        '<div class="gal__t">' + esc(a.title) + "</div></div>";
+      grid.appendChild(card);
+    });
+  })();
+</script>
+</body>
+</html>
