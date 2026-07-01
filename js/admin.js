@@ -69,7 +69,7 @@
 
   /* ---------- TAB switching ---------- */
   var crumbMap = {
-    brand: "브랜드", brandlist: "참여 브랜드", unilist: "참여 대학", event: "행사 정보", sections: "섹션 On/Off", media: "On Film 영상",
+    brand: "브랜드", brandlist: "참여 브랜드", unilist: "참여 대학", lastyear: "2025 라인업", event: "행사 정보", sections: "섹션 On/Off", media: "On Film 영상",
     press: "언론 보도", archive: "아카이브", instagram: "인스타그램", map: "오시는 길 · 지도",
     shows: "쇼 관리", reservations: "예약 현황", checkin: "현장 체크인"
   };
@@ -244,6 +244,50 @@
     cfg.universities = cfg.universities || [];
     cfg.universities.push({ name: "", logo: null, link: "" });
     renderUniList(); markDirty();
+  });
+
+  /* ---------- 2025 LINEUP (BRAND / UNIVERSITY logo lists) ---------- */
+  function renderLogoList(wrapId, list, rerender) {
+    var wrap = $(wrapId);
+    wrap.innerHTML = "";
+    list.forEach(function (b, i) {
+      var item = document.createElement("div");
+      item.className = "item";
+      item.innerHTML =
+        '<div class="thumb logo" data-thumb style="' + (b.logo ? "background-image:url('" + b.logo + "')" : "") + '">' + (b.logo ? "" : "로고") + "</div>" +
+        '<div class="grow">' +
+          '<div class="field" style="margin:0"><label>브랜드/브랜드랩명</label><input type="text" data-k="name" value="' + attr(b.name) + '"></div>' +
+          '<div class="field" style="margin:0"><label>국가 (예: INDONESIA)</label><input type="text" data-k="country" value="' + attr(b.country) + '" placeholder="비우면 미표시"></div>' +
+          '<div class="field" style="margin:0"><label>링크 (선택)</label><input type="url" data-k="link" value="' + attr(b.link) + '" placeholder="비우면 링크 없음"></div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" data-act="img">로고 업로드</button>' +
+          '<button class="btn danger sm" data-act="imgclear">로고 삭제</button></div>' +
+        "</div>" +
+        '<div class="ord"><button data-act="up">↑</button><button data-act="down">↓</button><button data-act="del">✕</button></div>';
+      item.querySelectorAll("[data-k]").forEach(function (inp) {
+        inp.addEventListener("input", function () { b[inp.getAttribute("data-k")] = inp.value; markDirty(); });
+      });
+      item.querySelector('[data-act=img]').addEventListener("click", function () {
+        pickImage({ maxW: 600, mime: "image/png" }, function (d) { b.logo = d; rerender(); markDirty(); });
+      });
+      item.querySelector('[data-act=imgclear]').addEventListener("click", function () { b.logo = null; rerender(); markDirty(); });
+      item.querySelector('[data-act=up]').addEventListener("click", function () { if (i > 0) { swap(list, i, i - 1); rerender(); markDirty(); } });
+      item.querySelector('[data-act=down]').addEventListener("click", function () { if (i < list.length - 1) { swap(list, i, i + 1); rerender(); markDirty(); } });
+      item.querySelector('[data-act=del]').addEventListener("click", function () { list.splice(i, 1); rerender(); markDirty(); });
+      wrap.appendChild(item);
+    });
+  }
+  function renderLastYear() {
+    cfg.lastYear = cfg.lastYear || { year: "2025", brands: [], universities: [] };
+    cfg.lastYear.brands = cfg.lastYear.brands || [];
+    cfg.lastYear.universities = cfg.lastYear.universities || [];
+    renderLogoList("lyBrandItems", cfg.lastYear.brands, renderLastYear);
+    renderLogoList("lyUniItems", cfg.lastYear.universities, renderLastYear);
+  }
+  $("lyBrandAdd").addEventListener("click", function () {
+    cfg.lastYear.brands.push({ name: "", country: "", logo: null, link: "" }); renderLastYear(); markDirty();
+  });
+  $("lyUniAdd").addEventListener("click", function () {
+    cfg.lastYear.universities.push({ name: "", country: "", logo: null, link: "" }); renderLastYear(); markDirty();
   });
 
   /* ---------- PRESS ---------- */
@@ -699,6 +743,7 @@
     $("pressProxy").value = cfg.press.proxyUrl;
     renderBrandList();
     renderUniList();
+    renderLastYear();
     $("igHandle").value = cfg.instagram.handle;
     $("igProfile").value = cfg.instagram.profileUrl;
     $("igToken").value = cfg.instagram.token;

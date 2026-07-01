@@ -23,12 +23,10 @@
   function applyBrand() {
     var b = cfg.brand;
     var nav = document.querySelector(".nav .brand");
-    if (nav) {
-      if (b.logo) {
-        nav.innerHTML = '<img class="brand-logo" src="' + b.logo + '" alt="' + esc(b.nameKo || "Busan Fashion Week") + '" />';
-      } else {
-        nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
-      }
+    // Nav logo is authored directly in the HTML (two-state wave wordmark);
+    // only fall back to a config wordmark if an admin logo is explicitly set.
+    if (nav && b.logo) {
+      nav.innerHTML = '<img class="brand-logo" src="' + b.logo + '" alt="' + esc(b.nameKo || "Busan Fashion Week") + '" />';
     }
   }
 
@@ -47,7 +45,9 @@
     var when = document.querySelector(".hero__when");
     if (when) {
       var parts = (e.dateLine || "").split("—");
-      if (parts.length === 2) {
+      if (when.querySelector("img")) {
+        // date artwork authored in HTML — leave it
+      } else if (parts.length === 2) {
         when.innerHTML = esc(parts[0].trim()) + ' <span class="dash">—</span> ' + esc(parts[1].trim());
       } else {
         when.textContent = e.dateLine;
@@ -147,6 +147,32 @@
       }
       frame.appendChild(node);
     }, { once: true });
+  }
+
+  /* ---------- 2025 LINEUP (BRAND / UNIVERSITY logo walls, archive) ---------- */
+  function lyCard(b) {
+    var hasLink = !!b.link;
+    var tag = hasLink ? "a" : "div";
+    var inner =
+      '<div class="ly-logo__tile' + (b.logo ? "" : " empty") + (b.dark ? " dark" : "") + (b.fill ? " fill" : "") + '">' +
+        (b.logo ? '<img src="' + esc(b.logo) + '" alt="' + esc(b.name) + '" />' : '<span>' + esc(b.name) + '</span>') +
+      "</div>" +
+      (b.name ? '<div class="ly-logo__name">' + esc(b.name) + "</div>" : "") +
+      (b.country ? '<div class="ly-logo__country">' + esc(b.country) + "</div>" : "");
+    return el("<" + tag + ' class="ly-logo"' +
+      (hasLink ? ' href="' + esc(b.link) + '" target="_blank" rel="noopener"' : "") + ">" + inner + "</" + tag + ">");
+  }
+  function fillLy(gridId, items) {
+    var grid = document.getElementById(gridId);
+    if (!grid) return;
+    grid.innerHTML = "";
+    if (!items || !items.length) { grid.appendChild(el('<div class="wall-empty">준비중입니다.</div>')); return; }
+    items.forEach(function (b) { grid.appendChild(lyCard(b)); });
+  }
+  function applyLastYear() {
+    if (!cfg.lastYear) return;
+    fillLy("lyBrandGrid", cfg.lastYear.brands);
+    fillLy("lyUniGrid", cfg.lastYear.universities);
   }
 
   /* ---------- BRANDS (logo wall) ---------- */
@@ -390,6 +416,11 @@
 
     if (!m.naverClientId) return; // keep placeholder map image
 
+    // surface auth/domain failures instead of a silent blank map
+    window.navermap_authFailure = function () {
+      box.innerHTML = '<div class="map-err">네이버 지도 인증 실패 — 콘솔에 현재 도메인이 등록되지 않았거나 반영 전입니다.<br>등록 후 몇 분 뒤 새로고침해 주세요.</div>';
+    };
+
     // swap the placeholder for a live Naver map container
     box.innerHTML = '<div id="naverMap" style="position:absolute;inset:0"></div>';
     var s = document.createElement("script");
@@ -460,6 +491,7 @@
     applySections();
     applyMedia();
     applyBrands();
+    applyLastYear();
     applyUniversities();
     applyPress();
     applyArchive();

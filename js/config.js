@@ -44,12 +44,13 @@
     sections: {
       story:      { enabled: true, offMode: "coming", label: "About" },
       schedule:   { enabled: true, offMode: "coming", label: "Schedule" },
-      brands:     { enabled: true, offMode: "coming", label: "Designer Brands" },
-      university: { enabled: true, offMode: "coming", label: "University Show" },
+      lastyear:   { enabled: true, offMode: "hidden", label: "2025 Lineup" },
+      brands:     { enabled: false, offMode: "hidden", label: "Designer Brands" },
+      university: { enabled: false, offMode: "hidden", label: "University Show" },
       ir:         { enabled: false, offMode: "hidden", label: "Invest Connect" },
-      media:      { enabled: true, offMode: "coming", label: "On Film" },
-      archive:    { enabled: true, offMode: "coming", label: "Archive" },
-      instagram:  { enabled: true, offMode: "hidden", label: "Instagram" },
+      media:      { enabled: false, offMode: "hidden", label: "On Film" },
+      archive:    { enabled: false, offMode: "hidden", label: "Archive" },
+      instagram:  { enabled: false, offMode: "hidden", label: "Instagram" },
       visit:      { enabled: true, offMode: "coming", label: "Visit & Register" }
     },
 
@@ -89,7 +90,7 @@
 
     /* Naver map (오시는 길) */
     map: {
-      naverClientId: "",               // NAVER Cloud Maps client id (ncpKeyId)
+      naverClientId: "3rq3r6poqp",     // NAVER Cloud Maps client id (ncpKeyId)
       lat: 35.16871,
       lng: 129.1339,
       zoom: 16,
@@ -117,25 +118,62 @@
        add brands (with logos) in the admin console. */
     brands: [],
 
+    /* Last year's (2025) participating lineup — split BRAND / UNIVERSITY (archive). */
+    lastYear: {
+      year: "2025",
+      brands: [
+        { name: "ERNESTO ABRAM", country: "INDONESIA", logo: "images/ly-ernesto-abram.png", link: "" },
+        { name: "HARTONO GAN", country: "INDONESIA", logo: "images/ly-hartono-gan.png", dark: true, link: "" },
+        { name: "Jérôme Blin", country: "FRANCE", logo: "images/ly-jerome-blin.png", link: "" },
+        { name: "LAKON", country: "INDONESIA", logo: "images/ly-lakon.png", link: "" },
+        { name: "강정석", logo: "images/ly-kangjungseok.png", link: "" },
+        { name: "리온베", logo: "images/ly-reonve.png", fill: true, link: "" },
+        { name: "마르즈", logo: "images/ly-marze.png", link: "" },
+        { name: "바주요", logo: "images/ly-bajuyo.png", link: "" },
+        { name: "박상조", logo: "images/ly-parksangjo.png", link: "" },
+        { name: "부띠끄걸 × 경상국립대", logo: "images/ly-boutiquegirl.png", link: "" },
+        { name: "스튜디오 디 뻬를라", logo: "images/ly-diperla.png", link: "" },
+        { name: "신시얼리준", logo: "images/ly-sincerelyjune.png", link: "" },
+        { name: "아꼬아", logo: "images/ly-accoa.png", link: "" },
+        { name: "일로제", logo: "images/ly-ilroze.png", link: "" },
+        { name: "이미경 뷰띠끄", logo: "images/ly-leemikyung.png", link: "" },
+        { name: "이영희 프리젠트", logo: "images/ly-leeyounghee.png", link: "" },
+        { name: "제이와이어패럴", logo: "images/ly-jyapparel.png", link: "" },
+        { name: "PPBSTUDIO", logo: "images/ly-ppb.png", link: "" },
+        { name: "13프로젝트", logo: "images/ly-13project.png", link: "" }
+      ],
+      universities: [
+        { name: "경성대학교", country: "패션디자인학과", logo: "images/ly-uni-kyungsung.png", link: "" },
+        { name: "동명대학교", country: "패션디자인학과", logo: "images/ly-uni-tongmyong.png", link: "" },
+        { name: "동서대학교", country: "패션디자인학과", logo: "images/ly-uni-dongseo.png", link: "" },
+        { name: "동아대학교", country: "패션디자인학과", logo: "images/ly-uni-donga.png", link: "" },
+        { name: "동의대학교", country: "패션디자인학과", logo: "images/ly-uni-dongeui.png", link: "" },
+        { name: "국립부경대학교", country: "패션디자인학과", logo: "images/ly-uni-pukyong.png", link: "" },
+        { name: "부산대학교", country: "의류학과", logo: "images/ly-uni-pusan.png", link: "" },
+        { name: "신라대학교", country: "디자인학부 패션디자인전공", logo: "images/ly-uni-silla.png", link: "" },
+        { name: "영산대학교", country: "패션디자인학과", logo: "images/ly-uni-youngsan.png", link: "" }
+      ]
+    },
+
     /* Participating universities — logo wall. Empty until the open call;
        add schools (with logos) in the admin console. */
     universities: [],
 
     /* Runway shows — each capped, reservable. Edit freely in admin.
-       tbd:true => participating brands not yet assigned (lottery after recruitment). */
+       Times from the official 본행사 타임테이블; lineups TBD until confirmed. */
     shows: [
-      { id: "S01", day: 1, date: "2026.10.29", dow: "목", time: "11:00", end: "11:30", title: "Opening Show",  titleKo: "개막식 · 오프닝 패션쇼",   lineup: "전 참여 브랜드 합동 무대", venue: "메인 런웨이", cap: 300, tbd: false },
-      { id: "S02", day: 1, date: "2026.10.29", dow: "목", time: "13:00", end: "13:30", title: "Joint Show ①",  titleKo: "부산패션위크 연합쇼 ①",   lineup: "국내·해외 3개사 내외",    venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S03", day: 1, date: "2026.10.29", dow: "목", time: "14:30", end: "15:00", title: "Joint Show ②",  titleKo: "부산패션위크 연합쇼 ②",   lineup: "대학 2개교",            venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S04", day: 1, date: "2026.10.29", dow: "목", time: "16:00", end: "16:30", title: "Joint Show ③",  titleKo: "부산패션위크 연합쇼 ③",   lineup: "국내·해외 3개사 내외",    venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S05", day: 2, date: "2026.10.30", dow: "금", time: "10:30", end: "11:00", title: "Joint Show ④",  titleKo: "부산패션위크 연합쇼 ④",   lineup: "대학 1개교",            venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "12:30", end: "13:00", title: "Joint Show ⑤",  titleKo: "부산패션위크 연합쇼 ⑤",   lineup: "대학 2개교",            venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "14:00", end: "14:30", title: "Joint Show ⑥",  titleKo: "부산패션위크 연합쇼 ⑥",   lineup: "국내·해외 3개사 내외",    venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S08", day: 2, date: "2026.10.30", dow: "금", time: "15:30", end: "16:00", title: "Joint Show ⑦",  titleKo: "부산패션위크 연합쇼 ⑦",   lineup: "대학 2개교",            venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S09", day: 3, date: "2026.10.31", dow: "토", time: "11:00", end: "11:30", title: "Joint Show ⑧",  titleKo: "부산패션위크 연합쇼 ⑧",   lineup: "국내·해외 3개사 내외",    venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S10", day: 3, date: "2026.10.31", dow: "토", time: "13:00", end: "13:30", title: "Joint Show ⑨",  titleKo: "부산패션위크 연합쇼 ⑨",   lineup: "대학 2개교",            venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S11", day: 3, date: "2026.10.31", dow: "토", time: "16:00", end: "16:30", title: "Joint Show ⑩",  titleKo: "부산패션위크 연합쇼 ⑩",   lineup: "국내 3개사 내외",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑪",  titleKo: "부산패션위크 연합쇼 ⑪",   lineup: "대학 1개교",            venue: "메인 런웨이", cap: 300, tbd: true }
+      { id: "S01", day: 1, date: "2026.10.29", dow: "목", time: "10:00", end: "10:30", title: "Opening Show",       titleKo: "오프닝 패션쇼",     lineup: "개막식 · 전 참여 브랜드 합동", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S02", day: 1, date: "2026.10.29", dow: "목", time: "13:00", end: "13:30", title: "Joint Show ①",       titleKo: "연합 패션쇼 ①",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S03", day: 1, date: "2026.10.29", dow: "목", time: "15:00", end: "15:30", title: "Joint Show ②",       titleKo: "연합 패션쇼 ②",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S04", day: 2, date: "2026.10.30", dow: "금", time: "11:30", end: "12:00", title: "Joint Show ③",       titleKo: "연합 패션쇼 ③",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S05", day: 2, date: "2026.10.30", dow: "금", time: "13:00", end: "13:30", title: "Joint Show ④",       titleKo: "연합 패션쇼 ④",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "14:30", end: "15:00", title: "Joint Show ⑤",       titleKo: "연합 패션쇼 ⑤",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "17:30", end: "18:30", title: "Design Competition", titleKo: "디자인 경진대회 패션쇼", lineup: "신진 디자이너",            venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S08", day: 3, date: "2026.10.31", dow: "토", time: "11:00", end: "11:30", title: "Joint Show ⑥",       titleKo: "연합 패션쇼 ⑥",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S09", day: 3, date: "2026.10.31", dow: "토", time: "13:00", end: "13:30", title: "Joint Show ⑦",       titleKo: "연합 패션쇼 ⑦",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S10", day: 3, date: "2026.10.31", dow: "토", time: "14:30", end: "15:00", title: "Joint Show ⑧",       titleKo: "연합 패션쇼 ⑧",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S11", day: 3, date: "2026.10.31", dow: "토", time: "16:00", end: "16:30", title: "Joint Show ⑨",       titleKo: "연합 패션쇼 ⑨",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
+      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑩",       titleKo: "연합 패션쇼 ⑩",    lineup: "피날레",                  venue: "메인 런웨이", cap: 300, tbd: true }
     ]
   };
 
