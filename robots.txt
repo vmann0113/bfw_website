@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.busanfashionweek.com/sitemap.xml
+Sitemap: https://bfw-website-brown.vercel.app/sitemap.xml

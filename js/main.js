@@ -83,4 +83,26 @@
         document.querySelector(".nav-links").style.display === "flex" ? "" : "flex";
     });
   }
+  /* ---- mobile: schedule day tabs ---- */
+  var schedTabs = [].slice.call(document.querySelectorAll(".sched-tab"));
+  var schedDays = [].slice.call(document.querySelectorAll(".sched-board .sday"));
+  if (schedTabs.length && schedDays.length) {
+    if (schedDays[0]) schedDays[0].classList.add("is-active");
+    schedTabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var i = parseInt(tab.getAttribute("data-day"), 10) || 0;
+        schedTabs.forEach(function (t) { t.classList.remove("is-active"); });
+        schedDays.forEach(function (d) { d.classList.remove("is-active"); });
+        tab.classList.add("is-active");
+        if (schedDays[i]) schedDays[i].classList.add("is-active");
+      });
+    });
+  }
+
+  /* ---- mobile: 2025 lineup accordion (first group open) ---- */
+  var lyGroups = [].slice.call(document.querySelectorAll("#lastyear .ly-group"));
+  lyGroups.forEach(function (g, idx) {
+    var label = g.querySelector(".ly-label");
+    if (label) label.addEventListener("click", function () { g.classList.toggle("is-open"); });
+  });
 })();

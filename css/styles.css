@@ -491,6 +491,10 @@ html.intro .hero__title-img {
 .slot.feat .slot__n::after { content: "OPENING"; font-family: var(--mono); font-size: .56rem; font-weight: 700; letter-spacing: .12em; color: var(--coral-deep); border: 1px solid color-mix(in oklch, var(--coral) 45%, transparent); border-radius: 100px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
 .slot.fin .slot__n::after { content: "FINALE"; font-family: var(--mono); font-size: .56rem; font-weight: 700; letter-spacing: .12em; color: var(--coral-deep); border: 1px solid color-mix(in oklch, var(--coral) 45%, transparent); border-radius: 100px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
 .sched-note { font-family: var(--kr); font-size: .86rem; color: var(--ink-mute); margin-top: 26px; line-height: 1.6; }
+.sched-tabs { display: none; }
+.sched-tab { flex: 1; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 9px 6px; font-family: var(--kr); font-weight: 700; font-size: .9rem; color: var(--ink-mute); display: flex; flex-direction: column; gap: 2px; cursor: pointer; line-height: 1.2; }
+.sched-tab span { font-family: var(--mono); font-size: .6rem; font-weight: 400; letter-spacing: .04em; opacity: .8; }
+.sched-tab.is-active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 @media (max-width: 860px){ .sched-board { grid-template-columns: 1fr; } }
 
 /* =================================================================
@@ -717,6 +721,43 @@ html.intro .r { opacity: 0; transform: translateY(34px); transition: opacity .9s
 /* Must out-specify `html.intro .r` (0,2,1) so revealed items actually show. */
 html.intro .r.in { opacity: 1; transform: none; }
 .r.d1 { transition-delay: .08s; } .r.d2 { transition-delay: .16s; } .r.d3 { transition-delay: .24s; } .r.d4 { transition-delay: .32s; }
+/* ---- phone: tighten vertical rhythm, shorten lists ---- */
+@media (max-width: 600px) {
+  .section { padding: 42px var(--pad); }
+  .sec-head { margin-bottom: 22px; gap: 10px; }
+  .sec-title { font-size: clamp(1.9rem, 10vw, 2.7rem); }
+  .marquee__track { gap: 18px; padding-right: 18px; }
+  .story-grid { gap: 22px; }
+  /* About: hide photo + uniform stat cards */
+  .story-media { display: none; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 10px; grid-auto-rows: 1fr; }
+  .stat { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #ffffff; border-radius: 16px; padding: 22px 14px; }
+  .stat .v { font-size: 2.3rem; color: var(--ink); }
+  .stat .k { margin-top: 8px; color: var(--ink); }
+  .stat .k b { color: color-mix(in oklch, var(--ink) 58%, transparent); }
+  /* 2025 lineup: two per row so 19 brands aren't 19 stacked rows */
+  .ly-logos { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ly-logo__tile { padding: 16px; border-radius: 12px; }
+  .ly-logo__tile img { max-height: 52px; }
+  .ly-logo__tile.empty span { font-size: .9rem; }
+  .ly-logo__name { font-size: .9rem; margin-top: 10px; }
+  .ly-group { margin-bottom: 20px; }
+  .sday { border-radius: 12px; }
+  /* schedule: one day at a time via tabs */
+  .sched-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .sched-board { display: block; }
+  .sched-board .sday { display: none; }
+  .sched-board .sday.is-active { display: flex; }
+  /* 2025 lineup: accordion */
+  .ly-label { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+  .ly-label::after { content: "+"; font-family: var(--mono); font-size: 1.3rem; line-height: 1; color: var(--ink-mute); }
+  .ly-group.is-open .ly-label::after { content: "\2013"; }
+  .ly-group .ly-logos { display: none; }
+  .ly-group.is-open .ly-logos { display: grid; }
+  .footer { padding: 44px var(--pad) 28px; }
+  .footer__cols { grid-template-columns: 1fr 1fr; gap: 22px 20px; }
+}
+
 @media print {
   .r { opacity: 1 !important; transform: none !important; }
   .hero__title .word { animation: none !important; }
