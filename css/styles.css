@@ -571,7 +571,7 @@ a.ly-logo:hover .ly-logo__tile { border-color: var(--ocean); transform: translat
 .ly-logo__tile.fill img { max-height: none; width: 100%; height: 100%; object-fit: cover; }
 .ly-logo__tile.empty span { font-family: var(--disp); font-weight: 700; text-transform: uppercase; font-size: 1.05rem; color: var(--ink); padding: 0 10px; }
 .ly-logo__name { font-family: var(--kr); font-weight: 700; font-size: 1.02rem; color: var(--ink); margin-top: 16px; letter-spacing: .01em; }
-.ly-logo__country { font-family: var(--mono); font-weight: 700; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); margin-top: 5px; }
+.ly-logo__country { font-family: var(--kr); font-size: .82rem; color: var(--ink-mute); margin-top: 5px; }
 
 /* =================================================================
    IR / INVEST
