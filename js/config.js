@@ -80,8 +80,8 @@
 
     /* Instagram */
     instagram: {
-      handle: "busanfashionweek",
-      profileUrl: "https://www.instagram.com/busanfashionweek",
+      handle: "btfa_bfw",
+      profileUrl: "https://www.instagram.com/btfa_bfw/",
       token: "",                       // IG Basic Display long-lived token (optional)
       userId: "",                      // IG user id for Graph API (optional)
       count: 6,
@@ -167,13 +167,13 @@
       { id: "S03", day: 1, date: "2026.10.29", dow: "목", time: "15:00", end: "15:30", title: "Joint Show ②",       titleKo: "연합 패션쇼 ②",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S04", day: 2, date: "2026.10.30", dow: "금", time: "11:30", end: "12:00", title: "Joint Show ③",       titleKo: "연합 패션쇼 ③",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S05", day: 2, date: "2026.10.30", dow: "금", time: "13:00", end: "13:30", title: "Joint Show ④",       titleKo: "연합 패션쇼 ④",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "14:30", end: "15:00", title: "Joint Show ⑤",       titleKo: "연합 패션쇼 ⑤",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "17:30", end: "18:30", title: "Design Competition", titleKo: "디자인 경진대회 패션쇼", lineup: "신진 디자이너",            venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "14:00", end: "15:00", title: "Design Competition", titleKo: "부산패션디자인경진대회&부산콜렉션", lineup: "",            venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "17:00", end: "17:30", title: "Joint Show ⑤",       titleKo: "연합 패션쇼 ⑤",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S08", day: 3, date: "2026.10.31", dow: "토", time: "11:00", end: "11:30", title: "Joint Show ⑥",       titleKo: "연합 패션쇼 ⑥",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S09", day: 3, date: "2026.10.31", dow: "토", time: "13:00", end: "13:30", title: "Joint Show ⑦",       titleKo: "연합 패션쇼 ⑦",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S10", day: 3, date: "2026.10.31", dow: "토", time: "14:30", end: "15:00", title: "Joint Show ⑧",       titleKo: "연합 패션쇼 ⑧",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
       { id: "S11", day: 3, date: "2026.10.31", dow: "토", time: "16:00", end: "16:30", title: "Joint Show ⑨",       titleKo: "연합 패션쇼 ⑨",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑩",       titleKo: "연합 패션쇼 ⑩",    lineup: "피날레",                  venue: "메인 런웨이", cap: 300, tbd: true }
+      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑩",       titleKo: "연합 패션쇼 ⑩",    lineup: "라인업 추후 공개",                  venue: "메인 런웨이", cap: 300, tbd: true }
     ]
   };
 
