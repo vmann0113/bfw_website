@@ -25,6 +25,7 @@
       <button data-tab="brand" class="active"><span class="ico">◆</span> 브랜드</button>
       <button data-tab="brandlist"><span class="ico">▣</span> 참여 브랜드</button>
       <button data-tab="unilist"><span class="ico">▤</span> 참여 대학</button>
+      <button data-tab="lastyear"><span class="ico">▥</span> 2025 라인업</button>
       <button data-tab="event"><span class="ico">✦</span> 행사 정보</button>
       <button data-tab="sections"><span class="ico">▦</span> 섹션 On/Off</button>
       <button data-tab="media"><span class="ico">▶</span> On Film 영상</button>
@@ -218,6 +219,24 @@
         <div class="card">
           <div class="items" id="uniItems"></div>
           <div class="addbar"><button class="btn ghost" id="uniAdd">+ 대학 추가</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 2025 LINEUP (BRAND / UNIVERSITY) ===== -->
+      <section class="panel" data-panel="lastyear">
+        <div class="panel__head">
+          <h2>2025 참여 라인업</h2>
+          <p>스케줄 아래 노출되는 작년 참여 로고 월입니다. BRAND · UNIVERSITY로 구분되며, 로고 이미지로 표시됩니다. 투명 PNG 권장.</p>
+        </div>
+        <div class="card">
+          <h3>BRAND</h3>
+          <div class="items" id="lyBrandItems"></div>
+          <div class="addbar"><button class="btn ghost" id="lyBrandAdd">+ 브랜드 추가</button></div>
+        </div>
+        <div class="card">
+          <h3>UNIVERSITY</h3>
+          <div class="items" id="lyUniItems"></div>
+          <div class="addbar"><button class="btn ghost" id="lyUniAdd">+ 대학 추가</button></div>
         </div>
       </section>
 
