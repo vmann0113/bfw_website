@@ -61,6 +61,18 @@
   }
 
   /* ---------- SECTION ON/OFF ---------- */
+  function markSoonLink(a) {
+    a.classList.add("soon");
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      var t = document.querySelector(".soon-toast");
+      if (!t) { t = document.createElement("div"); t.className = "soon-toast"; document.body.appendChild(t); }
+      t.textContent = "준비중입니다 — 곧 공개됩니다.";
+      t.classList.add("show");
+      clearTimeout(t._tm);
+      t._tm = setTimeout(function () { t.classList.remove("show"); }, 1800);
+    });
+  }
   function applySections() {
     Object.keys(cfg.sections).forEach(function (id) {
       var s = cfg.sections[id];
@@ -73,7 +85,9 @@
       if (s.offMode === "hidden") {
         sec.style.display = "none";
         document.querySelectorAll('a[href="#' + id + '"]').forEach(function (a) {
-          if (!a.classList.contains("nav-cta")) a.style.display = "none";
+          if (a.classList.contains("nav-cta")) return;
+          if (a.closest(".nav-links")) { markSoonLink(a); return; } // keep menu visible
+          a.style.display = "none";
         });
       } else {
         // coming-soon: keep the section header, replace the body
@@ -179,36 +193,18 @@
   function applyBrands() {
     var grid = document.getElementById("brandGrid");
     if (!grid || !cfg.brands) return;
-    var tabs = document.querySelector("#brands .brand-tabs");
     grid.innerHTML = "";
     if (!cfg.brands.length) {
-      if (tabs) tabs.style.display = "none";
       grid.appendChild(el('<div class="wall-empty">준비중입니다.</div>'));
       return;
     }
-    if (tabs) tabs.style.display = "";
-    cfg.brands.forEach(function (b, i) {
-      var href = b.link || "";
-      var hasLink = !!b.link;
-      var inner =
-        '<div class="bcard__top"><span class="no">' + esc(b.no || "") + "</span>" +
-          (b.country ? '<span class="flag">' + esc(b.country) + "</span>" : "") + "</div>" +
-        '<div class="bcard__logo' + (b.logo ? "" : " empty") + '">' +
-          (b.logo
-            ? '<img src="' + esc(b.logo) + '" alt="' + esc(b.name) + '" />'
-            : '<span class="bn">' + esc(b.name) + "</span>") +
-        "</div>" +
-        '<div class="bcard__name"><span class="bk">' + esc(b.nameKo || "") + "</span>" +
-          (hasLink ? '<span class="arrow">↗</span>' : "") + "</div>";
-      var tag = hasLink ? "a" : "div";
-      var card = el("<" + tag + ' class="bcard r' + (b.cat === "intl" ? " intl" : "") + (i < 8 ? " in" : "") + '" data-cat="' + esc(b.cat || "kr") + '"' +
-        (hasLink ? ' href="' + esc(href) + '" target="_blank" rel="noopener"' : "") + ">" + inner + "</" + tag + ">");
-      grid.appendChild(card);
+    cfg.brands.forEach(function (b) {
+      grid.appendChild(lyCard({ name: b.name, country: b.cat === "intl" ? (b.country || "GLOBAL") : "", logo: b.logo, dark: b.dark, fill: b.fill, link: b.link }));
     });
-    wireBrandFilter();
   }
   function wireBrandFilter() {
     var tabs = document.querySelectorAll(".brand-tab");
+    if (!tabs.length) return;
     var cards = document.querySelectorAll("#brandGrid .bcard");
     tabs.forEach(function (tab) {
       tab.onclick = function () {
@@ -222,6 +218,17 @@
     });
   }
 
+  /* ---------- 2025 lineup accordion ---------- */
+  (function () {
+    var t = document.getElementById("lyToggle"), b = document.getElementById("lyBody");
+    if (!t || !b) return;
+    t.addEventListener("click", function () {
+      var open = t.getAttribute("aria-expanded") === "true";
+      t.setAttribute("aria-expanded", open ? "false" : "true");
+      b.hidden = open;
+    });
+  })();
+
   /* ---------- UNIVERSITIES (logo wall) ---------- */
   function applyUniversities() {
     var grid = document.getElementById("uniGrid");
@@ -231,18 +238,7 @@
       grid.appendChild(el('<div class="wall-empty">준비중입니다.</div>'));
       return;
     }
-    cfg.universities.forEach(function (u) {
-      var hasLink = !!u.link;
-      var tag = hasLink ? "a" : "div";
-      var inner =
-        '<div class="uni-logo__img' + (u.logo ? "" : " empty") + '">' +
-          (u.logo ? '<img src="' + esc(u.logo) + '" alt="' + esc(u.name) + '" />' : "") +
-        "</div>" +
-        '<span class="uni-logo__name">' + esc(u.name) + "</span>";
-      var card = el("<" + tag + ' class="uni-logo"' +
-        (hasLink ? ' href="' + esc(u.link) + '" target="_blank" rel="noopener"' : "") + ">" + inner + "</" + tag + ">");
-      grid.appendChild(card);
-    });
+    cfg.universities.forEach(function (u) { grid.appendChild(lyCard(u)); });
   }
 
   /* ---------- PRESS (news cards) ---------- */
@@ -439,35 +435,65 @@
     document.head.appendChild(s);
   }
 
+  /* ---------- D-DAY COUNTDOWN ---------- */
+  var ddTimer = null;
+  function applyCountdown() {
+    var cd = cfg.countdown || {};
+    var box = document.getElementById("dday");
+    if (!box) return;
+    if (ddTimer) { clearInterval(ddTimer); ddTimer = null; }
+    var t = cd.target ? new Date(cd.target).getTime() : NaN;
+    if (!cd.enabled || isNaN(t)) { box.style.display = "none"; return; }
+    box.style.display = "";
+    function cell(k, lab) { return '<div class="dd-cell"><b data-dd="' + k + '">--</b><span>' + lab + "</span></div>"; }
+    box.innerHTML = '<div class="dd-label">' + esc(cd.label || "D-DAY") + '</div><div class="dd-cells">' +
+      cell("d", "Days") + cell("h", "Hours") + cell("m", "Min") + cell("s", "Sec") + "</div>";
+    function pad(n) { return String(n).padStart(2, "0"); }
+    function tick() {
+      var diff = t - Date.now();
+      if (diff <= 0) {
+        box.innerHTML = '<div class="dd-label">' + esc(cd.label || "D-DAY") + '</div><div class="dd-live">NOW ON — 부산패션위크가 진행 중입니다</div>';
+        clearInterval(ddTimer); ddTimer = null;
+        return;
+      }
+      box.querySelector('[data-dd=d]').textContent = pad(Math.floor(diff / 86400000));
+      box.querySelector('[data-dd=h]').textContent = pad(Math.floor(diff / 3600000) % 24);
+      box.querySelector('[data-dd=m]').textContent = pad(Math.floor(diff / 60000) % 60);
+      box.querySelector('[data-dd=s]').textContent = pad(Math.floor(diff / 1000) % 60);
+    }
+    tick();
+    ddTimer = setInterval(tick, 1000);
+  }
+
   /* ---------- RESERVE entry points (nav + visit CTAs) ---------- */
   function applyReserve() {
     var r = cfg.reserve || {};
     var navCta = document.querySelector(".nav .nav-cta");
-    var primary = document.querySelector("#visit .btn.primary");
-    var target = "register.html";
+    var cbReserve = document.getElementById("cbReserve");
+    var cbPress = document.getElementById("cbPress");
+    var soon = document.getElementById("ctaSoon");
+    var live = !!r.published;
+    if (soon) soon.style.display = live ? "none" : "";
 
-    if (!r.published) {
-      // Not launched yet: remove all reservation entry points from the public site.
-      if (navCta) navCta.style.display = "none";
-      if (primary) primary.style.display = "none";
-      document.querySelectorAll('a[href="register.html"]').forEach(function (a) {
-        if (a !== navCta && a !== primary) a.style.display = "none";
-      });
-      return;
+    // Fixed bottom CTA bar: countdown + two buttons ("예정" ↔ active).
+    if (cbReserve) {
+      if (!live) { cbReserve.classList.add("is-disabled"); cbReserve.removeAttribute("href"); cbReserve.textContent = "관람 예약 예정"; }
+      else if (!r.open) { cbReserve.classList.add("is-disabled"); cbReserve.removeAttribute("href"); cbReserve.textContent = "예약 마감"; }
+      else { cbReserve.classList.remove("is-disabled"); cbReserve.href = "register.html"; cbReserve.innerHTML = "패션쇼 관람 신청 <span>→</span>"; }
     }
-
-    // Published. Reservation is live (or shows the closed note on register.html).
-    if (navCta) { navCta.style.display = ""; navCta.href = target; }
-    if (primary) {
-      primary.style.display = "";
-      if (!r.open) {
-        primary.classList.add("is-disabled");
-        primary.removeAttribute("href");
-        primary.innerHTML = "예약 마감 <span>·</span>";
-      } else {
-        primary.href = target;
-      }
+    if (cbPress) {
+      if (!live) { cbPress.classList.add("is-disabled"); cbPress.removeAttribute("href"); cbPress.textContent = "프레스 신청 예정"; }
+      else { cbPress.classList.remove("is-disabled"); cbPress.href = "press.html"; cbPress.innerHTML = "프레스 방문 신청 <span>→</span>"; }
     }
+    if (navCta) {
+      navCta.style.display = "";
+      if (live) { navCta.classList.remove("is-disabled"); navCta.href = "register.html"; navCta.textContent = "관람예약 · Reserve"; }
+      else { navCta.classList.add("is-disabled"); navCta.removeAttribute("href"); navCta.textContent = "관람예약 오픈 예정"; }
+    }
+    // other entry links elsewhere on the page follow the on/off state
+    document.querySelectorAll('a[href="register.html"], a[href="press.html"]').forEach(function (a) {
+      if (a !== navCta && a !== cbReserve && a !== cbPress) a.style.display = live ? "" : "none";
+    });
   }
 
   /* ---------- renumber visible section indices (e.g. after IR is hidden) ---------- */
@@ -498,6 +524,7 @@
     applyInstagram();
     applyMap();
     applyReserve();
+    applyCountdown();
     renumberSections();
     document.documentElement.setAttribute("data-bfw-ready", "1");
   }

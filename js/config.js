@@ -10,6 +10,9 @@
   var KEY = "bfw_config_v1";
   var SUBS_KEY = "bfw_submissions_v1";
   var RESV_KEY = "bfw_reservations_v1";
+  var PRESS_KEY = "bfw_press_v1";
+  var MEMBERS_KEY = "bfw_members_v1";
+  var SESSION_KEY = "bfw_member_session_v1";
 
   /* -----------------------------------------------------------
      BACKEND KEYS — go-live switch.
@@ -40,13 +43,20 @@
       dateFull: "2026.10.29 (목) — 10.31 (토)"
     },
 
+    /* D-Day countdown (visit 섹션) */
+    countdown: {
+      enabled: true,
+      target: "2026-10-29T10:00",       // datetime-local 형식 · KST
+      label: "D-DAY — 오프닝까지"
+    },
+
     /* per-section: enabled + offMode ("coming" | "hidden") */
     sections: {
       story:      { enabled: true, offMode: "coming", label: "About" },
       schedule:   { enabled: true, offMode: "coming", label: "Schedule" },
       lastyear:   { enabled: true, offMode: "hidden", label: "2025 Lineup" },
-      brands:     { enabled: false, offMode: "hidden", label: "Designer Brands" },
-      university: { enabled: false, offMode: "hidden", label: "University Show" },
+      brands:     { enabled: true, offMode: "hidden", label: "Designer Brands" },
+      university: { enabled: true, offMode: "hidden", label: "University Show" },
       ir:         { enabled: false, offMode: "hidden", label: "Invest Connect" },
       media:      { enabled: false, offMode: "hidden", label: "On Film" },
       archive:    { enabled: false, offMode: "hidden", label: "Archive" },
@@ -114,9 +124,31 @@
       defaultCap: 300
     },
 
+    /* Press visit applications — reviewed & approved in admin */
+    pressVisit: {
+      open: true,
+      note: "프레스 방문은 신청 후 심사를 거쳐 승인됩니다. 승인되면 프레스 QR이 발급되며, 행사 당일 프레스 데스크에서 QR 제시 후 비표를 수령하세요."
+    },
+
     /* Participating designer brands — logo wall. Empty until recruitment;
        add brands (with logos) in the admin console. */
-    brands: [],
+    brands: [
+      { no: "01", name: "레뷰라",            nameKo: "레뷰라",          logo: "images/brand26-src-01.png", fill: true, cat: "kr", link: "" },
+      { no: "02", name: "르망고",           nameKo: "르망고",          logo: "images/brand26-src-02.png", fill: true, cat: "kr", link: "" },
+      { no: "03", name: "리온베",             nameKo: "리온베",          logo: "images/brand26-src-03.png", fill: true, cat: "kr", link: "" },
+      { no: "04", name: "메르최",          nameKo: "메르최",          logo: "images/brand26-src-04.png", fill: true, cat: "kr", link: "" },
+      { no: "05", name: "미지미지",           nameKo: "미지미지",        logo: "images/brand26-src-05.png", fill: true, cat: "kr", link: "" },
+      { no: "06", name: "바주요",            nameKo: "바주요",          logo: "images/brand26-src-06.png", fill: true, cat: "kr", link: "" },
+      { no: "07", name: "소언한복",      nameKo: "소언한복",        logo: "images/brand26-src-07.png", fill: true, cat: "kr", link: "" },
+      { no: "08", name: "소티에",             nameKo: "소티에",          logo: "images/brand26-src-08.png", fill: true, cat: "kr", link: "" },
+      { no: "09", name: "스튜디오 디 뻬를라",   nameKo: "스튜디오 디 뻬를라", logo: "images/brand26-src-09.png", fill: true, cat: "kr", link: "" },
+      { no: "10", name: "오교",             nameKo: "오교",            logo: "images/brand26-src-10.png", fill: true, cat: "kr", link: "" },
+      { no: "11", name: "이미경 뷰띠끄",       nameKo: "이미경 뷰띠끄",    logo: "images/brand26-src-11.png", fill: true, cat: "kr", link: "" },
+      { no: "12", name: "이영희프레젠트",      nameKo: "이영희프레젠트",   logo: "images/brand26-src-12.png", fill: true, cat: "kr", link: "" },
+      { no: "13", name: "카마모에",           nameKo: "카마모에",        logo: "images/brand26-src-13.png", fill: true, cat: "kr", link: "" },
+      { no: "14", name: "코타로 타니야마",   nameKo: "코타로 타니야마",  logo: "images/brand26-src-14.png", fill: true, cat: "intl", country: "JAPAN", link: "" },
+      { no: "15", name: "프랭커스",          nameKo: "프랭커스",        logo: "images/brand26-15.png", cat: "kr", dark: true, fill: true, link: "" }
+    ],
 
     /* Last year's (2025) participating lineup — split BRAND / UNIVERSITY (archive). */
     lastYear: {
@@ -157,25 +189,39 @@
 
     /* Participating universities — logo wall. Empty until the open call;
        add schools (with logos) in the admin console. */
-    universities: [],
+    universities: [
+      { name: "경성대학교", country: "패션디자인학과", logo: "images/ly-uni-kyungsung.png", link: "" },
+      { name: "동명대학교", country: "패션디자인학과", logo: "images/ly-uni-tongmyong.png", link: "" },
+      { name: "동서대학교", country: "패션디자인학과", logo: "images/ly-uni-dongseo.png", link: "" },
+      { name: "동아대학교", country: "패션디자인학과", logo: "images/ly-uni-donga.png", link: "" },
+      { name: "동의대학교", country: "패션디자인학과", logo: "images/ly-uni-dongeui.png", link: "" },
+      { name: "국립부경대학교", country: "패션디자인학과", logo: "images/ly-uni-pukyong.png", link: "" },
+      { name: "부산대학교", country: "의류학과", logo: "images/ly-uni-pusan.png", link: "" },
+      { name: "신라대학교", country: "디자인학부 패션디자인전공", logo: "images/ly-uni-silla.png", link: "" },
+      { name: "영산대학교", country: "패션디자인학과", logo: "images/ly-uni-youngsan.png", link: "" }
+    ],
 
     /* Runway shows — each capped, reservable. Edit freely in admin.
        Times from the official 본행사 타임테이블; lineups TBD until confirmed. */
     shows: [
-      { id: "S01", day: 1, date: "2026.10.29", dow: "목", time: "10:00", end: "10:30", title: "Opening Show",       titleKo: "오프닝 패션쇼",     lineup: "개막식 · 전 참여 브랜드 합동", venue: "메인 런웨이", cap: 300, tbd: false },
-      { id: "S02", day: 1, date: "2026.10.29", dow: "목", time: "13:00", end: "13:30", title: "Joint Show ①",       titleKo: "연합 패션쇼 ①",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S03", day: 1, date: "2026.10.29", dow: "목", time: "15:00", end: "15:30", title: "Joint Show ②",       titleKo: "연합 패션쇼 ②",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S04", day: 2, date: "2026.10.30", dow: "금", time: "11:30", end: "12:00", title: "Joint Show ③",       titleKo: "연합 패션쇼 ③",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S05", day: 2, date: "2026.10.30", dow: "금", time: "13:00", end: "13:30", title: "Joint Show ④",       titleKo: "연합 패션쇼 ④",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "14:00", end: "15:00", title: "Design Competition", titleKo: "부산패션디자인경진대회&부산콜렉션", lineup: "",            venue: "메인 런웨이", cap: 300, tbd: false },
-      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "17:00", end: "17:30", title: "Joint Show ⑤",       titleKo: "연합 패션쇼 ⑤",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S08", day: 3, date: "2026.10.31", dow: "토", time: "11:00", end: "11:30", title: "Joint Show ⑥",       titleKo: "연합 패션쇼 ⑥",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S09", day: 3, date: "2026.10.31", dow: "토", time: "13:00", end: "13:30", title: "Joint Show ⑦",       titleKo: "연합 패션쇼 ⑦",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S10", day: 3, date: "2026.10.31", dow: "토", time: "14:30", end: "15:00", title: "Joint Show ⑧",       titleKo: "연합 패션쇼 ⑧",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S11", day: 3, date: "2026.10.31", dow: "토", time: "16:00", end: "16:30", title: "Joint Show ⑨",       titleKo: "연합 패션쇼 ⑨",    lineup: "라인업 추후 공개",        venue: "메인 런웨이", cap: 300, tbd: true },
-      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑩",       titleKo: "연합 패션쇼 ⑩",    lineup: "라인업 추후 공개",                  venue: "메인 런웨이", cap: 300, tbd: true }
+      { id: "S01", day: 1, date: "2026.10.29", dow: "목", time: "11:00", end: "11:50", title: "Opening",            titleKo: "패페부산X부산패션위크 개막식", lineup: "오프닝",                        venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S02", day: 1, date: "2026.10.29", dow: "목", time: "13:00", end: "13:30", title: "Joint Show ①",       titleKo: "연합쇼 ①",  lineup: "레뷰라X코타로 타니야마 · 해외브랜드 연합쇼", tag: "브랜드", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S03", day: 1, date: "2026.10.29", dow: "목", time: "14:30", end: "15:00", title: "Joint Show ②",       titleKo: "연합쇼 ②",  lineup: "동아대학교", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S04", day: 1, date: "2026.10.29", dow: "목", time: "16:00", end: "16:30", title: "Joint Show ③",       titleKo: "연합쇼 ③",  lineup: "이미경 뷰띠끄 · 르망고 · 해외브랜드 연합쇼", tag: "브랜드", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S05", day: 2, date: "2026.10.30", dow: "금", time: "10:30", end: "11:00", title: "Joint Show ④",       titleKo: "연합쇼 ④",  lineup: "오교 · 리온베 · 이영희 프리젠트", tag: "브랜드", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S06", day: 2, date: "2026.10.30", dow: "금", time: "12:00", end: "12:30", title: "Joint Show ⑤",       titleKo: "연합쇼 ⑤",  lineup: "국립부경대학교 · 동명대학교 · 소언한복X경상국립대", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S07", day: 2, date: "2026.10.30", dow: "금", time: "14:00", end: "16:00", title: "Design Competition", titleKo: "부산패션디자인경진대회 & 부산컬렉션", lineup: "", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S08", day: 2, date: "2026.10.30", dow: "금", time: "17:00", end: "17:30", title: "Joint Show ⑥",       titleKo: "연합쇼 ⑥",  lineup: "동의대학교 · 경성대학교", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S09", day: 3, date: "2026.10.31", dow: "토", time: "11:00", end: "11:30", title: "Joint Show ⑦",       titleKo: "연합쇼 ⑦",  lineup: "신라대학교 · 영산대학교", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S10", day: 3, date: "2026.10.31", dow: "토", time: "13:00", end: "13:30", title: "Joint Show ⑧",       titleKo: "연합쇼 ⑧",  lineup: "부산대학교", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S11", day: 3, date: "2026.10.31", dow: "토", time: "14:30", end: "15:00", title: "Joint Show ⑨",       titleKo: "연합쇼 ⑨",  lineup: "카마모에X소티에 · 스튜디오 디 뻬를라 · 프랭커스", tag: "브랜드", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S12", day: 3, date: "2026.10.31", dow: "토", time: "16:00", end: "16:30", title: "Joint Show ⑩",       titleKo: "연합쇼 ⑩",  lineup: "마르즈 · 미지미지 · 바주요", tag: "브랜드", venue: "메인 런웨이", cap: 300, tbd: false },
+      { id: "S13", day: 3, date: "2026.10.31", dow: "토", time: "17:30", end: "18:00", title: "Joint Show ⑪",       titleKo: "연합쇼 ⑪",  lineup: "동서대학교", tag: "대학", venue: "메인 런웨이", cap: 300, tbd: false }
     ]
   };
+
+  /* ---- BAKED: live site state exported 2026-08-04 — applied over DEFAULTS for all visitors ---- */
+  var BAKED = {"brand":{"logo":null,"textPrimary":"BUSAN","textSecondary":"FW","nameKo":"부산패션위크"},"event":{"year":"2026","venue":"@BEXCO","dateLine":"10. 29. — 10. 31.","dateFull":"2026.10.29 (목) — 10.31 (토)"},"countdown":{"enabled":true,"target":"2026-10-29T10:00","label":"D-DAY — 오프닝까지"},"sections":{"story":{"enabled":true,"offMode":"coming","label":"About"},"schedule":{"enabled":true,"offMode":"coming","label":"Schedule"},"lastyear":{"enabled":true,"offMode":"hidden","label":"2025 Lineup"},"brands":{"enabled":true,"offMode":"hidden","label":"Designer Brands"},"university":{"enabled":true,"offMode":"hidden","label":"University Show"},"ir":{"enabled":false,"offMode":"hidden","label":"Invest Connect"},"media":{"enabled":false,"offMode":"hidden","label":"On Film"},"archive":{"enabled":false,"offMode":"hidden","label":"Archive"},"instagram":{"enabled":false,"offMode":"hidden","label":"Instagram"},"visit":{"enabled":true,"offMode":"coming","label":"Visit & Register"}},"media":{"mode":"youtube","url":"","title":"2026 부산패션위크 · Official Highlight Film","live":false,"poster":null},"press":{"auto":false,"proxyUrl":"","query":"부산패션위크","count":6,"items":[]},"archive":[],"instagram":{"handle":"busanfashionweek","profileUrl":"https://www.instagram.com/busanfashionweek","token":"","userId":"","count":6,"posts":[]},"map":{"naverClientId":"3rq3r6poqp","lat":35.16871,"lng":129.1339,"zoom":16,"address":"벡스코(BEXCO) 제1전시장 3B홀","addressEn":"BEXCO Exhibition Hall 1, 3B · Busan"},"register":{"open":true,"externalUrl":"","deadline":"2026.10.10","note":"참가 신청은 심사 후 개별 안내됩니다."},"reserve":{"published":false,"open":true,"note":"전 좌석 무료 · 1인 1석 · 선착순 마감. 예약 후 발급되는 QR을 현장에서 제시하세요.","defaultCap":300},"pressVisit":{"open":true,"note":"프레스 방문은 신청 후 심사를 거쳐 승인됩니다. 승인되면 프레스 QR이 발급되며, 행사 당일 프레스 데스크에서 QR 제시 후 비표를 수령하세요."},"brands":[{"no":"01","name":"레뷰라","nameKo":"레뷰라","logo":"images/brand26-src-01.png","cat":"kr","link":"","fill":true},{"no":"02","name":"르망고","nameKo":"르망고","logo":"images/brand26-src-02.png","cat":"kr","link":"","fill":true},{"no":"03","name":"리온베","nameKo":"리온베","logo":"images/brand26-src-03.png","cat":"kr","link":"","fill":true},{"no":"04","name":"메르최","nameKo":"메르최","logo":"images/brand26-src-04.png","cat":"kr","link":"","fill":true},{"no":"05","name":"미지미지","nameKo":"미지미지","logo":"images/brand26-src-05.png","cat":"kr","link":"","fill":true},{"no":"06","name":"바주요","nameKo":"바주요","logo":"images/brand26-src-06.png","cat":"kr","link":"","fill":true},{"no":"07","name":"소언한복","nameKo":"소언한복","logo":"images/brand26-src-07.png","cat":"kr","link":"","fill":true},{"no":"08","name":"소티에","nameKo":"소티에","logo":"images/brand26-src-08.png","cat":"kr","link":"","fill":true},{"no":"09","name":"스튜디오 디 뻬를라","nameKo":"스튜디오 디 뻬를라","logo":"images/brand26-src-09.png","cat":"kr","link":"","fill":true},{"no":"10","name":"오교","nameKo":"오교","logo":"images/brand26-src-10.png","cat":"kr","link":"","fill":true},{"no":"11","name":"이미경 뷰띠끄","nameKo":"이미경 뷰띠끄","logo":"images/brand26-src-11.png","cat":"kr","link":"","fill":true},{"no":"12","name":"이영희프레젠트","nameKo":"이영희프레젠트","logo":"images/brand26-src-12.png","cat":"kr","link":"","fill":true},{"no":"13","name":"카마모에","nameKo":"카마모에","logo":"images/brand26-src-13.png","cat":"kr","link":"","fill":true},{"no":"14","name":"코타로 타니야마","nameKo":"코타로 타니야마","logo":"images/brand26-src-14.png","cat":"intl","link":"","country":"JAPAN","fill":true},{"no":"15","name":"프랭커스","nameKo":"프랭커스","logo":"images/brand26-15.png","cat":"kr","link":"","dark":true,"fill":true}],"shows":[{"id":"S01","day":1,"date":"2026.10.29","dow":"목","time":"11:00","end":"11:50","title":"Opening","titleKo":"패페부산X부산패션위크 개막식","lineup":"오프닝","venue":"메인 런웨이","cap":300,"tbd":false},{"id":"S02","day":1,"date":"2026.10.29","dow":"목","time":"13:00","end":"13:30","title":"Joint Show ①","titleKo":"연합쇼 ①","lineup":"레뷰라X코타로 타니야마 · 해외브랜드 연합쇼","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S03","day":1,"date":"2026.10.29","dow":"목","time":"14:30","end":"15:00","title":"Joint Show ②","titleKo":"연합쇼 ②","lineup":"동아대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S04","day":1,"date":"2026.10.29","dow":"목","time":"16:00","end":"16:30","title":"Joint Show ③","titleKo":"연합쇼 ③","lineup":"이미경 뷰띠끄 · 르망고 · 해외브랜드 연합쇼","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S05","day":2,"date":"2026.10.30","dow":"금","time":"10:30","end":"11:00","title":"Joint Show ④","titleKo":"연합쇼 ④","lineup":"오교 · 리온베 · 이영희 프리젠트","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S06","day":2,"date":"2026.10.30","dow":"금","time":"12:00","end":"12:30","title":"Joint Show ⑤","titleKo":"연합쇼 ⑤","lineup":"국립부경대학교 · 동명대학교 · 소언한복X경상국립대","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S07","day":2,"date":"2026.10.30","dow":"금","time":"14:00","end":"16:00","title":"Design Competition","titleKo":"부산패션디자인경진대회 & 부산컬렉션","lineup":"","venue":"메인 런웨이","cap":300,"tbd":false},{"id":"S08","day":2,"date":"2026.10.30","dow":"금","time":"17:00","end":"17:30","title":"Joint Show ⑥","titleKo":"연합쇼 ⑥","lineup":"동의대학교 · 경성대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S09","day":3,"date":"2026.10.31","dow":"토","time":"11:00","end":"11:30","title":"Joint Show ⑦","titleKo":"연합쇼 ⑦","lineup":"신라대학교 · 영산대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S10","day":3,"date":"2026.10.31","dow":"토","time":"13:00","end":"13:30","title":"Joint Show ⑧","titleKo":"연합쇼 ⑧","lineup":"부산대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S11","day":3,"date":"2026.10.31","dow":"토","time":"14:30","end":"15:00","title":"Joint Show ⑨","titleKo":"연합쇼 ⑨","lineup":"카마모에X소티에 · 스튜디오 디 뻬를라 · 프랭커스","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S12","day":3,"date":"2026.10.31","dow":"토","time":"16:00","end":"16:30","title":"Joint Show ⑩","titleKo":"연합쇼 ⑩","lineup":"마르즈 · 미지미지 · 바주요","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S13","day":3,"date":"2026.10.31","dow":"토","time":"17:30","end":"18:00","title":"Joint Show ⑪","titleKo":"연합쇼 ⑪","lineup":"동서대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"}]};
 
   /* ---- deep merge so new default keys appear for old saved data ---- */
   function isObj(v) { return v && typeof v === "object" && !Array.isArray(v); }
@@ -194,8 +240,9 @@
   function load() {
     try {
       var raw = global.localStorage.getItem(KEY);
-      if (!raw) return clone(DEFAULTS);
-      return merge(clone(DEFAULTS), JSON.parse(raw));
+      var base = merge(clone(DEFAULTS), BAKED);
+      if (!raw) return base;
+      return merge(base, JSON.parse(raw));
     } catch (e) {
       return clone(DEFAULTS);
     }
@@ -213,7 +260,7 @@
 
   function reset() {
     try { global.localStorage.removeItem(KEY); } catch (e) {}
-    return clone(DEFAULTS);
+    return merge(clone(DEFAULTS), BAKED);
   }
 
   /* ---- registration submissions ---- */
@@ -318,6 +365,90 @@
     return r;
   }
 
+  /* ---- members (간편 회원) ---- */
+  function loadMembers() {
+    try { return JSON.parse(global.localStorage.getItem(MEMBERS_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveMembers(list) {
+    try { global.localStorage.setItem(MEMBERS_KEY, JSON.stringify(list)); return true; } catch (e) { return e; }
+  }
+  function addMember(m) {
+    var list = loadMembers();
+    if (list.some(function (x) { return x.phone === m.phone; })) return { ok: false, reason: "dup" };
+    m.id = "M" + Date.now() + Math.random().toString(36).slice(2, 6);
+    m.at = new Date().toISOString();
+    list.unshift(m);
+    if (saveMembers(list) !== true) return { ok: false, reason: "storage" };
+    return { ok: true, member: m };
+  }
+  function findMemberByPhone(phone) {
+    phone = String(phone || "").trim();
+    return loadMembers().find(function (m) { return m.phone === phone; }) || null;
+  }
+  function getSession() { try { return JSON.parse(global.localStorage.getItem(SESSION_KEY)); } catch (e) { return null; } }
+  function setSession(m) { try { global.localStorage.setItem(SESSION_KEY, JSON.stringify(m)); } catch (e) {} }
+  function clearSession() { try { global.localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+
+  /* ---- press visit applications ---- */
+  function loadPress() {
+    try { return JSON.parse(global.localStorage.getItem(PRESS_KEY)) || []; } catch (e) { return []; }
+  }
+  function savePress(list) {
+    try { global.localStorage.setItem(PRESS_KEY, JSON.stringify(list)); return true; } catch (e) { return e; }
+  }
+  function addPressApp(e) {
+    var list = loadPress();
+    if (list.some(function (p) { return p.phone === e.phone && p.status !== "rejected"; })) return { ok: false, reason: "dup" };
+    e.id = "P" + Date.now() + Math.random().toString(36).slice(2, 6);
+    e.status = "pending";
+    e.code = null;
+    e.checkedIn = false;
+    e.checkedInAt = null;
+    e.at = new Date().toISOString();
+    list.unshift(e);
+    if (savePress(list) !== true) return { ok: false, reason: "storage" };
+    return { ok: true, entry: e };
+  }
+  function findPressByPhone(phone) {
+    phone = String(phone || "").trim();
+    return loadPress().filter(function (p) { return p.phone === phone; });
+  }
+  function setPressStatus(id, status) {
+    var list = loadPress();
+    var p = list.find(function (x) { return x.id === id; });
+    if (!p) return null;
+    p.status = status;
+    if (status === "approved" && !p.code) p.code = makeCode("PRS", list);
+    savePress(list);
+    return p;
+  }
+  function findPressByCode(code) {
+    var norm = normCode(code);
+    if (!norm) return null;
+    return loadPress().find(function (p) { return p.code === norm && p.status === "approved"; }) || null;
+  }
+  function pressCheckIn(code) {
+    var list = loadPress();
+    var norm = normCode(code);
+    var p = list.find(function (x) { return x.code === norm && x.status === "approved"; });
+    if (!p) return { ok: false, reason: "notfound" };
+    if (p.checkedIn) return { ok: false, reason: "already", entry: p };
+    p.checkedIn = true;
+    p.checkedInAt = new Date().toISOString();
+    savePress(list);
+    return { ok: true, entry: p };
+  }
+  function undoPressCheckIn(id) {
+    var list = loadPress();
+    var p = list.find(function (x) { return x.id === id; });
+    if (p) { p.checkedIn = false; p.checkedInAt = null; savePress(list); }
+    return p;
+  }
+  function deletePressApp(id) {
+    savePress(loadPress().filter(function (x) { return x.id !== id; }));
+    return true;
+  }
+
   global.BFW = {
     KEY: KEY,
     SUPABASE: SUPABASE,
@@ -341,6 +472,23 @@
     checkIn: checkIn,
     undoCheckIn: undoCheckIn,
     cancelResv: cancelResv,
-    normCode: normCode
+    normCode: normCode,
+    /* members */
+    loadMembers: loadMembers,
+    addMember: addMember,
+    findMemberByPhone: findMemberByPhone,
+    getSession: getSession,
+    setSession: setSession,
+    clearSession: clearSession,
+    /* press visit */
+    loadPress: loadPress,
+    savePress: savePress,
+    addPressApp: addPressApp,
+    findPressByPhone: findPressByPhone,
+    setPressStatus: setPressStatus,
+    findPressByCode: findPressByCode,
+    pressCheckIn: pressCheckIn,
+    undoPressCheckIn: undoPressCheckIn,
+    deletePressApp: deletePressApp
   };
 })(window);

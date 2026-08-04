@@ -71,7 +71,7 @@
   var crumbMap = {
     brand: "브랜드", brandlist: "참여 브랜드", unilist: "참여 대학", lastyear: "2025 라인업", event: "행사 정보", sections: "섹션 On/Off", media: "On Film 영상",
     press: "언론 보도", archive: "아카이브", instagram: "인스타그램", map: "오시는 길 · 지도",
-    shows: "쇼 관리", reservations: "예약 현황", checkin: "현장 체크인"
+    shows: "쇼 관리", reservations: "예약 현황", pressvisit: "프레스 방문", checkin: "현장 체크인"
   };
   document.querySelectorAll("#navlist button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -84,6 +84,7 @@
       $("crumb").textContent = crumbMap[tab] || "";
       $("side").classList.remove("open");
       if (tab === "reservations") withStaff(renderResv);
+      if (tab === "pressvisit") withStaff(renderPressApps);
       if (tab === "checkin") withStaff(initCheckin);
       if (tab !== "checkin") stopScan();
     });
@@ -130,6 +131,9 @@
   bind("evVenue", function () { return cfg.event.venue; }, function (v) { cfg.event.venue = v; });
   bind("evDateLine", function () { return cfg.event.dateLine; }, function (v) { cfg.event.dateLine = v; });
   bind("evDateFull", function () { return cfg.event.dateFull; }, function (v) { cfg.event.dateFull = v; });
+  bind("cdOn", function () { return cfg.countdown.enabled; }, function (v) { cfg.countdown.enabled = v; }, "change");
+  bind("cdTarget", function () { return cfg.countdown.target; }, function (v) { cfg.countdown.target = v; }, "change");
+  bind("cdLabel", function () { return cfg.countdown.label; }, function (v) { cfg.countdown.label = v; });
 
   /* ---------- SECTIONS ---------- */
   function renderSections() {
@@ -407,6 +411,10 @@
   bind("rsvCap", function () { return cfg.reserve.defaultCap; }, function (v) { cfg.reserve.defaultCap = parseInt(v, 10) || 300; });
   bind("rsvNote", function () { return cfg.reserve.note; }, function (v) { cfg.reserve.note = v; });
 
+  /* ---------- PRESS VISIT settings ---------- */
+  bind("pvOpen", function () { return cfg.pressVisit.open; }, function (v) { cfg.pressVisit.open = v; }, "change");
+  bind("pvNote", function () { return cfg.pressVisit.note; }, function (v) { cfg.pressVisit.note = v; });
+
   /* ---------- SHOWS ---------- */
   var showCounts = {}; // { showId: reservedCount } — refreshed from the API
   function renderShows() {
@@ -594,6 +602,72 @@
     a.href = URL.createObjectURL(blob); a.download = "bfw_reservations.csv"; a.click();
   });
 
+  /* ---------- PRESS VISIT dashboard ---------- */
+  var pvCache = [];
+  function renderPressApps() {
+    $("pvBody").innerHTML = '<tr><td colspan="7"><div class="empty-state">불러오는 중…</div></td></tr>';
+    BFWApi.pressList().then(function (list) { pvCache = list || []; renderPvTable(); });
+  }
+  function pvPill(st) {
+    if (st === "approved") return '<span class="pill entered">승인</span>';
+    if (st === "rejected") return '<span class="pill" style="background:rgba(0,0,0,.08);color:#888">반려</span>';
+    return '<span class="pill reserved">심사중</span>';
+  }
+  function renderPvTable() {
+    var body = $("pvBody");
+    var filter = $("pvFilter").value;
+    var list = pvCache.slice();
+    if (filter) list = list.filter(function (p) { return p.status === filter; });
+    $("pvCount").textContent = "(" + pvCache.length + "건 · 승인 " + pvCache.filter(function (p) { return p.status === "approved"; }).length + "건)";
+    body.innerHTML = "";
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="7"><div class="empty-state">신청 내역이 없습니다.</div></td></tr>';
+      return;
+    }
+    list.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + fmtDate(p.at) + "</td>" +
+        "<td>" + esc(p.media) + "</td>" +
+        "<td>" + esc(p.reporter) + "</td>" +
+        "<td>" + esc(p.phone) + "</td>" +
+        "<td>" + esc(p.types || "") + (p.days ? "<br>" + esc(p.days) : "") + "</td>" +
+        "<td>" + pvPill(p.status) + (p.code ? '<div style="font-family:var(--a-mono);font-size:.72rem;margin-top:4px">' + esc(p.code) + (p.checkedIn ? " · 입장" : "") + "</div>" : "") + "</td>" +
+        '<td><div class="row-acts">' +
+          (p.status !== "approved" ? '<button class="btn ghost sm" data-act="ok">승인</button>' : "") +
+          (p.status !== "rejected" ? '<button class="btn ghost sm" data-act="no">반려</button>' : "") +
+          '<button class="btn danger sm" data-act="del">삭제</button>' +
+        "</div></td>";
+      var okB = tr.querySelector('[data-act=ok]');
+      if (okB) okB.addEventListener("click", function () {
+        BFWApi.pressSetStatus(p.id, "approved").then(function (out) {
+          toast("승인 완료 — 프레스 QR " + ((out && out.code) || "") + " 발급");
+          renderPressApps();
+        });
+      });
+      var noB = tr.querySelector('[data-act=no]');
+      if (noB) noB.addEventListener("click", function () {
+        if (confirm(p.media + " · " + p.reporter + " 신청을 반려할까요?")) BFWApi.pressSetStatus(p.id, "rejected").then(renderPressApps);
+      });
+      tr.querySelector('[data-act=del]').addEventListener("click", function () {
+        if (confirm("이 신청을 삭제할까요? 되돌릴 수 없습니다.")) BFWApi.pressDelete(p.id).then(renderPressApps);
+      });
+      body.appendChild(tr);
+    });
+  }
+  $("pvFilter").addEventListener("change", renderPvTable);
+  $("pvRefresh").addEventListener("click", renderPressApps);
+  $("pvCsv").addEventListener("click", function () {
+    if (!pvCache.length) { toast("내보낼 내역이 없습니다.", true); return; }
+    var cols = ["at", "media", "reporter", "phone", "email", "types", "days", "note", "status", "code", "checkedIn"];
+    var rows = [cols.join(",")].concat(pvCache.map(function (p) {
+      return cols.map(function (c) { return '"' + String(p[c] == null ? "" : p[c]).replace(/"/g, '""') + '"'; }).join(",");
+    }));
+    var blob = new Blob(["\ufeff" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "bfw_press_visits.csv"; a.click();
+  });
+
   /* ---------- CHECK-IN ---------- */
   var ciInited = false, scanner = null;
   function initCheckin() {
@@ -610,6 +684,14 @@
     var res = $("ciResult");
     if (!q) { res.innerHTML = ""; return; }
     res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
+    // press pass? (PRS-XXXX)
+    if (/^PRS/.test(q.toUpperCase().replace(/\s+/g, "").replace(/^BFW-?/, ""))) {
+      BFWApi.pressFindByCode(q).then(function (p) {
+        if (p) showPressCiCard(p);
+        else res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
+      });
+      return;
+    }
     // direct code match first
     BFWApi.findByCode(q).then(function (byCode) {
       if (byCode) { showCiCard(byCode); return; }
@@ -669,6 +751,38 @@
   function reReadAndShow(code) {
     BFWApi.findByCode("BFW-" + code).then(function (r) { if (r) showCiCard(r); });
   }
+  function showPressCiCard(p) {
+    var res = $("ciResult");
+    var already = p.checkedIn;
+    res.innerHTML =
+      '<div class="ci-card ' + (already ? "warn" : "ok") + '">' +
+        '<div class="ci-status">' + (already ? "⚠ 이미 입장한 프레스입니다" : "✓ 승인된 프레스") + '</div>' +
+        '<div class="ci-name">' + esc(p.reporter) + ' <span style="font-weight:400">· ' + esc(p.media) + '</span></div>' +
+        '<div class="ci-show">PRESS · ' + esc(p.types || "") + (p.days ? " · " + esc(p.days) : "") + '</div>' +
+        '<div class="ci-meta">' + esc(p.code) + ' · ' + esc(p.phone) + (already && p.checkedInAt ? ' · 입장 ' + fmtDate(p.checkedInAt) : "") + '</div>' +
+        '<div class="ci-actions"></div>' +
+      '</div>';
+    var acts = res.querySelector(".ci-actions");
+    if (already) {
+      var undo = mkBtn("btn ghost", "입장 취소");
+      undo.addEventListener("click", function () { BFWApi.pressUndoCheckIn(p.id).then(function () { toast("입장을 취소했습니다."); reShowPress(p.code); }); });
+      acts.appendChild(undo);
+    } else {
+      var go = mkBtn("btn primary", "입장 확인 →");
+      go.addEventListener("click", function () {
+        BFWApi.pressCheckIn(p.code).then(function (out) {
+          if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code); }
+          else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code); }
+          else toast("처리 실패", true);
+        });
+      });
+      acts.appendChild(go);
+    }
+    var clear = mkBtn("btn ghost", "다음 →");
+    clear.addEventListener("click", function () { $("ciInput").value = ""; $("ciInput").focus(); res.innerHTML = ""; });
+    acts.appendChild(clear);
+  }
+  function reShowPress(code) { BFWApi.pressFindByCode(code).then(function (p) { if (p) showPressCiCard(p); }); }
   function mkBtn(cls, label) { var b = document.createElement("button"); b.className = cls; b.textContent = label; return b; }
 
   function toggleScan() {
@@ -729,6 +843,9 @@
     $("evVenue").value = cfg.event.venue;
     $("evDateLine").value = cfg.event.dateLine;
     $("evDateFull").value = cfg.event.dateFull;
+    $("cdOn").checked = cfg.countdown.enabled;
+    $("cdTarget").value = cfg.countdown.target;
+    $("cdLabel").value = cfg.countdown.label;
     renderSections();
     $("mediaMode").value = cfg.media.mode;
     $("mediaUrl").value = cfg.media.url;
@@ -759,6 +876,8 @@
     $("rsvOpen").checked = cfg.reserve.open;
     $("rsvCap").value = cfg.reserve.defaultCap;
     $("rsvNote").value = cfg.reserve.note;
+    $("pvOpen").checked = cfg.pressVisit.open;
+    $("pvNote").value = cfg.pressVisit.note;
     renderShows();
   }
   renderAll();

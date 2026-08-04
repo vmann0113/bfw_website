@@ -267,8 +267,10 @@
       if (pane === "lookup") {
         try {
           var last = localStorage.getItem("bfw_last_phone");
-          if (last && !$("lookupPhone").value) { $("lookupPhone").value = last; runLookup(last); }
+          if (last && !$("lookupPhone").value) { $("lookupPhone").value = last; }
         } catch (e) {}
+        var lp = $("lookupPhone").value.trim();
+        if (lp && !$("lookupResult").innerHTML) runLookup(lp);
       }
     });
   });
@@ -301,4 +303,15 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") document.querySelectorAll(".sheet.show").forEach(function (sh) { closeSheet(sh.id); });
   });
+
+  /* ---- member autofill (간편 회원) ---- */
+  function applyMember(m) {
+    if (!m) return;
+    if (!$("fName").value) $("fName").value = m.name || "";
+    if (!$("fPhone").value) $("fPhone").value = m.phone || "";
+    if (!$("fEmail").value) $("fEmail").value = m.email || "";
+    if (!$("lookupPhone").value) $("lookupPhone").value = m.phone || "";
+  }
+  if (window.BFWAuth) applyMember(BFWAuth.current());
+  window.addEventListener("bfw:member", function (e) { if (e.detail) applyMember(e.detail); });
 })();

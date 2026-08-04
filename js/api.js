@@ -49,6 +49,22 @@
       status: r.status, checkedIn: r.checked_in, checkedInAt: r.checked_in_at, at: r.created_at
     };
   }
+  function fromPressRow(r) {
+    if (!r) return null;
+    return {
+      id: r.id, media: r.media, reporter: r.reporter, phone: r.phone, email: r.email,
+      types: r.types, days: r.days, note: r.note, status: r.status, code: r.code,
+      checkedIn: r.checked_in, checkedInAt: r.checked_in_at, at: r.created_at
+    };
+  }
+  function sha256(s) {
+    try {
+      var enc = new TextEncoder().encode(String(s));
+      return crypto.subtle.digest("SHA-256", enc).then(function (buf) {
+        return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+      });
+    } catch (e) { return Promise.resolve("plain:" + s); }
+  }
 
   /* ===========================================================
      PUBLIC API
@@ -180,6 +196,87 @@
     clearAll: function () {
       if (BACKEND) return rpc("admin_clear_reservations", {}).then(function () { return true; }).catch(function () { return false; });
       return Promise.resolve(BFW.saveResv([]));
+    },
+
+    /* ================= MEMBERS (간편 회원) ================= */
+    memberCurrent: function () { return BFW.getSession(); },
+    memberSignUp: function (m) {
+      if (BACKEND) {
+        return rpc("member_sign_up", { p_name: m.name, p_phone: m.phone, p_email: m.email || null, p_password: m.password })
+          .then(function (d) {
+            if (d && d.ok) { BFW.setSession(d.member); return { ok: true, member: d.member }; }
+            return { ok: false, reason: (d && d.reason) || "error" };
+          }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return sha256(m.password).then(function (h) {
+        var res = BFW.addMember({ name: m.name, phone: m.phone, email: m.email || "", passHash: h });
+        if (!res.ok) return res;
+        var s = { id: res.member.id, name: m.name, phone: m.phone, email: m.email || "" };
+        BFW.setSession(s);
+        return { ok: true, member: s };
+      });
+    },
+    memberSignIn: function (phone, password) {
+      if (BACKEND) {
+        return rpc("member_sign_in", { p_phone: phone, p_password: password }).then(function (d) {
+          if (d && d.ok) { BFW.setSession(d.member); return { ok: true, member: d.member }; }
+          return { ok: false, reason: (d && d.reason) || "badcred" };
+        }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      var m = BFW.findMemberByPhone(phone);
+      if (!m) return Promise.resolve({ ok: false, reason: "nomember" });
+      return sha256(password).then(function (h) {
+        if (h !== m.passHash) return { ok: false, reason: "badcred" };
+        var s = { id: m.id, name: m.name, phone: m.phone, email: m.email || "" };
+        BFW.setSession(s);
+        return { ok: true, member: s };
+      });
+    },
+    memberSignOut: function () { BFW.clearSession(); return Promise.resolve(true); },
+
+    /* ================= PRESS VISIT ================= */
+    pressApply: function (e) {
+      if (BACKEND) {
+        return rpc("press_apply", { p_media: e.media, p_reporter: e.reporter, p_phone: e.phone, p_email: e.email || null, p_types: e.types, p_days: e.days, p_note: e.note || null })
+          .then(function (d) {
+            if (d && d.ok) return { ok: true, entry: fromPressRow(d.application) };
+            return { ok: false, reason: (d && d.reason) || "error" };
+          }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve(BFW.addPressApp({ media: e.media, reporter: e.reporter, phone: e.phone, email: e.email || "", types: e.types, days: e.days, note: e.note || "" }));
+    },
+    pressLookup: function (phone) {
+      if (BACKEND) return rpc("press_lookup", { p_phone: phone }).then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });
+      return Promise.resolve(BFW.findPressByPhone(phone));
+    },
+    pressList: function () {
+      if (BACKEND) return rest("/rest/v1/press_applications?select=*&order=created_at.desc").then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });
+      return Promise.resolve(BFW.loadPress());
+    },
+    pressSetStatus: function (id, status) {
+      if (BACKEND) return rpc("press_set_status", { p_id: id, p_status: status }).then(function (d) { return fromPressRow(d && d.application); }).catch(function () { return null; });
+      return Promise.resolve(BFW.setPressStatus(id, status));
+    },
+    pressFindByCode: function (code) {
+      if (BACKEND) return rpc("press_find", { p_code: BFW.normCode(code) }).then(function (rows) { return rows && rows[0] ? fromPressRow(rows[0]) : null; }).catch(function () { return null; });
+      return Promise.resolve(BFW.findPressByCode(code));
+    },
+    pressCheckIn: function (code) {
+      if (BACKEND) {
+        return rpc("press_check_in", { p_code: BFW.normCode(code) }).then(function (d) {
+          if (d && d.ok) return { ok: true, entry: fromPressRow(d.application) };
+          return { ok: false, reason: (d && d.reason) || "error", entry: d && d.application ? fromPressRow(d.application) : null };
+        }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve(BFW.pressCheckIn(code));
+    },
+    pressUndoCheckIn: function (id) {
+      if (BACKEND) return rpc("press_undo_check_in", { p_id: id }).then(function (d) { return fromPressRow(d && d.application); }).catch(function () { return null; });
+      return Promise.resolve(BFW.undoPressCheckIn(id));
+    },
+    pressDelete: function (id) {
+      if (BACKEND) return rest("/rest/v1/press_applications?id=eq." + encodeURIComponent(id), { method: "DELETE" }).then(function () { return true; }).catch(function () { return false; });
+      return Promise.resolve(BFW.deletePressApp(id));
     }
   };
 
