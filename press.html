@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>프레스 방문 신청 | 부산패션위크 2026 · BUSAN FASHION WEEK</title>
+<meta name="description" content="2026 부산패션위크 프레스(취재진) 방문 신청 — 10.29–31 벡스코 3B홀. 신청 후 심사, 승인 시 프레스 QR 발급." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a1a4a" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="프레스 방문 신청 | 부산패션위크 2026" />
+<meta property="og:description" content="취재진 방문 신청 · 심사 후 승인 시 프레스 QR 발급" />
+<meta property="og:image" content="https://bfw-website-brown.vercel.app/images/og-cover-v2.jpg" />
+<meta property="og:locale" content="ko_KR" />
+<link rel="icon" href="images/favicon.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<link rel="stylesheet" href="css/styles.css" />
+<style>
+  .rsv-wrap { max-width: 880px; margin: 0 auto; padding: clamp(116px, 15vh, 170px) var(--pad) 140px; }
+  .back-link { display: inline-flex; gap: 8px; font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 22px; }
+  .back-link:hover { color: var(--coral); }
+  .rsv-head .idx { font-family: var(--mono); font-size: .76rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ocean); }
+  .rsv-head h1 { font-family: var(--disp); font-weight: 800; text-transform: uppercase; font-size: clamp(2.6rem, 9vw, 5.6rem); line-height: .9; margin: 12px 0 0; }
+  .rsv-head .kr { display: block; font-family: var(--kr); font-weight: 600; font-size: clamp(1rem, 2vw, 1.28rem); color: var(--ink-mute); margin-top: 14px; }
+  .rsv-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 4px; }
+  .rsv-meta span { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; }
+  .tabs-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 30px 0 8px; }
+  .rsv-tabs { display: inline-flex; gap: 4px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .rsv-tabs button { font-family: var(--kr); font-weight: 600; font-size: .9rem; color: var(--ink-mute); border: 0; background: transparent; border-radius: 9px; padding: 10px 20px; cursor: pointer; transition: all .16s; }
+  .rsv-tabs button.on { background: var(--ink); color: var(--paper); }
+  form.prs-form { margin-top: 26px; display: flex; flex-direction: column; gap: 16px; }
+  .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 540px) { .f-row { grid-template-columns: 1fr; } }
+  .f label { display: block; font-family: var(--kr); font-size: .84rem; font-weight: 600; margin-bottom: 7px; }
+  .f label .req { color: var(--coral); }
+  .f label .mut { color: var(--ink-mute); font-weight: 400; }
+  .f input, .f textarea { width: 100%; box-sizing: border-box; font-family: var(--kr); font-size: .96rem; color: var(--ink); background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; transition: border .18s, box-shadow .18s; resize: vertical; }
+  .f input:focus, .f textarea:focus { outline: none; border-color: var(--ocean); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ocean) 16%, transparent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { cursor: pointer; }
+  .chip input { display: none; }
+  .chip span { display: inline-block; font-family: var(--kr); font-weight: 600; font-size: .88rem; color: var(--ink-soft); border: 1.5px solid var(--line); border-radius: 999px; padding: 9px 18px; transition: all .16s; }
+  .chip:hover span { border-color: color-mix(in oklch, var(--ocean) 50%, var(--line)); }
+  .chip input:checked + span { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .agree { display: flex; align-items: flex-start; gap: 11px; font-family: var(--kr); font-size: .86rem; color: var(--ink-soft); }
+  .agree input { width: 18px; height: 18px; margin-top: 1px; flex: none; accent-color: var(--ocean); }
+  .err-msg { color: var(--coral); font-family: var(--kr); font-size: .82rem; display: none; }
+  .err-msg.show { display: block; }
+  .note-line { font-family: var(--kr); font-size: .86rem; color: var(--ink-mute); background: color-mix(in oklch, var(--ocean) 8%, transparent); border: 1px solid color-mix(in oklch, var(--ocean) 24%, transparent); border-radius: 12px; padding: 14px 16px; margin-top: 22px; line-height: 1.55; }
+  .done-card { margin-top: 26px; border: 1.5px solid color-mix(in oklch, var(--ocean) 45%, var(--line)); background: color-mix(in oklch, var(--ocean) 7%, var(--paper-2)); border-radius: 16px; padding: 26px; font-family: var(--kr); line-height: 1.6; }
+  .done-card h2 { font-family: var(--disp); font-weight: 800; font-size: 1.9rem; text-transform: uppercase; margin: 0 0 10px; }
+  .lookup-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 30px; }
+  .lookup-bar .f { flex: 1; min-width: 220px; }
+  .lookup-empty { font-family: var(--kr); color: var(--ink-mute); font-size: .92rem; padding: 30px 0; }
+  .tickets { display: flex; flex-direction: column; gap: 14px; margin: 24px 0 6px; }
+  .ticket { display: flex; gap: 16px; align-items: center; border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; background: var(--paper-2); }
+  .ticket.in { border-color: color-mix(in oklch, var(--ocean) 45%, var(--line)); background: color-mix(in oklch, var(--ocean) 7%, var(--paper-2)); }
+  .ticket .qr { width: 104px; height: 104px; flex: none; background: #fff; border-radius: 10px; padding: 7px; box-sizing: border-box; border: 1px solid var(--line); }
+  .ticket .qr svg { width: 100%; height: 100%; display: block; }
+  .ticket .ti { flex: 1; min-width: 0; font-family: var(--kr); }
+  .ticket .ti .tt { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--ocean); text-transform: uppercase; }
+  .ticket .ti .tn { font-family: var(--disp); font-weight: 700; font-size: 1.3rem; line-height: 1.05; margin: 5px 0 4px; }
+  .ticket .ti .tv { font-size: .82rem; color: var(--ink-mute); }
+  .ticket .ti .code { font-family: var(--mono); font-weight: 700; font-size: .96rem; letter-spacing: .04em; margin-top: 9px; }
+  .ticket .ti .badge { display: inline-block; font-family: var(--mono); font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-top: 9px; }
+  .badge.ok { background: color-mix(in oklch, var(--ocean) 14%, transparent); color: var(--ocean); }
+  .badge.entered { background: color-mix(in oklch, var(--coral) 16%, transparent); color: var(--coral); }
+  .closed-note { display: none; font-family: var(--kr); padding: 28px; border-radius: 16px; text-align: center; background: color-mix(in oklch, var(--ink) 6%, transparent); border: 1px solid var(--line); color: var(--ink-mute); margin-top: 30px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav" data-solid="true">
+  <a class="brand" href="index.html" aria-label="부산패션위크 홈"><b>BUSAN</b><span class="bul">●</span><b>FW</b></a>
+  <div class="nav-links">
+    <a href="index.html#schedule">Schedule</a>
+    <a href="index.html#brands">Brands</a>
+    <a href="archive.html">Archive</a>
+    <a href="index.html#visit">Visit</a>
+  </div>
+  <a href="register.html" class="nav-cta">관람예약 · Reserve</a>
+</nav>
+
+<main class="rsv-wrap">
+  <a class="back-link" href="index.html">← 메인으로</a>
+  <header class="rsv-head">
+    <div class="idx">PRESS — 프레스 방문 신청</div>
+    <h1>Press<span class="kr">2026 부산패션위크 · 취재진 방문 신청</span></h1>
+  </header>
+
+  <div class="rsv-meta">
+    <span>신청 후 심사</span>
+    <span>승인 시 프레스 QR 발급</span>
+    <span>현장 프레스 데스크 비표 수령</span>
+  </div>
+
+  <div class="tabs-row">
+    <div class="rsv-tabs">
+      <button data-pane="apply" class="on">신청하기</button>
+      <button data-pane="status">신청 조회</button>
+    </div>
+    <div id="acctSlot"></div>
+  </div>
+
+  <!-- APPLY -->
+  <section id="applyPane">
+    <div class="closed-note" id="closedNote">현재 프레스 방문 신청 접수가 마감되었습니다. 취재 문의는 사무국으로 연락해 주세요.</div>
+    <form class="prs-form" id="prsForm">
+      <div class="f-row">
+        <div class="f">
+          <label>매체명 <span class="req">*</span></label>
+          <input type="text" id="pMedia" placeholder="부산일보" />
+        </div>
+        <div class="f">
+          <label>기자명 <span class="req">*</span></label>
+          <input type="text" id="pName" placeholder="홍길동" />
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f">
+          <label>연락처 <span class="req">*</span></label>
+          <input type="tel" id="pPhone" placeholder="010-0000-0000" />
+        </div>
+        <div class="f">
+          <label>이메일 <span class="mut">(선택)</span></label>
+          <input type="email" id="pEmail" placeholder="name@media.com" />
+        </div>
+      </div>
+      <div class="f">
+        <label>취재 유형 <span class="req">*</span></label>
+        <div class="chips" id="pTypes">
+          <label class="chip"><input type="checkbox" value="사진" /><span>사진</span></label>
+          <label class="chip"><input type="checkbox" value="영상" /><span>영상</span></label>
+          <label class="chip"><input type="checkbox" value="기사" /><span>기사 취재</span></label>
+          <label class="chip"><input type="checkbox" value="인터뷰" /><span>인터뷰</span></label>
+        </div>
+      </div>
+      <div class="f">
+        <label>방문 희망일 <span class="req">*</span></label>
+        <div class="chips" id="pDays"></div>
+      </div>
+      <div class="f">
+        <label>요청사항 <span class="mut">(선택)</span></label>
+        <textarea id="pNote" rows="3" placeholder="포토라인, 백스테이지, 인터뷰 대상 등"></textarea>
+      </div>
+      <label class="agree">
+        <input type="checkbox" id="pAgree" />
+        <span>개인정보 수집·이용에 동의합니다. 프레스 심사 및 현장 출입 관리 목적으로만 사용됩니다. <span class="req">*</span></span>
+      </label>
+      <div class="err-msg" id="prsErr"></div>
+      <button type="submit" class="btn primary" style="align-self:flex-start">프레스 방문 신청 <span>→</span></button>
+    </form>
+    <div id="applyDone" class="hidden"></div>
+    <p class="note-line" id="prsNote"></p>
+  </section>
+
+  <!-- STATUS -->
+  <section id="statusPane" class="hidden">
+    <p class="note-line" style="margin-top:26px">신청 시 입력한 <b>연락처</b>로 조회하면 심사 상태와, 승인 시 발급되는 <b>프레스 QR</b>을 확인할 수 있습니다.</p>
+    <div class="lookup-bar">
+      <div class="f">
+        <label>연락처</label>
+        <input type="tel" id="stPhone" placeholder="010-0000-0000" />
+      </div>
+      <button class="btn primary" id="stBtn">조회 <span>→</span></button>
+    </div>
+    <div id="stResult"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer__bottom" style="border:0;margin:0">
+    <span>© 2026 BUSAN FASHION WEEK · Hosted by Busan Metropolitan City</span>
+    <span><a href="index.html" style="color:inherit">홈</a> · <a href="register.html" style="color:inherit">관람예약</a> · <a href="admin.html" style="color:inherit;opacity:.7">Admin</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/press.js"></script>
+</body>
+</html>

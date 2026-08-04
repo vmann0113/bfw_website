@@ -399,3 +399,174 @@ supabase secrets set SOLAPI_API_KEY=... SOLAPI_API_SECRET=... SMS_SENDER=0517470
 - 오픈 순간 트래픽이 몰려도 `for update` 행 잠금은 **쇼 단위**라 서로 다른 쇼는 병렬 처리됩니다.
 - 문자 비용만 사용량 과금(건당 수~수십 원). 알림톡이 SMS보다 저렴합니다.
 - 백업: Supabase 자동 일일 백업 + 행사 후 `reservations` CSV 보관(관리자에서 내보내기 제공).
+
+
+---
+
+## 9. 간편 회원 · 프레스 방문 신청 (추가 스키마)
+
+프런트엔드(`js/api.js`)는 아래 테이블·RPC와 통신하도록 이미 작성되어 있습니다.
+로컬 모드에서는 이 브라우저 저장소로 동일하게 동작합니다.
+
+### 9-1. 테이블
+
+```sql
+-- ===== members: 간편 회원 (연락처 + 비밀번호) =====
+create extension if not exists pgcrypto;
+
+create table public.members (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  phone      text not null unique,
+  email      text,
+  pass_hash  text not null,             -- crypt() 해시
+  created_at timestamptz default now()
+);
+alter table public.members enable row level security;
+-- 직접 조회/쓰기 금지: 아래 RPC(security definer)로만 접근
+
+-- ===== press_applications: 프레스 방문 신청 =====
+create table public.press_applications (
+  id            uuid primary key default gen_random_uuid(),
+  media         text not null,           -- 매체명
+  reporter      text not null,           -- 기자명
+  phone         text not null,
+  email         text,
+  types         text,                    -- '사진, 영상'
+  days          text,                    -- 'Day 1 · 2026.10.29 (목)'
+  note          text,
+  status        text not null default 'pending',  -- pending | approved | rejected
+  code          text unique,             -- 승인 시 'PRS-XXXX'
+  checked_in    boolean default false,
+  checked_in_at timestamptz,
+  created_at    timestamptz default now()
+);
+alter table public.press_applications enable row level security;
+create policy "staff read press" on public.press_applications
+  for select to authenticated using (true);
+create policy "staff delete press" on public.press_applications
+  for delete to authenticated using (true);
+```
+
+### 9-2. RPC 함수
+
+```sql
+-- 회원가입 (중복 연락처 방지)
+create or replace function public.member_sign_up(
+  p_name text, p_phone text, p_email text, p_password text
+) returns jsonb language plpgsql security definer as $$
+declare m public.members;
+begin
+  if exists (select 1 from public.members where phone = p_phone) then
+    return jsonb_build_object('ok', false, 'reason', 'dup');
+  end if;
+  insert into public.members (name, phone, email, pass_hash)
+  values (p_name, p_phone, p_email, crypt(p_password, gen_salt('bf')))
+  returning * into m;
+  return jsonb_build_object('ok', true, 'member',
+    jsonb_build_object('id', m.id, 'name', m.name, 'phone', m.phone, 'email', coalesce(m.email,'')));
+end $$;
+
+-- 로그인
+create or replace function public.member_sign_in(
+  p_phone text, p_password text
+) returns jsonb language plpgsql security definer as $$
+declare m public.members;
+begin
+  select * into m from public.members where phone = p_phone;
+  if m.id is null then return jsonb_build_object('ok', false, 'reason', 'nomember'); end if;
+  if m.pass_hash <> crypt(p_password, m.pass_hash) then
+    return jsonb_build_object('ok', false, 'reason', 'badcred');
+  end if;
+  return jsonb_build_object('ok', true, 'member',
+    jsonb_build_object('id', m.id, 'name', m.name, 'phone', m.phone, 'email', coalesce(m.email,'')));
+end $$;
+
+-- 프레스 신청 (연락처당 1건, 반려된 건은 재신청 허용)
+create or replace function public.press_apply(
+  p_media text, p_reporter text, p_phone text, p_email text,
+  p_types text, p_days text, p_note text
+) returns jsonb language plpgsql security definer as $$
+declare a public.press_applications;
+begin
+  if exists (select 1 from public.press_applications
+             where phone = p_phone and status <> 'rejected') then
+    return jsonb_build_object('ok', false, 'reason', 'dup');
+  end if;
+  insert into public.press_applications (media, reporter, phone, email, types, days, note)
+  values (p_media, p_reporter, p_phone, p_email, p_types, p_days, p_note)
+  returning * into a;
+  return jsonb_build_object('ok', true, 'application', to_jsonb(a));
+end $$;
+
+-- 신청자 본인 조회 (연락처)
+create or replace function public.press_lookup(p_phone text)
+returns setof public.press_applications language sql security definer as $$
+  select * from public.press_applications where phone = p_phone order by created_at desc;
+$$;
+
+-- 승인/반려 (스태프 전용) — 승인 시 PRS-코드 발급
+create or replace function public.press_set_status(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer as $$
+declare a public.press_applications; new_code text;
+begin
+  if auth.role() <> 'authenticated' then raise exception 'staff only'; end if;
+  select * into a from public.press_applications where id = p_id for update;
+  if a.id is null then return jsonb_build_object('ok', false, 'reason', 'notfound'); end if;
+  if p_status = 'approved' and a.code is null then
+    loop
+      new_code := 'PRS-' || upper(substr(translate(encode(gen_random_bytes(4),'base64'),'+/=lIO01','ABCDEFGH'),1,4));
+      exit when not exists (select 1 from public.press_applications where code = new_code);
+    end loop;
+    a.code := new_code;
+  end if;
+  update public.press_applications set status = p_status, code = a.code where id = p_id
+  returning * into a;
+  return jsonb_build_object('ok', true, 'application', to_jsonb(a));
+end $$;
+
+-- 코드로 승인건 조회 (체크인 스캔용)
+create or replace function public.press_find(p_code text)
+returns setof public.press_applications language sql security definer as $$
+  select * from public.press_applications where code = p_code and status = 'approved';
+$$;
+
+-- 프레스 체크인 / 취소 (스태프 전용)
+create or replace function public.press_check_in(p_code text)
+returns jsonb language plpgsql security definer as $$
+declare a public.press_applications;
+begin
+  if auth.role() <> 'authenticated' then raise exception 'staff only'; end if;
+  select * into a from public.press_applications
+    where code = p_code and status = 'approved' for update;
+  if a.id is null then return jsonb_build_object('ok', false, 'reason', 'notfound'); end if;
+  if a.checked_in then
+    return jsonb_build_object('ok', false, 'reason', 'already', 'application', to_jsonb(a));
+  end if;
+  update public.press_applications set checked_in = true, checked_in_at = now()
+    where id = a.id returning * into a;
+  return jsonb_build_object('ok', true, 'application', to_jsonb(a));
+end $$;
+
+create or replace function public.press_undo_check_in(p_id uuid)
+returns jsonb language plpgsql security definer as $$
+declare a public.press_applications;
+begin
+  if auth.role() <> 'authenticated' then raise exception 'staff only'; end if;
+  update public.press_applications set checked_in = false, checked_in_at = null
+    where id = p_id returning * into a;
+  return jsonb_build_object('ok', true, 'application', to_jsonb(a));
+end $$;
+
+grant execute on function public.member_sign_up, public.member_sign_in,
+  public.press_apply, public.press_lookup, public.press_find to anon, authenticated;
+grant execute on function public.press_set_status, public.press_check_in,
+  public.press_undo_check_in to authenticated;
+```
+
+### 9-3. 메모
+
+- **회원 비밀번호**는 `pgcrypto`의 bcrypt(`crypt`)로 서버에서만 해시·검증됩니다.
+  (로컬 데모 모드에서는 브라우저에서 SHA-256 해시로 저장)
+- **프레스 신청**은 연락처당 1건이며, 반려된 경우에만 재신청할 수 있습니다.
+- 승인 시 발급되는 `PRS-XXXX` 코드는 현장 체크인 화면에서 관람 QR과 동일하게 스캔·검색됩니다.

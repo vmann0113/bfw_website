@@ -35,6 +35,7 @@
       <button data-tab="map"><span class="ico">⚲</span> 오시는 길 · 지도</button>
       <button data-tab="shows"><span class="ico">▦</span> 쇼 관리</button>
       <button data-tab="reservations"><span class="ico">☰</span> 예약 현황</button>
+      <button data-tab="pressvisit"><span class="ico">◈</span> 프레스 방문</button>
       <button data-tab="checkin"><span class="ico">◉</span> 현장 체크인</button>
     </nav>
     <div class="side__foot">
@@ -101,6 +102,18 @@
           <div class="row">
             <div class="field"><label>날짜 (히어로)<span class="sub"> · — 로 구분</span></label><input type="text" id="evDateLine" placeholder="10. 29. — 10. 31." /></div>
             <div class="field"><label>날짜 (오시는 길 상세)</label><input type="text" id="evDateFull" placeholder="2026.10.29 (목) — 10.31 (토)" /></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>D-Day 카운트다운</h3>
+          <p class="hint">Visit 섹션 상단에 목표 일시까지 실시간 카운트다운이 표시됩니다. 목표 시각이 지나면 ‘진행 중’으로 바뀝니다.</p>
+          <div class="field" style="display:flex;align-items:center;gap:12px">
+            <label class="switch"><input type="checkbox" id="cdOn" /><span class="track"></span></label>
+            <span>카운트다운 표시</span>
+          </div>
+          <div class="row">
+            <div class="field"><label>목표 일시</label><input type="datetime-local" id="cdTarget" /></div>
+            <div class="field"><label>라벨</label><input type="text" id="cdLabel" placeholder="D-DAY — 오프닝까지" /></div>
           </div>
         </div>
       </section>
@@ -345,6 +358,41 @@
         </div>
       </section>
 
+      <!-- ===== PRESS VISIT ===== -->
+      <section class="panel" data-panel="pressvisit">
+        <div class="panel__head">
+          <h2>프레스 방문 신청</h2>
+          <p>취재진의 방문 신청(<span class="kbd">press.html</span>)을 접수·심사합니다. <b>승인</b>하면 프레스 QR(PRS-)이 발급되어 신청자가 조회 페이지에서 확인할 수 있습니다.</p>
+        </div>
+        <div class="card">
+          <h3>접수 설정</h3>
+          <div class="field" style="display:flex;align-items:center;gap:12px">
+            <label class="switch"><input type="checkbox" id="pvOpen" /><span class="track"></span></label>
+            <span>프레스 방문 신청 접수 열기 (끄면 신청 페이지가 ‘접수 마감’으로 표시)</span>
+          </div>
+          <div class="field"><label>안내 문구</label><textarea id="pvNote" placeholder="프레스 방문은 신청 후 심사를 거쳐 승인됩니다."></textarea></div>
+        </div>
+        <div class="card">
+          <h3>신청 내역 <span class="hint" style="font-weight:400" id="pvCount"></span></h3>
+          <div class="subs-tools">
+            <select id="pvFilter" class="mini-select">
+              <option value="">전체 상태</option>
+              <option value="pending">심사중</option>
+              <option value="approved">승인</option>
+              <option value="rejected">반려</option>
+            </select>
+            <button class="btn ghost sm" id="pvRefresh">새로고침</button>
+            <button class="btn ghost sm" id="pvCsv">CSV 내보내기</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>신청일시</th><th>매체</th><th>기자</th><th>연락처</th><th>유형 · 희망일</th><th>상태</th><th></th></tr></thead>
+              <tbody id="pvBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ===== CHECK-IN ===== -->
       <section class="panel" data-panel="checkin">
         <div class="panel__head">
@@ -353,7 +401,7 @@
         </div>
         <div class="card">
           <div class="checkin-search">
-            <input type="text" id="ciInput" placeholder="QR 스캔 결과 · 예약번호(BFW-S01-XXXX) · 이름 · 연락처" autocomplete="off" />
+            <input type="text" id="ciInput" placeholder="QR 스캔 결과 · 예약번호(BFW-S01-XXXX) · 프레스(PRS-XXXX) · 이름 · 연락처" autocomplete="off" />
             <button class="btn primary" id="ciSearch">검색</button>
             <button class="btn ghost" id="ciScanBtn">📷 카메라 스캔</button>
           </div>

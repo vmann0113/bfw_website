@@ -32,6 +32,11 @@
 
   /* tabs */
   .rsv-tabs { display: inline-flex; gap: 4px; margin: 30px 0 8px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .tabs-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 30px 0 8px; }
+  .tabs-row .rsv-tabs { margin: 0; }
+  .press-x { font-family: var(--kr); font-size: .88rem; color: var(--ink-mute); margin: 16px 0 0; }
+  .press-x a { color: var(--ocean); font-weight: 600; }
+  .press-x a:hover { color: var(--coral); }
   .rsv-tabs button { font-family: var(--kr); font-weight: 600; font-size: .9rem; color: var(--ink-mute); border: 0; background: transparent; border-radius: 9px; padding: 10px 20px; cursor: pointer; transition: all .16s; }
   .rsv-tabs button.on { background: var(--ink); color: var(--paper); }
 
@@ -162,9 +167,14 @@
     <span>선착순 마감</span>
   </div>
 
-  <div class="rsv-tabs">
-    <button data-pane="book" class="on">예약하기</button>
-    <button data-pane="lookup">내 예약 조회</button>
+  <p class="press-x">프레스(취재진) 방문은 별도로 접수합니다 · <a href="press.html">프레스 방문 신청 →</a></p>
+
+  <div class="tabs-row">
+    <div class="rsv-tabs">
+      <button data-pane="book" class="on">예약하기</button>
+      <button data-pane="lookup">내 예약 조회</button>
+    </div>
+    <div id="acctSlot"></div>
   </div>
 
   <!-- BOOK -->
@@ -253,6 +263,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/reserve.js"></script>
 </body>
 </html>
