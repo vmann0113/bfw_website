@@ -161,11 +161,15 @@
 
   <!-- STATUS -->
   <section id="statusPane" class="hidden">
-    <p class="note-line" style="margin-top:26px">신청 시 입력한 <b>연락처</b>로 조회하면 심사 상태와, 승인 시 발급되는 <b>프레스 QR</b>을 확인할 수 있습니다.</p>
+    <p class="note-line" style="margin-top:26px">신청 시 입력한 <b>기자명과 연락처</b>로 조회하면 심사 상태와, 승인 시 발급되는 <b>프레스 QR</b>을 확인할 수 있습니다.</p>
     <div class="lookup-bar">
       <div class="f">
+        <label>기자명</label>
+        <input type="text" id="stName" placeholder="홍길동" autocomplete="name" />
+      </div>
+      <div class="f">
         <label>연락처</label>
-        <input type="tel" id="stPhone" placeholder="010-0000-0000" />
+        <input type="tel" id="stPhone" placeholder="010-0000-0000" autocomplete="tel" />
       </div>
       <button class="btn primary" id="stBtn">조회 <span>→</span></button>
     </div>

@@ -163,7 +163,7 @@
     var agree = $("fAgree").checked;
     var mkt = $("fMkt").checked;
     var err = $("rsvErr");
-    if (!name || !phone || !agree) { err.classList.add("show"); return; }
+    if (!name || !phone || !agree || phone.replace(/[^0-9]/g, "").length < 9) { err.classList.add("show"); return; }
     err.classList.remove("show");
 
     var submitBtn = $("rsvForm").querySelector('button[type=submit]');
@@ -199,7 +199,7 @@
       submitBtn.innerHTML = origLabel;
       closeSheet("formSheet");
       showDone(done, failFull, failDup, failErr);
-      try { localStorage.setItem("bfw_last_phone", phone); } catch (e2) {}
+      try { localStorage.setItem("bfw_last_phone", phone); localStorage.setItem("bfw_last_name", name); } catch (e2) {}
       $("fName").value = ""; $("fPhone").value = ""; $("fEmail").value = "";
       $("fAgree").checked = false; $("fMkt").checked = false;
       refreshAvailability();
@@ -246,8 +246,9 @@
     if (withCancel && !r.checkedIn) {
       el.querySelector(".tcancel").addEventListener("click", function () {
         if (!confirm("‘" + (r.titleKo || r.showTitle) + "’ 예약을 취소할까요?")) return;
-        Api.cancel(r.id).then(function () {
-          runLookup($("lookupPhone").value.trim());
+        Api.cancel(r.id, $("lookupName").value.trim(), $("lookupPhone").value.trim()).then(function (ok) {
+          if (!ok) { alert("예약을 취소하지 못했습니다. 이미 입장 처리되었거나, 입력하신 정보가 예약과 다릅니다."); return; }
+          doLookup();
           refreshAvailability();
         });
       });
@@ -267,24 +268,27 @@
       if (pane === "lookup") {
         try {
           var last = localStorage.getItem("bfw_last_phone");
+          var lastN = localStorage.getItem("bfw_last_name");
           if (last && !$("lookupPhone").value) { $("lookupPhone").value = last; }
+          if (lastN && !$("lookupName").value) { $("lookupName").value = lastN; }
         } catch (e) {}
-        var lp = $("lookupPhone").value.trim();
-        if (lp && !$("lookupResult").innerHTML) runLookup(lp);
+        if ($("lookupPhone").value.trim() && $("lookupName").value.trim() && !$("lookupResult").innerHTML) doLookup();
       }
     });
   });
 
-  /* ---- lookup ---- */
-  $("lookupBtn").addEventListener("click", function () { runLookup($("lookupPhone").value.trim()); });
-  $("lookupPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") runLookup(this.value.trim()); });
+  /* ---- lookup : 예약자 이름 + 연락처가 모두 일치해야 조회됩니다 ---- */
+  function doLookup() { runLookup($("lookupPhone").value.trim(), $("lookupName").value.trim()); }
+  $("lookupBtn").addEventListener("click", doLookup);
+  $("lookupPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
+  $("lookupName").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
 
-  function runLookup(phone) {
+  function runLookup(phone, name) {
     var box = $("lookupResult");
-    if (!phone) { box.innerHTML = '<p class="lookup-empty">연락처를 입력해 주세요.</p>'; return; }
+    if (!phone || !name) { box.innerHTML = '<p class="lookup-empty">예약자 이름과 연락처를 모두 입력해 주세요.</p>'; return; }
     box.innerHTML = '<p class="lookup-empty">조회 중…</p>';
-    Api.lookupByPhone(phone).then(function (list) {
-      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">해당 연락처로 예약된 내역이 없습니다.</p>'; return; }
+    Api.lookupByPhone(phone, name).then(function (list) {
+      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">입력하신 이름·연락처로 예약된 내역이 없습니다.<br>예약할 때 적으신 내용과 같은지 확인해 주세요.</p>'; return; }
       box.innerHTML = '<div class="tickets" id="lookupTickets"></div>';
       var t = $("lookupTickets");
       list.forEach(function (r) { t.appendChild(ticketEl(r, true)); });

@@ -39,6 +39,11 @@
   ],
   "redirects": [
     {
+      "source": "/map",
+      "destination": "https://www.busanfashionweek.com/#visit",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {

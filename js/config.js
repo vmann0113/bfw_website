@@ -23,8 +23,8 @@
      (reservations live only in this browser's storage).
   ----------------------------------------------------------- */
   var SUPABASE = {
-    url: "",        // e.g. "https://abcd1234.supabase.co"
-    anonKey: ""     // the public anon key (safe to ship in the browser)
+    url: "https://hjcrzdzrgmubipxcgzce.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqY3J6ZHpyZ211YmlweGNnemNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTcwMzEsImV4cCI6MjEwNDA5MzAzMX0.T_61-FVfL0fKkR3IDEO8x30UQGfMWBVL6oQAF5m4tF8"
   };
 
   /* ---- default content (mirrors the original markup) ---- */

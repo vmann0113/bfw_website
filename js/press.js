@@ -121,14 +121,16 @@
       return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
     } catch (e) { return '<div style="font:11px monospace;color:#888;padding:8px">' + esc(text) + "</div>"; }
   }
-  $("stBtn").addEventListener("click", function () { runLookup($("stPhone").value.trim()); });
-  $("stPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") runLookup(this.value.trim()); });
-  function runLookup(phone) {
+  function doLookup() { runLookup($("stPhone").value.trim(), $("stName").value.trim()); }
+  $("stBtn").addEventListener("click", doLookup);
+  $("stPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
+  $("stName").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
+  function runLookup(phone, reporter) {
     var box = $("stResult");
-    if (!phone) { box.innerHTML = '<p class="lookup-empty">연락처를 입력해 주세요.</p>'; return; }
+    if (!phone || !reporter) { box.innerHTML = '<p class="lookup-empty">기자명과 연락처를 모두 입력해 주세요.</p>'; return; }
     box.innerHTML = '<p class="lookup-empty">조회 중…</p>';
-    Api.pressLookup(phone).then(function (list) {
-      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">해당 연락처로 접수된 신청이 없습니다.</p>'; return; }
+    Api.pressLookup(phone, reporter).then(function (list) {
+      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">입력하신 기자명·연락처로 접수된 신청이 없습니다.</p>'; return; }
       box.innerHTML = '<div class="tickets"></div>';
       var t = box.querySelector(".tickets");
       list.forEach(function (p) { t.appendChild(card(p)); });

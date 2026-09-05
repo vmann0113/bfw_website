@@ -129,14 +129,17 @@
       return Promise.resolve(res);
     },
 
-    /* ---- lookup my reservations by phone ---- */
-    lookupByPhone: function (phone) {
+    /* ---- lookup my reservations by name + phone (both must match) ---- */
+    lookupByPhone: function (phone, name) {
       if (BACKEND) {
-        return rpc("lookup_reservations", { p_phone: phone })
+        return rpc("lookup_reservations", { p_phone: phone, p_name: name })
           .then(function (rows) { return (rows || []).map(fromRow); })
           .catch(function () { return []; });
       }
-      return Promise.resolve(BFW.findByPhone(phone));
+      var nk = String(name || "").replace(/\s/g, "").toLowerCase();
+      return Promise.resolve(BFW.findByPhone(phone).filter(function (r) {
+        return String(r.name || "").replace(/\s/g, "").toLowerCase() === nk;
+      }));
     },
 
     /* ---- find one reservation by code (for check-in scan) ---- */
@@ -177,8 +180,11 @@
       if (BACKEND) return rpc("undo_check_in", { p_id: id }).then(function (d) { return fromRow(d && d.reservation); }).catch(function () { return null; });
       return Promise.resolve(BFW.undoCheckIn(id));
     },
-    cancel: function (id) {
-      if (BACKEND) return rpc("cancel_reservation", { p_id: id }).then(function () { return true; }).catch(function () { return false; });
+    cancel: function (id, name, phone) {
+      if (BACKEND) {
+        return rpc("cancel_reservation", { p_id: id, p_name: name || null, p_phone: phone || null })
+          .then(function (d) { return !!(d && d.ok); }).catch(function () { return false; });
+      }
       return Promise.resolve(BFW.cancelResv(id));
     },
 
@@ -245,9 +251,15 @@
       }
       return Promise.resolve(BFW.addPressApp({ media: e.media, reporter: e.reporter, phone: e.phone, email: e.email || "", types: e.types, days: e.days, note: e.note || "" }));
     },
-    pressLookup: function (phone) {
-      if (BACKEND) return rpc("press_lookup", { p_phone: phone }).then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });
-      return Promise.resolve(BFW.findPressByPhone(phone));
+    pressLookup: function (phone, reporter) {
+      if (BACKEND) {
+        return rpc("press_lookup", { p_phone: phone, p_reporter: reporter })
+          .then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });
+      }
+      var nk = String(reporter || "").replace(/\s/g, "").toLowerCase();
+      return Promise.resolve(BFW.findPressByPhone(phone).filter(function (p) {
+        return String(p.reporter || "").replace(/\s/g, "").toLowerCase() === nk;
+      }));
     },
     pressList: function () {
       if (BACKEND) return rest("/rest/v1/press_applications?select=*&order=created_at.desc").then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });

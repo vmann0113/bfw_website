@@ -187,11 +187,15 @@
 
   <!-- LOOKUP -->
   <section id="lookupPane" class="hidden">
-    <p class="note-line">예약 시 입력한 <b>연락처</b>로 조회하면 발급된 QR과 예약번호를 다시 확인할 수 있습니다.</p>
+    <p class="note-line">예약 시 입력한 <b>이름과 연락처</b>로 조회하면 발급된 QR과 예약번호를 다시 확인할 수 있습니다.</p>
     <div class="lookup-bar">
       <div class="f">
+        <label>예약자 이름</label>
+        <input type="text" id="lookupName" placeholder="홍길동" autocomplete="name" />
+      </div>
+      <div class="f">
         <label>연락처</label>
-        <input type="tel" id="lookupPhone" placeholder="010-0000-0000" />
+        <input type="tel" id="lookupPhone" placeholder="010-0000-0000" autocomplete="tel" />
       </div>
       <button class="btn primary" id="lookupBtn">조회 <span>→</span></button>
     </div>
