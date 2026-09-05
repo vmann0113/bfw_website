@@ -673,53 +673,143 @@
   function initCheckin() {
     if (!ciInited) {
       $("ciSearch").addEventListener("click", function () { doCheckinSearch($("ciInput").value); });
-      $("ciInput").addEventListener("keydown", function (e) { if (e.key === "Enter") doCheckinSearch(this.value); });
+      $("ciInput").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); doCheckinSearch(this.value); }
+      });
       $("ciScanBtn").addEventListener("click", toggleScan);
+      initWalkin();
       ciInited = true;
     }
+    renderWalkinStats();
     $("ciInput").focus();
+  }
+
+  /* QR 리더기는 '글자 입력 + Enter' 로 동작한다. 한 건 처리할 때마다
+     입력칸을 비우고 포커스를 되돌려야 다음 사람 스캔이 들어온다. */
+  function ciReset() { $("ciInput").value = ""; $("ciInput").focus(); }
+  function ciHint(html) {
+    var h = $("ciHint");
+    if (!h) return;
+    if (!html) { h.style.display = "none"; h.innerHTML = ""; return; }
+    h.style.display = ""; h.innerHTML = html;
+  }
+  var RESV_CODE = /^(?:BFW-?)?(S\d{2}-[A-Z0-9]{4,10})$/;
+  var PRESS_CODE = /^(?:BFW-?)?(PRS-[A-Z0-9]{4,10})$/;
+
+  /* 스캔 즉시 입장 처리 — 클릭 없이 다음 사람으로 넘어간다 */
+  function autoCheckin(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">확인 중…</div></div>';
+    BFWApi.checkIn("BFW-" + code).then(function (out) {
+      if (out.ok) { showCiCard(out.entry, "entered"); toast(out.entry.name + "님 입장 ✓"); }
+      else if (out.reason === "already" && out.entry) { showCiCard(out.entry, "already"); toast("이미 입장한 예약입니다.", true); }
+      else if (out.reason === "forbidden") {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 스태프 로그인이 필요합니다</div><div class="ci-show">화면을 새로고침한 뒤 다시 로그인해 주세요.</div></div>';
+      } else {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘BFW-' + esc(code) + '’ 에 해당하는 예약이 없습니다. 취소된 예약일 수 있습니다.</div></div>';
+      }
+      ciReset();
+    });
+  }
+  function autoPressCheckin(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">확인 중…</div></div>';
+    BFWApi.pressCheckIn(code).then(function (out) {
+      if (out.ok) { showPressCiCard(out.entry, "entered"); toast(out.entry.reporter + " 기자 입장 ✓"); }
+      else if (out.reason === "already" && out.entry) { showPressCiCard(out.entry, "already"); toast("이미 입장한 프레스입니다.", true); }
+      else if (out.reason === "forbidden") {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 스태프 로그인이 필요합니다</div></div>';
+      } else {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(code) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
+      }
+      ciReset();
+    });
+  }
+
+  /* ---------- 현장 스탠드석 인원 ---------- */
+  function initWalkin() {
+    var sel = $("wkShow");
+    if (!sel) return;
+    sel.innerHTML = (cfg.shows || []).map(function (s2) {
+      return '<option value="' + esc(s2.id) + '">D' + esc(s2.day) + " · " + esc(s2.time || "") + " · " + esc(s2.titleKo || s2.title || s2.id) + "</option>";
+    }).join("");
+    $("wkSave").addEventListener("click", function () {
+      var id = sel.value, n = parseInt($("wkCount").value, 10);
+      if (!id || isNaN(n) || n < 0) { toast("인원수를 숫자로 입력해 주세요.", true); return; }
+      BFWApi.walkinSet(id, n, $("wkNote").value.trim()).then(function (r) {
+        if (r.ok) {
+          toast(id + " 현장 인원 " + n + "명 저장 ✓");
+          $("wkCount").value = ""; $("wkNote").value = "";
+          renderWalkinStats();
+        } else toast(r.reason === "forbidden" ? "스태프 로그인이 필요합니다." : "저장하지 못했습니다.", true);
+      });
+    });
+  }
+  function renderWalkinStats() {
+    var box = $("wkStats");
+    if (!box) return;
+    box.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+    BFWApi.attendanceStats().then(function (rows) {
+      if (!rows || !rows.length) { box.innerHTML = '<div class="empty-state">집계할 자료가 없습니다.</div>'; return; }
+      var tR = 0, tE = 0, tW = 0;
+      var h = '<table class="wk-table"><thead><tr><th>쇼</th><th>예약</th><th>입장 확인</th><th>현장</th><th>합계</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        tR += +r.reserved; tE += +r.entered; tW += +r.walkin;
+        h += '<tr><td><b>' + esc(r.show_id) + '</b> · ' + esc(r.title_ko || "") + (r.note ? ' <span class="wk-note">' + esc(r.note) + '</span>' : "") + '</td>' +
+             '<td>' + r.reserved + '</td><td>' + r.entered + '</td><td>' + r.walkin + '</td><td><b>' + r.total + '</b></td></tr>';
+      });
+      h += '</tbody><tfoot><tr><td>전체 합계</td><td>' + tR + '</td><td>' + tE + '</td><td>' + tW + '</td><td><b>' + (tE + tW) + '</b></td></tr></tfoot></table>';
+      box.innerHTML = h;
+    });
   }
   function doCheckinSearch(q) {
     q = String(q || "").trim();
     var res = $("ciResult");
-    if (!q) { res.innerHTML = ""; return; }
-    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
-    // press pass? (PRS-XXXX)
-    if (/^PRS/.test(q.toUpperCase().replace(/\s+/g, "").replace(/^BFW-?/, ""))) {
-      BFWApi.pressFindByCode(q).then(function (p) {
-        if (p) showPressCiCard(p);
-        else res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
-      });
+    if (!q) { res.innerHTML = ""; ciHint(""); return; }
+
+    // 키보드가 한글 모드인 채로 스캔되면 코드가 자모로 깨져 들어온다
+    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(q) && /[-0-9]/.test(q)) {
+      ciHint('⌨ 키보드가 <b>한글 모드</b>인 것 같습니다. <b>한/영 키</b>를 눌러 영문으로 바꾼 뒤 다시 스캔해 주세요.');
+      res.innerHTML = "";
+      ciReset();
       return;
     }
-    // direct code match first
-    BFWApi.findByCode(q).then(function (byCode) {
-      if (byCode) { showCiCard(byCode); return; }
-      // otherwise search name / phone
-      BFWApi.staffSearch(q).then(function (matches) {
-        if (!matches.length) {
-          res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 예약을 찾을 수 없습니다.</div></div>';
-          return;
-        }
-        if (matches.length === 1) { showCiCard(matches[0]); return; }
-        res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">' + matches.length + '건 검색됨 — 선택하세요</div><div class="ci-multi"></div></div>';
-        var box = res.querySelector(".ci-multi");
-        matches.forEach(function (r) {
-          var row = document.createElement("div");
-          row.className = "ci-pick";
-          row.innerHTML = '<span class="cp-t">' + esc(r.showId) + ' · ' + esc(r.time || "") + '</span><span class="cp-n">' + esc(r.name) + ' · ' + esc(r.phone) + '</span>' +
-            '<span class="pill ' + (r.checkedIn ? "entered" : "reserved") + '">' + (r.checkedIn ? "입장완료" : "예약") + '</span>';
-          row.addEventListener("click", function () { showCiCard(r); });
-          box.appendChild(row);
-        });
+    ciHint("");
+
+    // QR·예약번호 형태면 곧바로 입장 처리 (연속 스캔)
+    var up = q.toUpperCase().replace(/\s+/g, "");
+    var mp = up.match(PRESS_CODE);
+    if (mp) { autoPressCheckin(mp[1]); return; }
+    var mc = up.match(RESV_CODE);
+    if (mc) { autoCheckin(mc[1]); return; }
+
+    // 코드가 아니면 이름·연락처 검색 — 자동 입장 처리하지 않는다
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
+    BFWApi.staffSearch(q).then(function (matches) {
+      if (!matches.length) {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 예약을 찾을 수 없습니다.</div></div>';
+        return;
+      }
+      if (matches.length === 1) { showCiCard(matches[0]); return; }
+      res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">' + matches.length + '건 검색됨 — 선택하세요</div><div class="ci-multi"></div></div>';
+      var box = res.querySelector(".ci-multi");
+      matches.forEach(function (r) {
+        var row = document.createElement("div");
+        row.className = "ci-pick";
+        row.innerHTML = '<span class="cp-t">' + esc(r.showId) + ' · ' + esc(r.time || "") + '</span><span class="cp-n">' + esc(r.name) + ' · ' + esc(r.phone) + '</span>' +
+          '<span class="pill ' + (r.checkedIn ? "entered" : "reserved") + '">' + (r.checkedIn ? "입장완료" : "예약") + '</span>';
+        row.addEventListener("click", function () { showCiCard(r); });
+        box.appendChild(row);
       });
     });
   }
-  function showCiCard(r) {
+  function showCiCard(r, mode) {
     var res = $("ciResult");
     var already = r.checkedIn;
-    var cls = already ? "warn" : "ok";
-    var status = already ? "⚠ 이미 입장한 예약입니다" : "✓ 유효한 예약";
+    var cls = (mode === "entered") ? "ok" : (already ? "warn" : "ok");
+    var status = (mode === "entered") ? "✓ 입장 완료"
+               : already ? "⚠ 이미 입장한 예약입니다"
+               : "✓ 유효한 예약";
     res.innerHTML =
       '<div class="ci-card ' + cls + '">' +
         '<div class="ci-status">' + status + '</div>' +
@@ -731,32 +821,33 @@
     var acts = res.querySelector(".ci-actions");
     if (already) {
       var undo = mkBtn("btn ghost", "입장 취소");
-      undo.addEventListener("click", function () { BFWApi.undoCheckIn(r.id).then(function () { toast("입장을 취소했습니다."); reReadAndShow(r.code); }); });
+      undo.addEventListener("click", function () { BFWApi.undoCheckIn(r.id).then(function () { toast("입장을 취소했습니다."); reReadAndShow(r.code); ciReset(); }); });
       acts.appendChild(undo);
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
         BFWApi.checkIn("BFW-" + r.code).then(function (out) {
-          if (out.ok) { toast(r.name + "님 입장 처리됨 ✓"); reReadAndShow(r.code); }
-          else if (out.reason === "already") { toast("이미 입장한 예약입니다.", true); reReadAndShow(r.code); }
+          if (out.ok) { toast(r.name + "님 입장 처리됨 ✓"); reReadAndShow(r.code, "entered"); }
+          else if (out.reason === "already") { toast("이미 입장한 예약입니다.", true); reReadAndShow(r.code, "already"); }
           else toast("처리 실패", true);
+          ciReset();
         });
       });
       acts.appendChild(go);
     }
     var clear = mkBtn("btn ghost", "다음 →");
-    clear.addEventListener("click", function () { $("ciInput").value = ""; $("ciInput").focus(); res.innerHTML = ""; });
+    clear.addEventListener("click", function () { res.innerHTML = ""; ciHint(""); ciReset(); });
     acts.appendChild(clear);
   }
-  function reReadAndShow(code) {
-    BFWApi.findByCode("BFW-" + code).then(function (r) { if (r) showCiCard(r); });
+  function reReadAndShow(code, mode) {
+    BFWApi.findByCode("BFW-" + code).then(function (r) { if (r) showCiCard(r, mode); });
   }
-  function showPressCiCard(p) {
+  function showPressCiCard(p, mode) {
     var res = $("ciResult");
     var already = p.checkedIn;
     res.innerHTML =
-      '<div class="ci-card ' + (already ? "warn" : "ok") + '">' +
-        '<div class="ci-status">' + (already ? "⚠ 이미 입장한 프레스입니다" : "✓ 승인된 프레스") + '</div>' +
+      '<div class="ci-card ' + ((mode === "entered") ? "ok" : (already ? "warn" : "ok")) + '">' +
+        '<div class="ci-status">' + ((mode === "entered") ? "✓ 입장 완료" : already ? "⚠ 이미 입장한 프레스입니다" : "✓ 승인된 프레스") + '</div>' +
         '<div class="ci-name">' + esc(p.reporter) + ' <span style="font-weight:400">· ' + esc(p.media) + '</span></div>' +
         '<div class="ci-show">PRESS · ' + esc(p.types || "") + (p.days ? " · " + esc(p.days) : "") + '</div>' +
         '<div class="ci-meta">' + esc(p.code) + ' · ' + esc(p.phone) + (already && p.checkedInAt ? ' · 입장 ' + fmtDate(p.checkedInAt) : "") + '</div>' +
@@ -765,24 +856,25 @@
     var acts = res.querySelector(".ci-actions");
     if (already) {
       var undo = mkBtn("btn ghost", "입장 취소");
-      undo.addEventListener("click", function () { BFWApi.pressUndoCheckIn(p.id).then(function () { toast("입장을 취소했습니다."); reShowPress(p.code); }); });
+      undo.addEventListener("click", function () { BFWApi.pressUndoCheckIn(p.id).then(function () { toast("입장을 취소했습니다."); reShowPress(p.code); ciReset(); }); });
       acts.appendChild(undo);
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
         BFWApi.pressCheckIn(p.code).then(function (out) {
-          if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code); }
-          else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code); }
+          if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code, "entered"); }
+          else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code, "already"); }
           else toast("처리 실패", true);
+          ciReset();
         });
       });
       acts.appendChild(go);
     }
     var clear = mkBtn("btn ghost", "다음 →");
-    clear.addEventListener("click", function () { $("ciInput").value = ""; $("ciInput").focus(); res.innerHTML = ""; });
+    clear.addEventListener("click", function () { res.innerHTML = ""; ciHint(""); ciReset(); });
     acts.appendChild(clear);
   }
-  function reShowPress(code) { BFWApi.pressFindByCode(code).then(function (p) { if (p) showPressCiCard(p); }); }
+  function reShowPress(code, mode) { BFWApi.pressFindByCode(code).then(function (p) { if (p) showPressCiCard(p, mode); }); }
   function mkBtn(cls, label) { var b = document.createElement("button"); b.className = cls; b.textContent = label; return b; }
 
   function toggleScan() {

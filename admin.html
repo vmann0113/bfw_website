@@ -406,7 +406,22 @@
             <button class="btn ghost" id="ciScanBtn">📷 카메라 스캔</button>
           </div>
           <div id="ciScanWrap" class="scan-wrap" style="display:none"><div id="ciReader"></div></div>
+          <div id="ciHint" class="ci-hint" style="display:none"></div>
           <div id="ciResult" class="ci-result"></div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="panel__head" style="margin-bottom:12px">
+            <h2 style="font-size:17px">현장 스탠드석 인원</h2>
+            <p>예약 없이 입장한 관람객 수를 쇼별로 입력합니다. 다시 입력하면 덮어써집니다.</p>
+          </div>
+          <div class="checkin-search">
+            <select id="wkShow" class="mini-select"></select>
+            <input type="number" id="wkCount" min="0" step="1" placeholder="인원수" style="max-width:130px" />
+            <input type="text" id="wkNote" placeholder="메모 (선택)" />
+            <button class="btn primary" id="wkSave">저장</button>
+          </div>
+          <div id="wkStats" class="wk-stats"></div>
         </div>
       </section>
 

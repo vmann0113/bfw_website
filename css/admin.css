@@ -270,3 +270,26 @@ td .row-acts { display: flex; gap: 6px; }
 .ci-pick:hover { border-color: var(--a-accent); }
 .ci-pick .cp-t { font-family: var(--a-mono); font-size: .74rem; color: var(--a-accent); }
 .ci-pick .cp-n { font-weight: 600; flex: 1; }
+
+/* ---- 현장 체크인 : 키보드 한글 모드 안내 ---- */
+.ci-hint {
+  margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+  background: color-mix(in oklch, var(--a-danger) 10%, transparent);
+  border: 1.5px solid color-mix(in oklch, var(--a-danger) 40%, transparent);
+  color: var(--a-ink); font-size: .92rem; line-height: 1.5;
+}
+
+/* ---- 현장 스탠드석 집계표 ---- */
+.wk-stats { margin-top: 16px; }
+.wk-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.wk-table th, .wk-table td { padding: 10px 12px; border-bottom: 1px solid var(--a-line); text-align: right; }
+.wk-table th:first-child, .wk-table td:first-child { text-align: left; }
+.wk-table thead th { font-family: var(--a-mono); font-size: .74rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--a-mute); font-weight: 700; }
+.wk-table tbody td { font-family: var(--a-mono); color: var(--a-ink); }
+.wk-table tbody td:first-child { font-family: var(--a-kr); }
+.wk-table tfoot td { padding-top: 12px; font-family: var(--a-mono); font-weight: 700;
+  color: var(--a-accent-deep); border-bottom: none; border-top: 2px solid var(--a-line); }
+.wk-table tfoot td:first-child { font-family: var(--a-kr); }
+.wk-note { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: var(--a-bg); border: 1px solid var(--a-line); font-size: .78rem; color: var(--a-mute); }

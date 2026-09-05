@@ -204,6 +204,37 @@
       return Promise.resolve(BFW.saveResv([]));
     },
 
+    /* ================= 현장 스탠드석 인원 ================= */
+    walkinSet: function (showId, count, note) {
+      if (BACKEND) {
+        return rpc("walkin_set", { p_show_id: showId, p_count: count, p_note: note || null })
+          .then(function (d) { return { ok: !!(d && d.ok), reason: d && d.reason }; })
+          .catch(function () { return { ok: false, reason: "network" }; });
+      }
+      try {
+        var m = JSON.parse(localStorage.getItem("bfw_walkins_v1") || "{}");
+        m[showId] = { count: count, note: note || "" };
+        localStorage.setItem("bfw_walkins_v1", JSON.stringify(m));
+      } catch (e) {}
+      return Promise.resolve({ ok: true });
+    },
+    attendanceStats: function () {
+      if (BACKEND) {
+        return rpc("attendance_stats", {}).then(function (rows) { return rows || []; })
+          .catch(function () { return []; });
+      }
+      var cfg = BFW.load(), list = BFW.loadResv(), wk = {};
+      try { wk = JSON.parse(localStorage.getItem("bfw_walkins_v1") || "{}"); } catch (e) {}
+      return Promise.resolve((cfg.shows || []).map(function (sh) {
+        var mine = list.filter(function (r) { return r.showId === sh.id && r.status !== "cancelled"; });
+        var ent = mine.filter(function (r) { return r.checkedIn; }).length;
+        var w = (wk[sh.id] && wk[sh.id].count) || 0;
+        return { show_id: sh.id, title_ko: sh.titleKo || sh.title, day: sh.day,
+                 reserved: mine.length, entered: ent, walkin: w, total: ent + w,
+                 note: (wk[sh.id] && wk[sh.id].note) || null };
+      }));
+    },
+
     /* ================= MEMBERS (간편 회원) ================= */
     memberCurrent: function () { return BFW.getSession(); },
     memberSignUp: function (m) {
