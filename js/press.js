@@ -122,6 +122,8 @@
     } catch (e) { return '<div style="font:11px monospace;color:#888;padding:8px">' + esc(text) + "</div>"; }
   }
   function doLookup() { runLookup($("stPhone").value.trim(), $("stName").value.trim()); }
+  if (BFW.bindPhonesIn) BFW.bindPhonesIn(document);
+
   $("stBtn").addEventListener("click", doLookup);
   $("stPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
   $("stName").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });

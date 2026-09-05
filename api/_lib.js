@@ -93,11 +93,19 @@ async function logNoti(entry) {
   }
 }
 
-/* ---------- 문구 만들기 ---------- */
+/* ---------- 문구 만들기 ----------
+   알림톡은 "승인된 템플릿과 한 글자라도 다르면" 발송이 거부된다.
+   그래서 아래 tmplText() 는 등록한 템플릿의 고정 문구를 그대로 두고
+   #{변수} 자리만 채운다. 템플릿을 고치면 여기도 같이 고쳐야 한다.
+
+   대체문자(문자로 대신 나가는 경우)에는 버튼이 없으므로
+   본문 끝에 링크를 글자로 붙인다. 이게 없으면 카톡을 못 받는 분은
+   입장권을 열 방법이 없다.
+   ---------------------------------------------------------------- */
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
 function whenLine(r) {
-  // '2026.10.29' + '목' → '10.29(목) 11:00'
+  // '2026.10.29' → '10.29(목) 11:00'
   const md = String(r.date || "").split(".").slice(1).join(".");
   let dow = "";
   try {
@@ -107,53 +115,79 @@ function whenLine(r) {
   return `${md}${dow ? "(" + dow + ")" : ""} ${r.start_time || ""}`;
 }
 
-function itemLines(rows) {
-  // "연합쇼 ④" 만으로는 어떤 쇼인지 알 수 없으므로 참여 브랜드를 함께 적는다
-  return rows
-    .map(
-      (r) =>
-        `▶ ${whenLine(r)} ${r.title_ko || r.show_title || ""}\n` +
-        (r.lineup ? `   ${r.lineup}\n` : "") +
-        `   ${r.seat_label ? "좌석 " + r.seat_label + " / " : ""}BFW-${r.code}`
-    )
-    .join("\n");
+// "연합쇼 ④" 만으로는 어떤 쇼인지 알 수 없으므로 참여 브랜드를 괄호로 덧붙인다
+function showName(r) {
+  const t = r.title_ko || r.show_title || "";
+  return r.lineup ? `${t} (${r.lineup})` : t;
 }
+function seatText(r) { return r.seat_label || "자유석 · 선착순 착석"; }
+function ticketUrl(r) { return `${SITE}/ticket.html?c=BFW-${r.code}`; }
+function registerUrl() { return `${SITE}/register.html`; }
 
-function buildMessage(kind, rows) {
-  const name = rows[0].name || "";
+/* 승인 템플릿과 동일한 본문 (변수만 치환) */
+function tmplText(kind, r) {
+  const 이름 = r.name || "";
+  const 공연 = showName(r);
+  const 일시 = whenLine(r);
+  const 좌석 = seatText(r);
+  const 예약번호 = "BFW-" + r.code;
+
   if (kind === "reserved") {
-    return {
-      title: "[부산패션위크] 관람 예약 완료",
-      text:
-        `[2026 부산패션위크] 관람 예약이 완료되었습니다.\n\n` +
-        `${name}님, 아래와 같이 예약되었습니다.\n\n` +
-        `${itemLines(rows)}\n\n` +
-        `· 입장 시 QR 또는 예약번호를 제시해 주세요\n` +
-        `· 시작 20분 전까지 입장대기해 주세요\n` +
-        `· 벡스코 제1전시장 3B홀\n\n` +
-        `예약 확인 ${SITE}/register.html`
-    };
+    return (
+      `[2026 부산패션위크] 관람 예약이 완료되었습니다.\n\n` +
+      `${이름}님, 예약 내용을 확인해 주세요.\n\n` +
+      `▶ 공연 : ${공연}\n` +
+      `▶ 일시 : ${일시}\n` +
+      `▶ 좌석 : ${좌석}\n` +
+      `▶ 예약번호 : ${예약번호}\n\n` +
+      `· 장소 : 벡스코 제1전시장 3B홀\n` +
+      `· 시작 20분 전까지 입장대기해 주세요\n` +
+      `· 입구에서 모바일 입장권 화면을 제시해 주세요\n` +
+      `· 예약 취소는 홈페이지에서 하실 수 있습니다`
+    );
   }
   if (kind === "reminder") {
-    return {
-      title: "[부산패션위크] 내일 관람 안내",
-      text:
-        `[2026 부산패션위크] 내일 관람 예정입니다.\n\n` +
-        `${name}님\n\n` +
-        `${itemLines(rows)}\n\n` +
-        `· 벡스코 제1전시장 3B홀\n` +
-        `· 시작 20분 전까지 입장대기해 주세요\n` +
-        `· 못 오시면 홈페이지에서 취소해 주시면 다른 분이 관람하실 수 있습니다\n\n` +
-        `예약 확인 ${SITE}/register.html`
-    };
+    return (
+      `[2026 부산패션위크] 내일 관람 예정입니다.\n\n` +
+      `${이름}님, 내일 뵙겠습니다.\n\n` +
+      `▶ 공연 : ${공연}\n` +
+      `▶ 일시 : ${일시}\n` +
+      `▶ 좌석 : ${좌석}\n` +
+      `▶ 예약번호 : ${예약번호}\n\n` +
+      `· 장소 : 벡스코 제1전시장 3B홀\n` +
+      `· 시작 20분 전까지 입장대기해 주세요\n` +
+      `· 사정이 생기시면 홈페이지에서 취소해 주세요.\n` +
+      `  다른 분이 관람하실 수 있습니다`
+    );
   }
+  return (
+    `[2026 부산패션위크] 관람 예약이 취소되었습니다.\n\n` +
+    `${이름}님\n\n` +
+    `▶ 공연 : ${공연}\n` +
+    `▶ 일시 : ${일시}\n` +
+    `▶ 예약번호 : ${예약번호}\n\n` +
+    `다시 예약하시려면 홈페이지를 이용해 주세요.`
+  );
+}
+
+const TITLES = {
+  reserved: "[부산패션위크] 관람 예약 완료",
+  reminder: "[부산패션위크] 내일 관람 안내",
+  cancelled: "[부산패션위크] 관람 예약 취소"
+};
+
+function buildMessage(kind, r) {
+  const body = tmplText(kind, r);
+  const isCancel = kind === "cancelled";
+  const link = isCancel ? registerUrl() : ticketUrl(r);
+  const label = isCancel ? "예약 페이지" : "모바일 입장권 보기";
   return {
-    title: "[부산패션위크] 예약 취소",
-    text:
-      `[2026 부산패션위크] 관람 예약이 취소되었습니다.\n\n` +
-      `${name}님\n\n` +
-      `${itemLines(rows)}\n\n` +
-      `다시 예약하시려면 홈페이지를 이용해 주세요.\n${SITE}/register.html`
+    title: TITLES[kind] || TITLES.reserved,
+    // 알림톡 본문 : 승인 템플릿과 동일해야 한다 (링크는 버튼이 담당)
+    text: body,
+    // 문자 / 대체문자 : 버튼이 없으므로 링크를 글자로 붙인다
+    sms: `${body}\n\n▶ ${label}\n${link}`,
+    button: { name: label, mo: link, pc: isCancel ? link : "" }
   };
 }
 
@@ -182,7 +216,7 @@ async function sendSms(to, msg) {
     user_id: ALIGO.userId,
     sender: ALIGO.sender,
     receiver: to,
-    msg: msg.text,
+    msg: msg.sms,
     title: msg.title,
     msg_type: "LMS",
     testmode_yn: ALIGO.testmode
@@ -210,10 +244,21 @@ async function sendAlimtalk(kind, to, name, msg) {
     recvname_1: name,
     subject_1: msg.title,
     message_1: msg.text,
-    // 알림톡이 실패하면 같은 내용을 문자로 자동 대체 발송
+    // 버튼 링크에 예약번호가 들어가므로 실제 주소를 함께 넘긴다
+    button_1: JSON.stringify({
+      button: [{
+        name: msg.button.name,
+        linkType: "WL",
+        linkTypeName: "웹링크",
+        linkMo: msg.button.mo,
+        linkPc: msg.button.pc || msg.button.mo
+      }]
+    }),
+    // 알림톡이 실패하면 문자로 대신 보낸다.
+    // 문자에는 버튼이 없으므로 링크가 본문에 들어간 sms 를 쓴다.
     failover: "Y",
     fsubject_1: msg.title,
-    fmessage_1: msg.text,
+    fmessage_1: msg.sms,
     testMode: ALIGO.testmode
   });
   const ok = String(d.code) === "0";

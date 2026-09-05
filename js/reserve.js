@@ -28,6 +28,9 @@
     else nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
   })();
 
+  // 전화번호 칸은 숫자만 받고 하이픈을 자동으로 넣는다
+  if (BFW.bindPhonesIn) BFW.bindPhonesIn(document);
+
   var shows = (cfg.shows || []).slice();
   $("mShows").textContent = shows.length + " Shows";
   var caps = shows.map(function (s) { return s.cap || cfg.reserve.defaultCap || 300; });

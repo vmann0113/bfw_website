@@ -223,6 +223,62 @@
   /* ---- BAKED: live site state exported 2026-08-04 — applied over DEFAULTS for all visitors ---- */
   var BAKED = {"brand":{"logo":null,"textPrimary":"BUSAN","textSecondary":"FW","nameKo":"부산패션위크"},"event":{"year":"2026","venue":"@BEXCO","dateLine":"10. 29. — 10. 31.","dateFull":"2026.10.29 (목) — 10.31 (토)"},"countdown":{"enabled":true,"target":"2026-10-29T10:00","label":"D-DAY — 오프닝까지"},"sections":{"story":{"enabled":true,"offMode":"coming","label":"About"},"schedule":{"enabled":true,"offMode":"coming","label":"Schedule"},"lastyear":{"enabled":true,"offMode":"hidden","label":"2025 Lineup"},"brands":{"enabled":true,"offMode":"hidden","label":"Designer Brands"},"university":{"enabled":true,"offMode":"hidden","label":"University Show"},"ir":{"enabled":false,"offMode":"hidden","label":"Invest Connect"},"media":{"enabled":false,"offMode":"hidden","label":"On Film"},"archive":{"enabled":false,"offMode":"hidden","label":"Archive"},"instagram":{"enabled":false,"offMode":"hidden","label":"Instagram"},"visit":{"enabled":true,"offMode":"coming","label":"Visit & Register"}},"media":{"mode":"youtube","url":"","title":"2026 부산패션위크 · Official Highlight Film","live":false,"poster":null},"press":{"auto":false,"proxyUrl":"","query":"부산패션위크","count":6,"items":[]},"archive":[],"instagram":{"handle":"busanfashionweek","profileUrl":"https://www.instagram.com/busanfashionweek","token":"","userId":"","count":6,"posts":[]},"map":{"naverClientId":"3rq3r6poqp","lat":35.16871,"lng":129.1339,"zoom":16,"address":"벡스코(BEXCO) 제1전시장 3B홀","addressEn":"BEXCO Exhibition Hall 1, 3B · Busan"},"register":{"open":true,"externalUrl":"","deadline":"2026.10.10","note":"참가 신청은 심사 후 개별 안내됩니다."},"reserve":{"published":false,"open":true,"note":"전 좌석 무료 · 1인 1석 · 선착순 마감. 예약 후 발급되는 QR을 현장에서 제시하세요.","defaultCap":300},"pressVisit":{"open":true,"note":"프레스 방문은 신청 후 심사를 거쳐 승인됩니다. 승인되면 프레스 QR이 발급되며, 행사 당일 프레스 데스크에서 QR 제시 후 비표를 수령하세요."},"brands":[{"no":"01","name":"레뷰라","nameKo":"레뷰라","logo":"images/brand26-src-01.png","cat":"kr","link":"","fill":true},{"no":"02","name":"르망고","nameKo":"르망고","logo":"images/brand26-src-02.png","cat":"kr","link":"","fill":true},{"no":"03","name":"리온베","nameKo":"리온베","logo":"images/brand26-src-03.png","cat":"kr","link":"","fill":true},{"no":"04","name":"메르최","nameKo":"메르최","logo":"images/brand26-src-04.png","cat":"kr","link":"","fill":true},{"no":"05","name":"미지미지","nameKo":"미지미지","logo":"images/brand26-src-05.png","cat":"kr","link":"","fill":true},{"no":"06","name":"바주요","nameKo":"바주요","logo":"images/brand26-src-06.png","cat":"kr","link":"","fill":true},{"no":"07","name":"소언한복","nameKo":"소언한복","logo":"images/brand26-src-07.png","cat":"kr","link":"","fill":true},{"no":"08","name":"소티에","nameKo":"소티에","logo":"images/brand26-src-08.png","cat":"kr","link":"","fill":true},{"no":"09","name":"스튜디오 디 뻬를라","nameKo":"스튜디오 디 뻬를라","logo":"images/brand26-src-09.png","cat":"kr","link":"","fill":true},{"no":"10","name":"오교","nameKo":"오교","logo":"images/brand26-src-10.png","cat":"kr","link":"","fill":true},{"no":"11","name":"이미경 뷰띠끄","nameKo":"이미경 뷰띠끄","logo":"images/brand26-src-11.png","cat":"kr","link":"","fill":true},{"no":"12","name":"이영희프레젠트","nameKo":"이영희프레젠트","logo":"images/brand26-src-12.png","cat":"kr","link":"","fill":true},{"no":"13","name":"카마모에","nameKo":"카마모에","logo":"images/brand26-src-13.png","cat":"kr","link":"","fill":true},{"no":"14","name":"코타로 타니야마","nameKo":"코타로 타니야마","logo":"images/brand26-src-14.png","cat":"intl","link":"","country":"JAPAN","fill":true},{"no":"15","name":"프랭커스","nameKo":"프랭커스","logo":"images/brand26-15.png","cat":"kr","link":"","dark":true,"fill":true}],"shows":[{"id":"S01","day":1,"date":"2026.10.29","dow":"목","time":"11:00","end":"11:50","title":"Opening","titleKo":"패페부산X부산패션위크 개막식","lineup":"오프닝","venue":"메인 런웨이","cap":300,"tbd":false},{"id":"S02","day":1,"date":"2026.10.29","dow":"목","time":"13:00","end":"13:30","title":"Joint Show ①","titleKo":"연합쇼 ①","lineup":"레뷰라X코타로 타니야마 · 해외브랜드 연합쇼","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S03","day":1,"date":"2026.10.29","dow":"목","time":"14:30","end":"15:00","title":"Joint Show ②","titleKo":"연합쇼 ②","lineup":"동아대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S04","day":1,"date":"2026.10.29","dow":"목","time":"16:00","end":"16:30","title":"Joint Show ③","titleKo":"연합쇼 ③","lineup":"이미경 뷰띠끄 · 르망고 · 해외브랜드 연합쇼","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S05","day":2,"date":"2026.10.30","dow":"금","time":"10:30","end":"11:00","title":"Joint Show ④","titleKo":"연합쇼 ④","lineup":"오교 · 리온베 · 이영희 프리젠트","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S06","day":2,"date":"2026.10.30","dow":"금","time":"12:00","end":"12:30","title":"Joint Show ⑤","titleKo":"연합쇼 ⑤","lineup":"국립부경대학교 · 동명대학교 · 소언한복X경상국립대","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S07","day":2,"date":"2026.10.30","dow":"금","time":"14:00","end":"16:00","title":"Design Competition","titleKo":"부산패션디자인경진대회 & 부산컬렉션","lineup":"","venue":"메인 런웨이","cap":300,"tbd":false},{"id":"S08","day":2,"date":"2026.10.30","dow":"금","time":"17:00","end":"17:30","title":"Joint Show ⑥","titleKo":"연합쇼 ⑥","lineup":"동의대학교 · 경성대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S09","day":3,"date":"2026.10.31","dow":"토","time":"11:00","end":"11:30","title":"Joint Show ⑦","titleKo":"연합쇼 ⑦","lineup":"신라대학교 · 영산대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S10","day":3,"date":"2026.10.31","dow":"토","time":"13:00","end":"13:30","title":"Joint Show ⑧","titleKo":"연합쇼 ⑧","lineup":"부산대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"},{"id":"S11","day":3,"date":"2026.10.31","dow":"토","time":"14:30","end":"15:00","title":"Joint Show ⑨","titleKo":"연합쇼 ⑨","lineup":"카마모에X소티에 · 스튜디오 디 뻬를라 · 프랭커스","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S12","day":3,"date":"2026.10.31","dow":"토","time":"16:00","end":"16:30","title":"Joint Show ⑩","titleKo":"연합쇼 ⑩","lineup":"마르즈 · 미지미지 · 바주요","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"브랜드"},{"id":"S13","day":3,"date":"2026.10.31","dow":"토","time":"17:30","end":"18:00","title":"Joint Show ⑪","titleKo":"연합쇼 ⑪","lineup":"동서대학교","venue":"메인 런웨이","cap":300,"tbd":false,"tag":"대학"}]};
 
+
+  /* -----------------------------------------------------------
+     전화번호 입력 도우미
+     숫자만 받고 하이픈을 자동으로 넣는다. 입력칸마다 따로 만들면
+     서로 달라지므로 여기 한 곳에 둔다.
+       입력 중  : 010-1234-5678 (3-4-4)
+       입력 완료: 10자리면 010-123-4567 (3-3-4) 로 맞춘다
+  ----------------------------------------------------------- */
+  function formatPhone(v, done) {
+    var d = String(v == null ? "" : v).replace(/[^0-9]/g, "").slice(0, 11);
+    // 서울(02)만 지역번호가 두 자리다
+    if (d.indexOf("02") === 0) {
+      d = d.slice(0, 10);
+      if (d.length <= 2) return d;
+      if (d.length <= 5) return "02-" + d.slice(2);
+      if (d.length <= 9) return "02-" + d.slice(2, 5) + "-" + d.slice(5);
+      return "02-" + d.slice(2, 6) + "-" + d.slice(6);
+    }
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return d.slice(0, 3) + "-" + d.slice(3);
+    if (done && d.length === 10) return d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6);
+    return d.slice(0, 3) + "-" + d.slice(3, 7) + "-" + d.slice(7);
+  }
+
+  function bindPhone(el) {
+    if (!el || el.__phoneBound) return;
+    el.__phoneBound = true;
+    el.setAttribute("inputmode", "numeric");
+    el.setAttribute("autocomplete", "tel");
+    el.setAttribute("maxlength", "13");
+
+    el.addEventListener("input", function () {
+      var pos = el.selectionStart;
+      var atEnd = pos === el.value.length;
+      // 커서 앞에 있던 숫자 개수를 세어 두었다가 포맷 후 같은 자리로 되돌린다
+      var before = el.value.slice(0, pos).replace(/[^0-9]/g, "").length;
+      var f = formatPhone(el.value, false);
+      if (f === el.value) return;
+      el.value = f;
+      if (atEnd) { try { el.setSelectionRange(f.length, f.length); } catch (e) {} return; }
+      var i = 0, n = 0;
+      while (i < f.length && n < before) {
+        if (f.charCodeAt(i) >= 48 && f.charCodeAt(i) <= 57) n++;
+        i++;
+      }
+      try { el.setSelectionRange(i, i); } catch (e) {}
+    });
+
+    el.addEventListener("blur", function () { el.value = formatPhone(el.value, true); });
+  }
+
+  function bindPhonesIn(root) {
+    var list = (root || document).querySelectorAll('input[type="tel"]');
+    for (var i = 0; i < list.length; i++) bindPhone(list[i]);
+  }
+
   /* ---- deep merge so new default keys appear for old saved data ---- */
   function isObj(v) { return v && typeof v === "object" && !Array.isArray(v); }
   function merge(base, over) {
@@ -451,6 +507,9 @@
 
   global.BFW = {
     KEY: KEY,
+    formatPhone: formatPhone,
+    bindPhone: bindPhone,
+    bindPhonesIn: bindPhonesIn,
     SUPABASE: SUPABASE,
     hasBackend: function () { return !!(SUPABASE.url && SUPABASE.anonKey); },
     DEFAULTS: DEFAULTS,
