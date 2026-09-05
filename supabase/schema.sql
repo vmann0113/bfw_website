@@ -434,13 +434,16 @@ $$;
 --  문자로 받은 링크에서 QR을 띄우는 용도. 예약번호를 무작위로 대입해도
 --  이름은 가려져 있고 연락처·이메일은 아예 나가지 않는다.
 --  (어느 좌석이 찼는지는 예약 화면에서 이미 공개되는 정보다)
+--  반환 열이 바뀌었으므로 기존 함수를 지우고 다시 만든다
+drop function if exists public.ticket_view(text[]);
+
 create or replace function public.ticket_view(p_codes text[])
 returns table (
-  code text, show_id text, title_ko text, show_title text,
+  code text, show_id text, title_ko text, show_title text, lineup text,
   day int, date text, start_time text, end_time text, venue text,
   seat_label text, name_masked text, checked_in boolean
 ) language sql security definer set search_path = public as $$
-  select r.code, r.show_id, r.title_ko, r.show_title,
+  select r.code, r.show_id, r.title_ko, r.show_title, r.lineup,
          r.day, r.date, r.start_time, r.end_time, r.venue,
          r.seat_label,
          case

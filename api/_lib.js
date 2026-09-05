@@ -108,10 +108,12 @@ function whenLine(r) {
 }
 
 function itemLines(rows) {
+  // "연합쇼 ④" 만으로는 어떤 쇼인지 알 수 없으므로 참여 브랜드를 함께 적는다
   return rows
     .map(
       (r) =>
         `▶ ${whenLine(r)} ${r.title_ko || r.show_title || ""}\n` +
+        (r.lineup ? `   ${r.lineup}\n` : "") +
         `   ${r.seat_label ? "좌석 " + r.seat_label + " / " : ""}BFW-${r.code}`
     )
     .join("\n");

@@ -54,6 +54,7 @@
       '<div class="t-head">' +
         '<div class="kicker">2026 BUSAN FASHION WEEK</div>' +
         "<h2>" + esc(r.title_ko || r.show_title || "") + "</h2>" +
+        (r.lineup ? '<div class="lineup">' + esc(r.lineup) + "</div>" : "") +
         '<div class="when">' + esc(whenText(r)) + "</div>" +
       "</div>" +
       '<div class="t-body">' +
@@ -63,6 +64,7 @@
         '<div class="who">' + esc(r.name_masked || "") + "님</div>" +
         '<div class="rows">' +
           "<div><dt>장소</dt><dd>벡스코 제1전시장 3B홀</dd></div>" +
+          (r.lineup ? "<div><dt>참여</dt><dd>" + esc(r.lineup) + "</dd></div>" : "") +
           (r.seat_label
             ? "<div><dt>좌석</dt><dd>" + esc(r.seat_label) + "</dd></div>"
             : "<div><dt>좌석</dt><dd>자유석 · 선착순 착석</dd></div>") +
