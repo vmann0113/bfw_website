@@ -55,23 +55,33 @@
     font-size: .92rem; font-weight: 700; letter-spacing: .02em; }
 
   .t-body { padding: 20px 18px 22px; position: relative; z-index: 2; text-align: center; }
-  /* ── 도용 방지 : QR을 감싼 굵은 테두리에 여러 색이 동시에 흐른다(홀로그램) ──
-     캡처한 사진은 색 배치가 한 자리에 멈춰 있어 스태프가 육안으로 구분한다.
-     흐르는 띠는 이 흰 상자에 가려 QR 위를 지나지 않으므로 스캔에 영향이 없다. */
+  /* ── 도용 방지 : 홀로그램 테두리 ──
+     세 겹으로 쌓는다.
+       ① 무지개 그라디언트 면 (바깥 둥근 사각형)
+       ② 그보다 12px 작은 흰 둥근 사각형  → ①이 테두리처럼 보인다
+       ③ 그보다 24px 작은 QR              → 흰 여백이 QR을 감싼다
+     캡처한 사진은 색 배치가 멈춰 있어 스태프가 육안으로 구분한다.
+     흐르는 띠는 ②에 가려 QR 위를 지나지 않으므로 스캔에 영향이 없다. */
   .qr-frame {
-    position: relative; z-index: 4; width: 252px; margin: 0 auto 14px;
-    box-sizing: border-box; padding: 10px; border-radius: 24px;
+    position: relative; z-index: 4;
+    width: 264px; height: 264px; margin: 0 auto 16px;
+    box-sizing: border-box; padding: 12px; border-radius: 30px;
     background: linear-gradient(115deg,
-      #e5484d, #f76b15, #ffc53d, #30a46c, #17b6a0, #0b6bcb, #8e4ec6, #e5484d);
+      #ff4d5e, #ff8a3d, #ffd23f, #3ddc84, #21c7c7, #3a86ff, #9b5de5, #ff4d5e);
     background-size: 200% 200%;
     animation: holo 3.5s linear infinite;
+    box-shadow: 0 8px 22px rgba(20, 35, 90, .16);
   }
   @keyframes holo {
     0%   { background-position:   0% 50%; }
     100% { background-position: 100% 50%; }
   }
-  .qr-inner { background: #fff; border-radius: 15px; padding: 17px; }
-  .qr-inner svg { width: 100%; height: auto; display: block; }
+  .qr-inner {
+    width: 100%; height: 100%; box-sizing: border-box;
+    background: #fff; border-radius: 18px; padding: 24px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qr-inner svg { width: 100%; height: 100%; display: block; }
   .live { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px;
     font-family: "Space Mono", monospace; font-size: .64rem; letter-spacing: .16em; color: var(--mute); }
   .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
