@@ -52,6 +52,8 @@
     if (avail[s.id]) return Math.max(0, avail[s.id].remaining);
     return capOf(s);
   }
+  // 쇼 전날 자정이 지나면 서버가 마감으로 표시한다
+  function closedOf(s) { return !!(avail[s.id] && avail[s.id].closed); }
   function dispCode(code) { return "BFW-" + code; }
   function qrSvg(text) {
     try {
@@ -81,31 +83,34 @@
       var grid = group.querySelector(".show-grid");
 
       inDay.forEach(function (s) {
-        var cap = capOf(s), remain = remainOf(s), full = remain <= 0;
-        var low = remain > 0 && remain <= 30;
+        var cap = capOf(s), remain = remainOf(s);
+        var closed = closedOf(s), full = remain <= 0, blocked = full || closed;
+        var low = !blocked && remain > 0 && remain <= 30;
         var isSel = selected.indexOf(s.id) >= 0;
         var pct = Math.min(100, Math.round(((cap - remain) / cap) * 100));
         var card = document.createElement("button");
         card.type = "button";
-        card.className = "show-card" + (isSel ? " sel" : "") + (full ? " full" : "");
+        card.className = "show-card" + (isSel ? " sel" : "") + (blocked ? " full" : "");
         card.setAttribute("data-id", s.id);
         card.innerHTML =
           '<div class="sc-top"><span class="sc-time">' + esc(s.time || "") + (s.end ? "–" + esc(s.end) : "") + "</span>" +
-          (full ? '<span class="full-pill">마감</span>' : '<span class="sc-check">✓</span>') + "</div>" +
+          (blocked ? '<span class="full-pill">' + (closed ? "종료" : "마감") + "</span>" : '<span class="sc-check">✓</span>') + "</div>" +
           '<div class="sc-title">' + esc(s.title || "") + "</div>" +
           (s.titleKo ? '<div class="sc-ko">' + esc(s.titleKo) + "</div>" : "") +
           '<div class="sc-venue">' + esc(s.lineup || s.venue || "") + "</div>" +
           (s.tbd ? '<div class="tbd-tag">참여 브랜드 추첨 배치 예정</div>' : "") +
           '<div class="cap">' +
-            '<div class="cap-bar"><div class="cap-fill" style="width:' + pct + '%;' + (low || full ? "background:var(--coral)" : "") + '"></div></div>' +
+            '<div class="cap-bar"><div class="cap-fill" style="width:' + pct + '%;' + (low || blocked ? "background:var(--coral)" : "") + '"></div></div>' +
             '<div class="cap-row">' +
-              (full
+              (closed
+                ? '<span class="cap-remain low">예약 기간 종료</span>'
+                : full
                 ? '<span class="cap-remain low">예약 마감</span>'
                 : '<span class="cap-remain' + (low ? " low" : "") + '">잔여 ' + remain + '석</span>') +
               '<span class="cap-total">' + (cap - remain) + " / " + cap + "</span>" +
             "</div>" +
           "</div>";
-        if (!full) card.addEventListener("click", function () { toggle(s.id); });
+        if (!blocked) card.addEventListener("click", function () { toggle(s.id); });
         grid.appendChild(card);
       });
       wrap.appendChild(group);
@@ -172,7 +177,7 @@
     submitBtn.innerHTML = "예약 처리 중…";
 
     var ids = selected.slice();
-    var done = [], failFull = [], failDup = [], failErr = [];
+    var done = [], failFull = [], failDup = [], failErr = [], failClosed = [];
 
     // process sequentially so the server enforces first-come order cleanly
     var chain = Promise.resolve();
@@ -188,6 +193,7 @@
           if (res.ok) done.push(res.entry);
           else if (res.reason === "dup") failDup.push(s);
           else if (res.reason === "full") failFull.push(s);
+          else if (res.reason === "closed") failClosed.push(s);
           else failErr.push(s);
         });
       });
@@ -198,7 +204,7 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = origLabel;
       closeSheet("formSheet");
-      showDone(done, failFull, failDup, failErr);
+      showDone(done, failFull, failDup, failErr, failClosed);
       try { localStorage.setItem("bfw_last_phone", phone); localStorage.setItem("bfw_last_name", name); } catch (e2) {}
       $("fName").value = ""; $("fPhone").value = ""; $("fEmail").value = "";
       $("fAgree").checked = false; $("fMkt").checked = false;
@@ -207,7 +213,7 @@
     });
   });
 
-  function showDone(done, failFull, failDup, failErr) {
+  function showDone(done, failFull, failDup, failErr, failClosed) {
     var wrap = $("doneTickets");
     wrap.innerHTML = "";
     done.forEach(function (r) { wrap.appendChild(ticketEl(r, false)); });
@@ -216,6 +222,7 @@
     var msgs = [];
     if (failFull && failFull.length) msgs.push("‘" + failFull.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 방금 좌석이 마감되어 예약되지 않았습니다.");
     if (failDup && failDup.length) msgs.push("‘" + failDup.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 이미 이 연락처로 예약되어 있습니다.");
+    if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 공연 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
     if (failErr && failErr.length) msgs.push("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     if (msgs.length) {
       failBox.innerHTML = msgs.join("<br>");

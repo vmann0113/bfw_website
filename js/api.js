@@ -94,7 +94,10 @@
         return rest("/rest/v1/show_availability?select=*").then(function (rows) {
           var map = {};
           (rows || []).forEach(function (r) {
-            map[r.id] = { capacity: r.capacity, reserved: r.reserved, remaining: r.remaining };
+            map[r.id] = {
+              capacity: r.capacity, reserved: r.reserved, remaining: r.remaining,
+              closed: !!r.closed, closeAt: r.reserve_close_at || null
+            };
           });
           return map;
         });
