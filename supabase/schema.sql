@@ -3,7 +3,9 @@
 --  Supabase SQL Editor 에 전체를 붙여넣고 한 번 실행하세요.
 --  여러 번 실행해도 안전합니다(같은 결과로 수렴).
 --
---  작성: 2026-09-05
+--  작성: 2026-09-05 (마감시각·현장인원 통합본)
+--  이 파일 하나가 최종 상태입니다. walkins.sql / deadline.sql 은 이미 적용된
+--  중간 패치이므로 다시 실행할 필요가 없습니다.
 --  대상 프로젝트: hjcrzdzrgmubipxcgzce
 -- =====================================================================
 
@@ -27,8 +29,11 @@ create table if not exists public.shows (
   venue       text default '메인 런웨이',
   capacity    int  not null default 300,
   tbd         boolean default false,
-  sort        int  default 0
+  sort        int  default 0,
+  reserve_close_at timestamptz     -- 예약 마감 시각(쇼 전날 자정). null이면 마감 없음
 );
+-- 이 열이 없던 시기에 만든 데이터베이스를 위해
+alter table public.shows add column if not exists reserve_close_at timestamptz;
 
 -- ---- reservations : 관람 예약 ----
 --  phone_key / name_key 는 입력값에서 자동 생성되는 "대조용" 열입니다.
@@ -122,19 +127,30 @@ on conflict (id) do update set
   title=excluded.title, title_ko=excluded.title_ko, lineup=excluded.lineup,
   venue=excluded.venue, capacity=excluded.capacity, tbd=excluded.tbd, sort=excluded.sort;
 
+-- 쇼 날짜로부터 "전날 자정"(= 쇼 당일 00:00 한국시간)을 계산해 채운다.
+-- 이미 값이 있는 쇼는 건드리지 않는다(개별 조정분 보존).
+update public.shows
+   set reserve_close_at = (to_date(shows.date, 'YYYY.MM.DD')::timestamp at time zone 'Asia/Seoul')
+ where reserve_close_at is null
+   and shows.date is not null;
+
 -- =====================================================================
 --  3. 잔여석 뷰 — 공개(누구나 읽기). 개인정보는 담기지 않고 숫자만 나갑니다.
 -- =====================================================================
 
+--  주의: PostgreSQL 은 기존 뷰를 교체할 때 열 순서를 바꾸거나 중간에 끼워넣지
+--  못한다. 새 열은 반드시 맨 뒤에 붙일 것.
 create or replace view public.show_availability as
 select
   s.id,
   s.capacity,
-  count(r.*) filter (where r.status = 'reserved')                          as reserved,
-  greatest(s.capacity - count(r.*) filter (where r.status = 'reserved'), 0) as remaining
+  count(r.*) filter (where r.status = 'reserved')                           as reserved,
+  greatest(s.capacity - count(r.*) filter (where r.status = 'reserved'), 0) as remaining,
+  s.reserve_close_at,
+  (s.reserve_close_at is not null and now() >= s.reserve_close_at)          as closed
 from public.shows s
 left join public.reservations r on r.show_id = s.id
-group by s.id, s.capacity;
+group by s.id, s.capacity, s.reserve_close_at;
 
 -- =====================================================================
 --  4. 기능(함수)
@@ -168,6 +184,11 @@ begin
   select * into v_show from shows where id = p_show_id for update;
   if not found then
     return json_build_object('ok', false, 'reason', 'noshow');
+  end if;
+
+  -- 예약 마감 시각을 지났는가 (쇼 전날 자정)
+  if v_show.reserve_close_at is not null and now() >= v_show.reserve_close_at then
+    return json_build_object('ok', false, 'reason', 'closed');
   end if;
 
   -- 같은 연락처가 이미 이 쇼를 예약했는가
@@ -541,17 +562,114 @@ grant execute on function public.press_undo_check_in(uuid)     to authenticated;
 grant select on public.show_availability to anon, authenticated;
 
 -- =====================================================================
---  6. 설치 확인
+--  6. 현장 스탠드석 인원 (예약 없이 오신 관람객)
+--     관리자 → 현장 체크인 화면에서 쇼별 인원수를 직접 입력합니다.
+-- =====================================================================
+
+create table if not exists public.walkins (
+  show_id    text primary key references public.shows(id),
+  count      int  not null default 0 check (count >= 0),
+  note       text,
+  updated_at timestamptz default now()
+);
+
+alter table public.walkins enable row level security;
+-- 정책을 만들지 않음 = 직접 접근 전면 차단. 아래 함수로만 오갑니다.
+
+-- ---- 현장 인원 입력/수정 (스태프 전용) ----
+--  같은 쇼를 다시 입력하면 덮어씁니다. 0 을 넣으면 0 으로 기록됩니다.
+create or replace function public.walkin_set(
+  p_show_id text, p_count int, p_note text default null
+) returns json language plpgsql security definer set search_path = public as $$
+begin
+  if auth.role() <> 'authenticated' then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  if not exists (select 1 from shows where id = p_show_id) then
+    return json_build_object('ok', false, 'reason', 'noshow');
+  end if;
+  if p_count is null or p_count < 0 or p_count > 100000 then
+    return json_build_object('ok', false, 'reason', 'badcount');
+  end if;
+
+  insert into walkins (show_id, count, note, updated_at)
+  values (p_show_id, p_count, nullif(btrim(coalesce(p_note,'')),''), now())
+  on conflict (show_id) do update
+    set count = excluded.count, note = excluded.note, updated_at = now();
+
+  return json_build_object('ok', true, 'show_id', p_show_id, 'count', p_count);
+end $$;
+
+-- ---- 쇼별 입장 집계 : 예약 입장 + 현장 인원 (스태프 전용) ----
+--  결과 예: S01 · 예약 300 · 입장확인 241 · 현장 57 · 합계 298
+create or replace function public.attendance_stats()
+returns table (
+  show_id  text,
+  title_ko text,
+  day      int,
+  reserved bigint,
+  entered  bigint,
+  walkin   int,
+  total    bigint,
+  note     text
+) language sql security definer set search_path = public as $$
+  select
+    s.id,
+    s.title_ko,
+    s.day,
+    count(r.*) filter (where r.status = 'reserved')                  as reserved,
+    count(r.*) filter (where r.status = 'reserved' and r.checked_in) as entered,
+    coalesce(w.count, 0)                                             as walkin,
+    count(r.*) filter (where r.status = 'reserved' and r.checked_in)
+      + coalesce(w.count, 0)                                         as total,
+    w.note
+  from shows s
+  left join reservations r on r.show_id = s.id
+  left join walkins w      on w.show_id = s.id
+  where auth.role() = 'authenticated'
+  group by s.id, s.title_ko, s.day, s.sort, w.count, w.note
+  order by s.sort;
+$$;
+
+-- ---- 실행 권한 : 로그인한 스태프 전용 ----
+revoke all on function
+  public.walkin_set(text,int,text), public.attendance_stats()
+  from public, anon, authenticated;
+
+grant execute on function public.walkin_set(text,int,text) to authenticated;
+grant execute on function public.attendance_stats()        to authenticated;
+
+-- =====================================================================
+--  7. 설치 확인
 -- =====================================================================
 select
-  (select count(*) from public.shows)                      as 쇼_개수,
-  (select sum(capacity) from public.shows)                 as 총_좌석,
-  (select count(*) from public.show_availability)          as 잔여석_뷰,
+  (select count(*) from public.shows)                             as 쇼_개수,
+  (select sum(capacity) from public.shows)                        as 총_좌석,
+  (select count(*) from public.shows where reserve_close_at is not null) as 마감시각_설정된_쇼,
+  (select count(*) from public.show_availability)                 as 잔여석_뷰,
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public'
        and p.proname in ('reserve_seat','lookup_reservations','find_reservation',
                          'staff_search','check_in','undo_check_in','cancel_reservation',
                          'admin_clear_reservations','member_sign_up','member_sign_in',
                          'press_apply','press_lookup','press_set_status','press_find',
-                         'press_check_in','press_undo_check_in'))  as 기능_개수;
--- 기대값: 쇼_개수 13 · 총_좌석 3900 · 잔여석_뷰 13 · 기능_개수 16
+                         'press_check_in','press_undo_check_in',
+                         'walkin_set','attendance_stats'))       as 기능_개수;
+-- 기대값: 쇼_개수 13 · 총_좌석 3900 · 마감시각_설정된_쇼 13 · 잔여석_뷰 13 · 기능_개수 18
+
+-- =====================================================================
+--  쇼별 예약 마감 시각 확인 (한국시간)
+-- =====================================================================
+select id, date as 쇼날짜,
+       to_char(reserve_close_at at time zone 'Asia/Seoul', 'YYYY-MM-DD HH24:MI') as 예약마감,
+       (now() >= reserve_close_at) as 지금마감됨
+from public.shows order by sort;
+
+-- ---------------------------------------------------------------------
+--  [참고] 특정 쇼의 마감을 따로 조정할 때
+--    update public.shows set reserve_close_at = timestamptz '2026-10-28 18:00+09' where id = 'S01';
+--  [참고] 특정 쇼를 즉시 마감할 때
+--    update public.shows set reserve_close_at = now() where id = 'S01';
+--  [참고] 마감을 없앨 때
+--    update public.shows set reserve_close_at = null where id = 'S01';
+-- ---------------------------------------------------------------------

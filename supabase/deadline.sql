@@ -1,3 +1,7 @@
+-- ⚠ 이 파일의 내용은 schema.sql 에 통합되었습니다 (2026-09-05).
+-- 새로 설치하거나 다시 적용할 때는 schema.sql 하나만 실행하세요.
+-- 이 파일은 변경 이력을 남기기 위해 보관합니다.
+
 -- =====================================================================
 --  예약 마감 시각 — 쇼별로 "전날 자정"에 자동 마감
 --    · 10.29 쇼 → 10.29 00:00 부터 마감 (= 10.28 자정)
@@ -19,14 +23,16 @@ update public.shows
    and date is not null;
 
 -- ---- 3. 잔여석 뷰에 마감 시각을 함께 실어 보낸다 (예약 화면이 읽음) ----
+--  주의: PostgreSQL 은 기존 뷰를 교체할 때 열 순서를 바꾸거나 중간에
+--  끼워넣지 못합니다. 새 열(reserve_close_at, closed)은 반드시 뒤에 붙입니다.
 create or replace view public.show_availability as
 select
   s.id,
   s.capacity,
-  s.reserve_close_at,
-  (s.reserve_close_at is not null and now() >= s.reserve_close_at)          as closed,
   count(r.*) filter (where r.status = 'reserved')                           as reserved,
-  greatest(s.capacity - count(r.*) filter (where r.status = 'reserved'), 0) as remaining
+  greatest(s.capacity - count(r.*) filter (where r.status = 'reserved'), 0) as remaining,
+  s.reserve_close_at,
+  (s.reserve_close_at is not null and now() >= s.reserve_close_at)          as closed
 from public.shows s
 left join public.reservations r on r.show_id = s.id
 group by s.id, s.capacity, s.reserve_close_at;
