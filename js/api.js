@@ -98,7 +98,8 @@
           (rows || []).forEach(function (r) {
             map[r.id] = {
               capacity: r.capacity, reserved: r.reserved, remaining: r.remaining,
-              closed: !!r.closed, closeAt: r.reserve_close_at || null
+              closed: !!r.closed, closeAt: r.reserve_close_at || null,
+              locked: r.locked || 0, mode: r.seating_mode || "free"
             };
           });
           return map;
@@ -117,7 +118,7 @@
     reserve: function (show) {
       if (BACKEND) {
         return rpc("reserve_seat", {
-          p_show_id: show.showId, p_seat_id: show.seatId,
+          p_show_id: show.showId, p_seat_id: show.seatId || null,
           p_name: show.name, p_phone: show.phone,
           p_email: show.email || null, p_marketing: !!show.marketing
         }).then(function (d) {
@@ -166,6 +167,26 @@
           }).catch(function () { return []; });
       }
       return Promise.resolve([]);
+    },
+
+    /* ---- 모바일 입장권 조회 (공개, 이름은 가려져서 옴) ---- */
+    ticketView: function (codes) {
+      if (BACKEND) {
+        return rpc("ticket_view", { p_codes: codes })
+          .then(function (rows) { return rows || []; })
+          .catch(function () { return []; });
+      }
+      return Promise.resolve([]);
+    },
+
+    /* ---- 스태프: 쇼의 예약 방식 바꾸기 ('assigned' | 'free') ---- */
+    setSeatingMode: function (showId, mode) {
+      if (BACKEND) {
+        return rpc("set_seating_mode", { p_show_id: showId, p_mode: mode })
+          .then(function (d) { return d || { ok: false }; })
+          .catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve({ ok: true });
     },
 
     /* ---- 스태프: 초청석 잠그기/풀기 (p_kind null 이면 해제) ---- */

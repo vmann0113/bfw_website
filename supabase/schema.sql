@@ -30,10 +30,12 @@ create table if not exists public.shows (
   capacity    int  not null default 300,
   tbd         boolean default false,
   sort        int  default 0,
-  reserve_close_at timestamptz     -- 예약 마감 시각(쇼 전날 자정). null이면 마감 없음
+  reserve_close_at timestamptz,    -- 예약 마감 시각(쇼 전날 자정). null이면 마감 없음
+  seating_mode text not null default 'free'   -- 'assigned'(지정좌석) | 'free'(자유석)
 );
--- 이 열이 없던 시기에 만든 데이터베이스를 위해
+-- 이 열들이 없던 시기에 만든 데이터베이스를 위해
 alter table public.shows add column if not exists reserve_close_at timestamptz;
+alter table public.shows add column if not exists seating_mode text not null default 'free';
 
 -- ---- zones : 객석 구역 (A~H, 쇼와 무관하게 고정) ----
 --  실제 배치: 무대/LED 앞으로 런웨이가 있고 좌·우에 각 4개 구역.
@@ -117,6 +119,28 @@ create unique index if not exists uniq_active_seat
 -- 한 좌석은 한 쇼에서 한 번만 (오버부킹 최종 방어선)
 create unique index if not exists uniq_seat_per_show
   on public.reservations(show_id, seat_id) where status = 'reserved' and seat_id is not null;
+
+-- ---- notifications : 문자·알림톡 발송 이력 ----
+--  같은 안내를 두 번 보내지 않기 위한 기록이자, 발주처 보고용 근거자료.
+--  서버(Vercel 함수)만 접근한다. 브라우저에서는 읽지도 쓰지도 못한다.
+create table if not exists public.notifications (
+  id           uuid primary key default gen_random_uuid(),
+  reservation_id uuid references public.reservations(id) on delete set null,
+  code         text,                       -- 예약번호 (예약이 지워져도 이력은 남는다)
+  kind         text not null,              -- 'reserved' | 'reminder' | 'cancelled'
+  channel      text not null,              -- 'alimtalk' | 'sms' | 'dryrun'
+  to_phone     text,
+  status       text not null,              -- 'sent' | 'failed' | 'skipped'
+  detail       text,
+  created_at   timestamptz default now()
+);
+create index if not exists idx_noti_resv on public.notifications(reservation_id);
+-- 한 예약에 같은 종류의 안내는 한 번만 (성공한 건 기준)
+create unique index if not exists uniq_noti_once
+  on public.notifications(reservation_id, kind) where status = 'sent';
+
+alter table public.notifications enable row level security;
+-- 정책 없음 = anon/authenticated 모두 차단. 서버 전용 키로만 접근한다.
 
 -- ---- members : 간편 회원 ----
 create table if not exists public.members (
@@ -221,10 +245,11 @@ select
            - (select count(*) from public.show_seat_locks k where k.show_id = s.id), 0) as remaining,
   s.reserve_close_at,
   (s.reserve_close_at is not null and now() >= s.reserve_close_at)          as closed,
-  (select count(*) from public.show_seat_locks k where k.show_id = s.id)    as locked
+  (select count(*) from public.show_seat_locks k where k.show_id = s.id)    as locked,
+  s.seating_mode
 from public.shows s
 left join public.reservations r on r.show_id = s.id
-group by s.id, s.capacity, s.reserve_close_at;
+group by s.id, s.capacity, s.reserve_close_at, s.seating_mode;
 
 -- ---- 구역별 잔여석 (공개) : 예약 화면 1단계에서 쓴다 ----
 create or replace view public.zone_availability as
@@ -261,24 +286,31 @@ grant select on public.zone_availability to anon, authenticated;
 --     · 아래 함수를 통해서만 데이터가 오갑니다.
 -- =====================================================================
 
--- ---- 4-1. 예약 : 선착순의 핵심 (좌석 지정) ----
---  같은 쇼의 동시 요청을 shows 행 잠금으로 한 줄로 세운다.
---  좌석까지 지정하므로 "같은 자리 두 명" 이 원천적으로 불가능하다.
+-- ---- 4-1. 예약 : 선착순의 핵심 ----
+--  쇼마다 방식이 다르다.
+--   · seating_mode='assigned' → 관람객이 좌석을 지정한다 (p_seat_id 필수)
+--   · seating_mode='free'     → 잔여석만 세고 현장 착석은 선착순 (p_seat_id 무시)
+--  어느 쪽이든 초청석으로 잠근 자리는 온라인 정원에서 자동으로 빠진다.
 drop function if exists public.reserve_seat(text,text,text,text,boolean);
+drop function if exists public.reserve_seat(text,text,text,text,text,boolean);
 
 create or replace function public.reserve_seat(
   p_show_id text, p_seat_id text, p_name text, p_phone text, p_email text, p_marketing boolean
 ) returns json
 language plpgsql security definer set search_path = public as $$
 declare
-  v_show   shows;
-  v_seat   seats;
-  v_zone   zones;
-  v_count  int;
-  v_code   text;
-  v_row    reservations;
-  v_pkey   text;
-  v_try    int := 0;
+  v_show     shows;
+  v_seat     seats;
+  v_zone     zones;
+  v_count    int;
+  v_locked   int;
+  v_open     int;
+  v_code     text;
+  v_row      reservations;
+  v_pkey     text;
+  v_try      int := 0;
+  v_seat_id  text := null;
+  v_label    text := null;
 begin
   v_pkey := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
   if length(v_pkey) < 9 then
@@ -288,7 +320,7 @@ begin
     return json_build_object('ok', false, 'reason', 'badname');
   end if;
 
-  -- 쇼 행 잠금 → 같은 쇼 동시 예약을 직렬화
+  -- 쇼 행 잠금 → 같은 쇼 동시 예약을 직렬화 (오버부킹 방지)
   select * into v_show from shows where id = p_show_id for update;
   if not found then
     return json_build_object('ok', false, 'reason', 'noshow');
@@ -299,35 +331,41 @@ begin
     return json_build_object('ok', false, 'reason', 'closed');
   end if;
 
-  -- 좌석이 실재하는가
-  select * into v_seat from seats where id = p_seat_id;
-  if not found then
-    return json_build_object('ok', false, 'reason', 'noseat');
-  end if;
-  select * into v_zone from zones where code = v_seat.zone_code;
-
-  -- 초청석 등으로 잠긴 자리인가
-  if exists (select 1 from show_seat_locks
-             where show_id = p_show_id and seat_id = p_seat_id) then
-    return json_build_object('ok', false, 'reason', 'locked');
-  end if;
-
   -- 같은 연락처가 이미 이 쇼를 예약했는가
   if exists (select 1 from reservations
              where show_id = p_show_id and phone_key = v_pkey and status = 'reserved') then
     return json_build_object('ok', false, 'reason', 'dup');
   end if;
 
-  -- 이미 누가 앉은 자리인가
-  if exists (select 1 from reservations
-             where show_id = p_show_id and seat_id = p_seat_id and status = 'reserved') then
-    return json_build_object('ok', false, 'reason', 'taken');
+  if v_show.seating_mode = 'assigned' then
+    -- ── 지정좌석 ──
+    if coalesce(btrim(p_seat_id), '') = '' then
+      return json_build_object('ok', false, 'reason', 'noseat');
+    end if;
+    select * into v_seat from seats where id = btrim(p_seat_id);
+    if not found then
+      return json_build_object('ok', false, 'reason', 'noseat');
+    end if;
+    select * into v_zone from zones where code = v_seat.zone_code;
+
+    if exists (select 1 from show_seat_locks
+               where show_id = p_show_id and seat_id = v_seat.id) then
+      return json_build_object('ok', false, 'reason', 'locked');
+    end if;
+    if exists (select 1 from reservations
+               where show_id = p_show_id and seat_id = v_seat.id and status = 'reserved') then
+      return json_build_object('ok', false, 'reason', 'taken');
+    end if;
+    v_seat_id := v_seat.id;
+    v_label   := v_zone.label || ' ' || v_seat.num || '번';
   end if;
 
-  -- 정원 확인 (좌석제에서는 사실상 도달하지 않지만 최종 방어선)
+  -- 정원 확인 : 전체 정원에서 초청석을 뺀 만큼만 온라인으로 받는다
+  select count(*) into v_locked from show_seat_locks where show_id = p_show_id;
+  v_open := greatest(v_show.capacity - v_locked, 0);
   select count(*) into v_count from reservations
     where show_id = p_show_id and status = 'reserved';
-  if v_count >= v_show.capacity then
+  if v_count >= v_open then
     return json_build_object('ok', false, 'reason', 'full');
   end if;
 
@@ -352,14 +390,14 @@ begin
     (v_code, v_show.id, v_show.title, v_show.title_ko, v_show.lineup, v_show.day, v_show.date,
      v_show.start_time, v_show.end_time, v_show.venue,
      btrim(p_name), btrim(p_phone), nullif(btrim(coalesce(p_email,'')), ''), coalesce(p_marketing, false),
-     v_seat.id, v_zone.label || ' ' || v_seat.num || '번', 'web')
+     v_seat_id, v_label, 'web')
   returning * into v_row;
 
   return json_build_object('ok', true, 'reservation', row_to_json(v_row));
 exception when unique_violation then
-  -- 동시성으로 좌석/연락처가 겹친 경우
-  if exists (select 1 from reservations
-             where show_id = p_show_id and seat_id = p_seat_id and status = 'reserved') then
+  if v_seat_id is not null and exists (
+       select 1 from reservations
+        where show_id = p_show_id and seat_id = v_seat_id and status = 'reserved') then
     return json_build_object('ok', false, 'reason', 'taken');
   end if;
   return json_build_object('ok', false, 'reason', 'dup');
@@ -390,6 +428,34 @@ language sql security definer set search_path = public as $$
     and upper(code) = upper(btrim(p_code))
     and status = 'reserved'
   limit 1;
+$$;
+
+-- ---- 4-3b. 모바일 티켓 보기 (공개) ----
+--  문자로 받은 링크에서 QR을 띄우는 용도. 예약번호를 무작위로 대입해도
+--  이름은 가려져 있고 연락처·이메일은 아예 나가지 않는다.
+--  (어느 좌석이 찼는지는 예약 화면에서 이미 공개되는 정보다)
+create or replace function public.ticket_view(p_codes text[])
+returns table (
+  code text, show_id text, title_ko text, show_title text,
+  day int, date text, start_time text, end_time text, venue text,
+  seat_label text, name_masked text, checked_in boolean
+) language sql security definer set search_path = public as $$
+  select r.code, r.show_id, r.title_ko, r.show_title,
+         r.day, r.date, r.start_time, r.end_time, r.venue,
+         r.seat_label,
+         case
+           when char_length(r.name) <= 1 then r.name
+           when char_length(r.name) = 2 then left(r.name, 1) || '*'
+           else left(r.name, 1) || repeat('*', char_length(r.name) - 2) || right(r.name, 1)
+         end,
+         r.checked_in
+  from reservations r
+  where r.status = 'reserved'
+    -- 링크에는 'BFW-S01-ABC123' 형태로 들어오므로 접두어를 떼고 대조한다
+    and upper(r.code) = any (
+      select upper(regexp_replace(btrim(c), '^BFW-?', '', 'i')) from unnest(p_codes) as c
+    )
+  order by r.date, r.start_time;
 $$;
 
 -- ---- 4-4. 스태프 검색 (이름/연락처 부분일치) ----
@@ -620,6 +686,28 @@ begin
   return jsonb_build_object('ok', true, 'application', to_jsonb(a));
 end $$;
 
+-- ---- 4-9b. 쇼의 예약 방식 바꾸기 (스태프 전용) ----
+--  이미 관람객 예약이 들어온 뒤 방식을 바꾸면 기존 예약의 좌석 정보가
+--  현재 방식과 어긋나므로, 예약이 있으면 막는다.
+create or replace function public.set_seating_mode(p_show_id text, p_mode text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v_n int;
+begin
+  if auth.role() <> 'authenticated' then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  if p_mode not in ('assigned', 'free') then
+    return json_build_object('ok', false, 'reason', 'badmode');
+  end if;
+  select count(*) into v_n from reservations
+    where show_id = p_show_id and status = 'reserved' and source = 'web';
+  if v_n > 0 then
+    return json_build_object('ok', false, 'reason', 'hasreservations', 'count', v_n);
+  end if;
+  update shows set seating_mode = p_mode where id = p_show_id;
+  return json_build_object('ok', true, 'mode', p_mode);
+end $$;
+
 -- ---- 4-10. 좌석 배치도 (공개) : 개인정보 없이 자리 상태만 ----
 create or replace function public.seat_map(p_show_id text, p_zone_code text)
 returns table (seat_id text, num int, tier int, row_no int, status text)
@@ -798,6 +886,8 @@ create policy "staff delete press" on public.press_applications
 revoke all on function
   public.reserve_seat(text,text,text,text,text,boolean),
   public.seat_map(text,text),
+  public.ticket_view(text[]),
+  public.set_seating_mode(text,text),
   public.seat_lock_set(text,text[],text,text),
   public.invite_assign(text,text,text,text,text,text),
   public.seat_admin_map(text),
@@ -821,6 +911,7 @@ revoke all on function
 -- 관람객(비로그인)도 쓸 수 있는 것
 grant execute on function public.reserve_seat(text,text,text,text,text,boolean) to anon, authenticated;
 grant execute on function public.seat_map(text,text)                            to anon, authenticated;
+grant execute on function public.ticket_view(text[])                            to anon, authenticated;
 grant execute on function public.lookup_reservations(text,text)                 to anon, authenticated;
 grant execute on function public.cancel_reservation(uuid,text,text)             to anon, authenticated;
 grant execute on function public.member_sign_up(text,text,text,text)            to anon, authenticated;
@@ -829,6 +920,7 @@ grant execute on function public.press_apply(text,text,text,text,text,text,text)
 grant execute on function public.press_lookup(text,text)                        to anon, authenticated;
 
 -- 로그인한 스태프만 쓸 수 있는 것
+grant execute on function public.set_seating_mode(text,text)                      to authenticated;
 grant execute on function public.seat_lock_set(text,text[],text,text)             to authenticated;
 grant execute on function public.invite_assign(text,text,text,text,text,text)     to authenticated;
 grant execute on function public.seat_admin_map(text)                             to authenticated;
@@ -931,6 +1023,7 @@ select
   (select sum(capacity) from public.shows)                        as 총_좌석,
   (select count(*) from public.shows where reserve_close_at is not null) as 마감시각_설정된_쇼,
   (select count(*) from public.zones)                             as 구역_개수,
+  (select count(*) from public.notifications)                     as 발송이력,
   (select count(*) from public.seats)                             as 좌석_개수,
   (select count(*) from public.show_availability)                 as 잔여석_뷰,
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -941,9 +1034,10 @@ select
                          'press_apply','press_lookup','press_set_status','press_find',
                          'press_check_in','press_undo_check_in',
                          'walkin_set','attendance_stats',
-                         'seat_map','seat_lock_set','invite_assign','seat_admin_map')) as 기능_개수;
+                         'seat_map','seat_lock_set','invite_assign','seat_admin_map',
+                         'ticket_view','set_seating_mode'))            as 기능_개수;
 -- 기대값: 쇼_개수 13 · 총_좌석 3900 · 마감시각_설정된_쇼 13
---         구역_개수 8 · 좌석_개수 300 · 잔여석_뷰 13 · 기능_개수 22
+--         구역_개수 8 · 좌석_개수 300 · 잔여석_뷰 13 · 기능_개수 24
 
 -- =====================================================================
 --  구역별 좌석 확인 (A~D 좌측 / E~H 우측, 무대에서 가까운 순)

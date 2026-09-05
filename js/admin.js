@@ -518,7 +518,7 @@
      좌석 · 초청석 관리
      쇼별로 자리를 잠그면 관람객 예약 화면에서 선택되지 않는다.
      ========================================================== */
-  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {};
+  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {}, szMode = "free";
 
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function seatIdOf(zoneCode, num) { return zoneCode + "-" + pad2(num); }
@@ -539,6 +539,9 @@
       $("szClearSel").addEventListener("click", function () { szPick = {}; renderSeatAdmin(); });
       $("sqLock").addEventListener("click", function () { quickRange("invite"); });
       $("sqUnlock").addEventListener("click", function () { quickRange(null); });
+      document.querySelectorAll('input[name="szMode"]').forEach(function (r) {
+        r.addEventListener("change", function () { changeMode(r.value); });
+      });
       szInited = true;
     }
     loadSeats();
@@ -547,7 +550,10 @@
   function loadSeats() {
     szShowId = $("szShow").value;
     $("szMap").innerHTML = '<div class="empty-state">불러오는 중…</div>';
-    Promise.all([BFWApi.zoneAvailability(), BFWApi.seatAdminMap(szShowId)]).then(function (res) {
+    Promise.all([BFWApi.zoneAvailability(), BFWApi.seatAdminMap(szShowId), BFWApi.availability()])
+      .then(function (res) {
+      szMode = ((res[2] || {})[szShowId] || {}).mode || "free";
+      renderMode();
       szZones = ((res[0] || {})[szShowId] || []).slice();
       szSeats = {};
       (res[1] || []).forEach(function (r) { szSeats[r.seat_id] = r; });
@@ -628,6 +634,36 @@
       });
     }
     return b;
+  }
+
+  function renderMode() {
+    document.querySelectorAll('input[name="szMode"]').forEach(function (r) {
+      r.checked = (r.value === szMode);
+    });
+    $("szModeNote").innerHTML = szMode === "assigned"
+      ? "관람객이 예약할 때 <b>구역 → 좌석</b> 순으로 자리를 직접 고릅니다. 발급되는 QR과 안내 문자에 좌석번호가 함께 나갑니다."
+      : "관람객은 <b>쇼만 선택</b>하고 자리는 현장에서 선착순으로 앉습니다. 아래에서 초청석을 잠그면 그만큼 온라인 정원이 줄어듭니다.";
+  }
+
+  function changeMode(mode) {
+    if (mode === szMode) return;
+    BFWApi.setSeatingMode(szShowId, mode).then(function (r) {
+      if (r && r.ok) {
+        szMode = mode;
+        renderMode();
+        toast(mode === "assigned" ? "지정좌석제로 바꿨습니다." : "자유석으로 바꿨습니다.");
+        loadSeats();
+      } else if (r && r.reason === "hasreservations") {
+        toast("이미 예약 " + (r.count || "") + "건이 들어와 방식을 바꿀 수 없습니다. 예약을 정리한 뒤 변경하세요.", true);
+        renderMode();
+      } else if (r && r.reason === "forbidden") {
+        toast("스태프 로그인이 필요합니다.", true);
+        renderMode();
+      } else {
+        toast("변경하지 못했습니다.", true);
+        renderMode();
+      }
+    });
   }
 
   function renderSzSummary() {

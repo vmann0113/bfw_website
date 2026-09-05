@@ -340,3 +340,13 @@ td .row-acts { display: flex; gap: 6px; }
   background: var(--a-panel); border: 1.5px solid var(--a-line); border-radius: 12px;
   padding: 12px 16px; box-shadow: 0 -4px 18px rgba(20,30,60,.08); }
 .seat-actionbar.show { display: flex; }
+
+
+/* ---- 쇼별 예약 방식 토글 ---- */
+.mode-row { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--a-line);
+  display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.mode-row > b { font-size: .9rem; padding-top: 2px; }
+.mode-row label { display: flex; align-items: baseline; gap: 7px; cursor: pointer; font-size: .92rem; }
+.mode-row label em { font-style: normal; color: var(--a-mute); font-size: .82rem; }
+.mode-row label span { font-weight: 700; }
+.mode-note { width: 100%; margin: 4px 0 0; font-size: .84rem; color: var(--a-mute); line-height: 1.6; }

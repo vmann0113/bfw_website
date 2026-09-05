@@ -347,6 +347,15 @@
             <button class="btn ghost sm" id="szPrint">인쇄 · 라벨 작업용</button>
           </div>
           <div id="szSummary" class="seat-summary"></div>
+
+          <div class="mode-row">
+            <b>이 쇼의 예약 방식</b>
+            <label><input type="radio" name="szMode" value="free" /> <span>자유석</span>
+              <em>잔여석만 세고, 현장 착석은 선착순</em></label>
+            <label><input type="radio" name="szMode" value="assigned" /> <span>지정좌석</span>
+              <em>관람객이 배치도에서 자리를 직접 고름</em></label>
+            <p class="mode-note" id="szModeNote"></p>
+          </div>
         </div>
 
         <div class="card" style="margin-top:16px">

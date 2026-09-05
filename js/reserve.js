@@ -18,6 +18,8 @@
     return -1;
   }
   function selOf(showId) { var i = selIndex(showId); return i >= 0 ? selected[i] : null; }
+  // 쇼마다 예약 방식이 다르다: 'assigned'(좌석 지정) | 'free'(자유석)
+  function modeOf(showId) { return (avail[showId] && avail[showId].mode) || "free"; }
 
   /* ---- brand wordmark ---- */
   (function () {
@@ -29,7 +31,7 @@
   var shows = (cfg.shows || []).slice();
   $("mShows").textContent = shows.length + " Shows";
   var caps = shows.map(function (s) { return s.cap || cfg.reserve.defaultCap || 300; });
-  $("mCap").textContent = "쇼당 " + (cfg.reserve.defaultCap || 300) + "석 · 지정좌석";
+  $("mCap").textContent = "쇼당 " + (cfg.reserve.defaultCap || 300) + "석";
   $("bookNote").textContent = cfg.reserve.note || "";
 
   /* ---- closed state ---- */
@@ -109,7 +111,7 @@
           (s.titleKo ? '<div class="sc-ko">' + esc(s.titleKo) + "</div>" : "") +
           '<div class="sc-venue">' + esc(s.lineup || s.venue || "") + "</div>" +
           (s.tbd ? '<div class="tbd-tag">참여 브랜드 추첨 배치 예정</div>' : "") +
-          (mySel ? '<div class="sc-seat">선택한 자리 · ' + esc(mySel.seatLabel) + '</div>' : "") +
+          (mySel ? '<div class="sc-seat">' + (mySel.seatLabel ? "선택한 자리 · " + esc(mySel.seatLabel) : "선택됨 · 자유석") + "</div>" : "") +
           '<div class="cap">' +
             '<div class="cap-bar"><div class="cap-fill" style="width:' + pct + '%;' + (low || blocked ? "background:var(--coral)" : "") + '"></div></div>' +
             '<div class="cap-row">' +
@@ -121,11 +123,23 @@
               '<span class="cap-total">' + (cap - remain) + " / " + cap + "</span>" +
             "</div>" +
           "</div>";
-        if (!blocked) card.addEventListener("click", function () { openSeatSheet(s.id); });
+        if (!blocked) card.addEventListener("click", function () {
+          if (modeOf(s.id) === "assigned") openSeatSheet(s.id);
+          else toggleFree(s.id);
+        });
         grid.appendChild(card);
       });
       wrap.appendChild(group);
     });
+  }
+
+  /* 자유석 쇼 : 좌석 없이 선택/해제만 한다 */
+  function toggleFree(showId) {
+    var i = selIndex(showId);
+    if (i >= 0) selected.splice(i, 1);
+    else selected.push({ showId: showId, zoneCode: null, seatId: null, seatLabel: null });
+    renderGroups();
+    syncBar();
   }
 
   function unselect(showId) {
@@ -277,7 +291,7 @@
       row.innerHTML =
         '<span class="ct">D' + esc(s.day) + " · " + esc(s.time) + "</span>" +
         '<span class="cn">' + esc(s.titleKo || s.title) +
-          ' · <b>' + esc(it.seatLabel) + "</b></span>" +
+          (it.seatLabel ? ' · <b>' + esc(it.seatLabel) + "</b>" : "") + "</span>" +
         '<button type="button" class="cx" aria-label="제거">✕</button>';
       row.querySelector(".cx").addEventListener("click", function () {
         unselect(it.showId);
@@ -353,7 +367,7 @@
     var msgs = [];
     if (failFull && failFull.length) msgs.push("‘" + failFull.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 방금 좌석이 마감되어 예약되지 않았습니다.");
     if (failDup && failDup.length) msgs.push("‘" + failDup.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 이미 이 연락처로 예약되어 있습니다.");
-    if (failTaken && failTaken.length) msgs.push("‘" + failTaken.map(function (it) { return it.seatLabel; }).join(", ") + "’ 은(는) 방금 다른 분이 선택하셨습니다. 다시 들어가 다른 자리를 골라 주세요.");
+    if (failTaken && failTaken.length) msgs.push("‘" + failTaken.map(function (it) { return it.seatLabel || (showById(it.showId) || {}).titleKo || ""; }).join(", ") + "’ 은(는) 방금 다른 분이 선택하셨습니다. 다시 들어가 다른 자리를 골라 주세요.");
     if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 공연 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
     if (failErr && failErr.length) msgs.push("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     if (msgs.length) {
