@@ -71,7 +71,7 @@
   var crumbMap = {
     brand: "브랜드", brandlist: "참여 브랜드", unilist: "참여 대학", lastyear: "2025 라인업", event: "행사 정보", sections: "섹션 On/Off", media: "On Film 영상",
     press: "언론 보도", archive: "아카이브", instagram: "인스타그램", map: "오시는 길 · 지도",
-    shows: "쇼 관리", reservations: "예약 현황", pressvisit: "프레스 방문", checkin: "현장 체크인"
+    shows: "쇼 관리", seats: "좌석 · 초청석", reservations: "예약 현황", pressvisit: "프레스 방문", checkin: "현장 체크인"
   };
   document.querySelectorAll("#navlist button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -83,6 +83,7 @@
       });
       $("crumb").textContent = crumbMap[tab] || "";
       $("side").classList.remove("open");
+      if (tab === "seats") withStaff(initSeats);
       if (tab === "reservations") withStaff(renderResv);
       if (tab === "pressvisit") withStaff(renderPressApps);
       if (tab === "checkin") withStaff(initCheckin);
@@ -513,6 +514,235 @@
       });
     });
   }
+  /* ==========================================================
+     좌석 · 초청석 관리
+     쇼별로 자리를 잠그면 관람객 예약 화면에서 선택되지 않는다.
+     ========================================================== */
+  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {};
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function seatIdOf(zoneCode, num) { return zoneCode + "-" + pad2(num); }
+  function zoneOrder(a, b) { return a.side === b.side ? a.sort - b.sort : (a.side === "L" ? -1 : 1); }
+
+  function initSeats() {
+    if (!szInited) {
+      var sel = $("szShow");
+      sel.innerHTML = (cfg.shows || []).map(function (s2) {
+        return '<option value="' + esc(s2.id) + '">' + esc(s2.id) + " · D" + esc(s2.day) +
+               " " + esc(s2.time || "") + " · " + esc(s2.titleKo || s2.title || "") + "</option>";
+      }).join("");
+      sel.addEventListener("change", function () { szPick = {}; loadSeats(); });
+      $("szReload").addEventListener("click", function () { szPick = {}; loadSeats(); });
+      $("szPrint").addEventListener("click", printSeats);
+      $("szLockSel").addEventListener("click", function () { applyLock(Object.keys(szPick), "invite"); });
+      $("szUnlockSel").addEventListener("click", function () { applyLock(Object.keys(szPick), null); });
+      $("szClearSel").addEventListener("click", function () { szPick = {}; renderSeatAdmin(); });
+      $("sqLock").addEventListener("click", function () { quickRange("invite"); });
+      $("sqUnlock").addEventListener("click", function () { quickRange(null); });
+      szInited = true;
+    }
+    loadSeats();
+  }
+
+  function loadSeats() {
+    szShowId = $("szShow").value;
+    $("szMap").innerHTML = '<div class="empty-state">불러오는 중…</div>';
+    Promise.all([BFWApi.zoneAvailability(), BFWApi.seatAdminMap(szShowId)]).then(function (res) {
+      szZones = ((res[0] || {})[szShowId] || []).slice();
+      szSeats = {};
+      (res[1] || []).forEach(function (r) { szSeats[r.seat_id] = r; });
+      var zsel = $("sqZone");
+      if (zsel && !zsel.options.length && szZones.length) {
+        zsel.innerHTML = szZones.slice().sort(zoneOrder).map(function (z) {
+          return '<option value="' + esc(z.code) + '">' + esc(z.label) + "</option>";
+        }).join("");
+      }
+      renderSeatAdmin();
+    });
+  }
+
+  function renderSeatAdmin() {
+    var wrap = $("szMap");
+    if (!szZones.length) {
+      wrap.innerHTML = '<div class="empty-state">구역 정보를 불러오지 못했습니다. 새로고침해 주세요.</div>';
+      return;
+    }
+    function bySort(a, b) { return a.sort - b.sort; }
+    var L = szZones.filter(function (z) { return z.side === "L"; }).sort(bySort);
+    var R = szZones.filter(function (z) { return z.side === "R"; }).sort(bySort);
+    wrap.innerHTML = "";
+    var colL = document.createElement("div"); colL.className = "sam-col";
+    L.forEach(function (z) { colL.appendChild(zoneBlock(z)); });
+    var mid = document.createElement("div"); mid.className = "sam-runway";
+    mid.innerHTML = "<span>RUNWAY</span>";
+    var colR = document.createElement("div"); colR.className = "sam-col";
+    R.forEach(function (z) { colR.appendChild(zoneBlock(z)); });
+    wrap.appendChild(colL); wrap.appendChild(mid); wrap.appendChild(colR);
+    renderSzSummary();
+  }
+
+  function zoneBlock(z) {
+    var box = document.createElement("div");
+    box.className = "sam-zone";
+    var lock = 0, take = 0;
+    for (var n = 1; n <= z.seatCount; n++) {
+      var st = szSeats[seatIdOf(z.code, n)];
+      if (!st) continue;
+      if (st.status === "taken") take++;
+      else if (st.status !== "free") lock++;
+    }
+    box.innerHTML = "<h4>" + esc(z.label) + "</h4>" +
+      '<div class="zmeta">전체 ' + z.seatCount + "석 · 초청 " + lock + " · 예약 " + take + "</div>";
+    var g = document.createElement("div");
+    g.className = "sam-grid";
+    var R = z.rows;
+    for (var r = 1; r <= R; r++) {
+      // 실제 배치도와 같은 방향 (좌측 구역은 바깥단이 왼쪽)
+      var nums = (z.side === "L") ? [2 * R + r, R + r, r] : [r, R + r, 2 * R + r];
+      for (var c = 0; c < 3; c++) g.appendChild(seatBtn(z, nums[c]));
+    }
+    box.appendChild(g);
+    return box;
+  }
+
+  function seatBtn(z, num) {
+    var id = seatIdOf(z.code, num);
+    var st = szSeats[id] || { status: "free" };
+    var b = document.createElement("button");
+    b.type = "button";
+    var cls = "sseat";
+    if (szPick[id]) cls += " pick";
+    else if (st.status === "taken") cls += " taken";
+    else if (st.status !== "free") cls += " invite";
+    b.className = cls;
+    b.textContent = num;
+    b.title = z.label + " " + num + "번" +
+      (st.status === "taken" ? " · 예약 " + (st.name || "") : st.status !== "free" ? " · 초청석" : "");
+    if (st.status === "taken") {
+      b.disabled = true;
+    } else {
+      b.addEventListener("click", function () {
+        if (szPick[id]) { delete szPick[id]; b.classList.remove("pick"); }
+        else { szPick[id] = true; b.classList.add("pick"); }
+        syncSzBar();
+      });
+    }
+    return b;
+  }
+
+  function renderSzSummary() {
+    var total = 0, lock = 0, take = 0;
+    szZones.forEach(function (z) { total += z.seatCount; });
+    Object.keys(szSeats).forEach(function (k) {
+      var st = szSeats[k];
+      if (st.status === "taken") take++;
+      else if (st.status !== "free") lock++;
+    });
+    $("szSummary").innerHTML =
+      "<span>전체 <b>" + total + "</b>석</span>" +
+      '<span class="s-lock">초청석 <b>' + lock + "</b>석</span>" +
+      '<span class="s-take">관람객 예약 <b>' + take + "</b>석</span>" +
+      "<span>예약 가능 <b>" + (total - lock - take) + "</b>석</span>";
+    syncSzBar();
+  }
+
+  function syncSzBar() {
+    var n = Object.keys(szPick).length;
+    $("szPickCount").textContent = n;
+    $("szActions").classList.toggle("show", n > 0);
+  }
+
+  function applyLock(ids, kind) {
+    if (!ids || !ids.length) { toast("자리를 먼저 선택해 주세요.", true); return; }
+    BFWApi.seatLockSet(szShowId, ids, kind, null).then(function (r) {
+      if (r && r.ok) {
+        toast(kind ? ids.length + "자리를 초청석으로 잠갔습니다." : ids.length + "자리 잠금을 해제했습니다.");
+        szPick = {};
+        loadSeats();
+      } else if (r && r.reason === "occupied") {
+        toast("이미 관람객이 예약한 자리가 있어 잠글 수 없습니다.", true);
+      } else if (r && r.reason === "forbidden") {
+        toast("스태프 로그인이 필요합니다.", true);
+      } else {
+        toast("처리하지 못했습니다.", true);
+      }
+    });
+  }
+
+  function quickRange(kind) {
+    var zc = $("sqZone").value;
+    var z = szZones.filter(function (x) { return x.code === zc; })[0];
+    if (!z) { toast("구역을 선택해 주세요.", true); return; }
+    var a = parseInt($("sqFrom").value, 10), b = parseInt($("sqTo").value, 10);
+    if (isNaN(a) || isNaN(b)) { toast("시작·끝 번호를 입력해 주세요.", true); return; }
+    if (a > b) { var t = a; a = b; b = t; }
+    if (a < 1 || b > z.seatCount) { toast(z.label + "은 1~" + z.seatCount + "번까지입니다.", true); return; }
+    var ids = [];
+    for (var n = a; n <= b; n++) ids.push(seatIdOf(zc, n));
+    applyLock(ids, kind);
+  }
+
+  /* 연속된 번호를 1~12 형태로 묶는다 (라벨 작업용 인쇄) */
+  function toRanges(nums) {
+    if (!nums.length) return "";
+    nums = nums.slice().sort(function (a, b) { return a - b; });
+    var out = [], st = nums[0], prev = nums[0];
+    for (var i = 1; i <= nums.length; i++) {
+      var n = nums[i];
+      if (n !== prev + 1) {
+        out.push(st === prev ? String(st) : st + "~" + prev);
+        st = n;
+      }
+      prev = n;
+    }
+    return out.join(", ");
+  }
+
+  function printSeats() {
+    var sh = (cfg.shows || []).filter(function (x) { return x.id === szShowId; })[0] || {};
+    var rows = [], total = 0;
+    szZones.slice().sort(zoneOrder).forEach(function (z) {
+      var list = [];
+      for (var n = 1; n <= z.seatCount; n++) {
+        var st = szSeats[seatIdOf(z.code, n)];
+        if (st && st.status !== "free" && st.status !== "taken") list.push(n);
+      }
+      if (list.length) { rows.push({ label: z.label, nums: list }); total += list.length; }
+    });
+    var body = rows.length
+      ? rows.map(function (r) {
+          return "<tr><td class=z>" + esc(r.label) + "</td><td class=c>" + r.nums.length +
+                 "석</td><td>" + esc(toRanges(r.nums)) + "</td></tr>";
+        }).join("")
+      : '<tr><td colspan="3" style="text-align:center;padding:30px;color:#888">잠긴 초청석이 없습니다.</td></tr>';
+    var html =
+      "<!doctype html><html lang=ko><head><meta charset=utf-8><title>초청석 지정 현황</title><style>" +
+      "body{font-family:'Pretendard',system-ui,sans-serif;margin:40px;color:#16204a}" +
+      "h1{font-size:20px;margin:0 0 4px}.sub{color:#667;font-size:13px;margin-bottom:22px}" +
+      "table{width:100%;border-collapse:collapse;font-size:14px}" +
+      "th,td{padding:10px 12px;border-bottom:1px solid #e2e6ef;text-align:left}" +
+      "th{background:#f4f6fa;font-size:12px;letter-spacing:.05em}" +
+      "td.z{font-weight:700;width:110px}td.c{width:80px;font-variant-numeric:tabular-nums}" +
+      ".tot{margin-top:18px;font-weight:700}" +
+      ".note{margin-top:26px;font-size:12px;color:#667;line-height:1.7}" +
+      "</style></head><body>" +
+      "<h1>초청석 지정 현황</h1>" +
+      '<div class="sub">' + esc(sh.id || "") + " · " + esc(sh.titleKo || sh.title || "") +
+      " · " + esc(sh.date || "") + " " + esc(sh.time || "") + "</div>" +
+      "<table><thead><tr><th>구역</th><th>좌석 수</th><th>좌석 번호</th></tr></thead><tbody>" +
+      body + "</tbody></table>" +
+      '<div class="tot">합계 ' + total + "석</div>" +
+      '<div class="note">※ 번호가 작을수록 런웨이·무대에 가깝습니다. 각 구역은 3단 계단식이며 ' +
+      "1단(런웨이 최근접)부터 번호가 매겨집니다.<br>※ 이 표를 보고 해당 의자에 라벨을 부착하세요.</div>" +
+      "</body></html>";
+    var w = window.open("", "_blank");
+    if (!w) { toast("팝업이 차단되었습니다. 팝업을 허용해 주세요.", true); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function () { w.print(); }, 300);
+  }
+
   /* ---------- RESERVATIONS dashboard ---------- */
   var resvCache = [];
   function renderResv() {
