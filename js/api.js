@@ -46,6 +46,8 @@
       showTitle: r.show_title, titleKo: r.title_ko, lineup: r.lineup,
       day: r.day, date: r.date, time: r.start_time, end: r.end_time, venue: r.venue,
       name: r.name, phone: r.phone, email: r.email, marketing: r.marketing,
+      seatId: r.seat_id, seatLabel: r.seat_label, source: r.source,
+      guestOrg: r.guest_org, guestTitle: r.guest_title,
       status: r.status, checkedIn: r.checked_in, checkedInAt: r.checked_in_at, at: r.created_at
     };
   }
@@ -115,7 +117,8 @@
     reserve: function (show) {
       if (BACKEND) {
         return rpc("reserve_seat", {
-          p_show_id: show.showId, p_name: show.name, p_phone: show.phone,
+          p_show_id: show.showId, p_seat_id: show.seatId,
+          p_name: show.name, p_phone: show.phone,
           p_email: show.email || null, p_marketing: !!show.marketing
         }).then(function (d) {
           if (d && d.ok) return { ok: true, entry: fromRow(d.reservation) };
@@ -130,6 +133,72 @@
         name: show.name, phone: show.phone, email: show.email, marketing: show.marketing
       }, cap);
       return Promise.resolve(res);
+    },
+
+    /* ================= 좌석 (구역 · 배치도) ================= */
+
+    /* 쇼×구역 잔여석 — { showId: [ {code,label,side,sort,seatCount,reserved,locked,remaining} ] } */
+    zoneAvailability: function () {
+      if (BACKEND) {
+        return rest("/rest/v1/zone_availability?select=*&order=sort").then(function (rows) {
+          var by = {};
+          (rows || []).forEach(function (r) {
+            (by[r.show_id] = by[r.show_id] || []).push({
+              code: r.zone_code, label: r.label, side: r.side, sort: r.sort,
+              rows: r.rows_count, tiers: r.tiers, seatCount: r.seat_count,
+              reserved: r.reserved, locked: r.locked, remaining: r.remaining
+            });
+          });
+          return by;
+        }).catch(function () { return {}; });
+      }
+      return Promise.resolve(BFW.localZones ? BFW.localZones() : {});
+    },
+
+    /* 한 구역의 좌석 상태 — [ {seatId,num,tier,row,status} ] status: free|taken|invite|blocked */
+    seatMap: function (showId, zoneCode) {
+      if (BACKEND) {
+        return rpc("seat_map", { p_show_id: showId, p_zone_code: zoneCode })
+          .then(function (rows) {
+            return (rows || []).map(function (r) {
+              return { seatId: r.seat_id, num: r.num, tier: r.tier, row: r.row_no, status: r.status };
+            });
+          }).catch(function () { return []; });
+      }
+      return Promise.resolve([]);
+    },
+
+    /* ---- 스태프: 초청석 잠그기/풀기 (p_kind null 이면 해제) ---- */
+    seatLockSet: function (showId, seatIds, kind, note) {
+      if (BACKEND) {
+        return rpc("seat_lock_set", { p_show_id: showId, p_seat_ids: seatIds, p_kind: kind || null, p_note: note || null })
+          .then(function (d) { return d || { ok: false }; })
+          .catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve({ ok: true });
+    },
+
+    /* ---- 스태프: 초청자 배정 ---- */
+    inviteAssign: function (e) {
+      if (BACKEND) {
+        return rpc("invite_assign", {
+          p_show_id: e.showId, p_seat_id: e.seatId, p_name: e.name,
+          p_phone: e.phone || null, p_org: e.org || null, p_title: e.title || null
+        }).then(function (d) {
+          if (d && d.ok) return { ok: true, entry: fromRow(d.reservation) };
+          return { ok: false, reason: (d && d.reason) || "error" };
+        }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve({ ok: false, reason: "local" });
+    },
+
+    /* ---- 스태프: 좌석 현황판 (누가 어느 자리인지) ---- */
+    seatAdminMap: function (showId) {
+      if (BACKEND) {
+        return rpc("seat_admin_map", { p_show_id: showId })
+          .then(function (rows) { return rows || []; }).catch(function () { return []; });
+      }
+      return Promise.resolve([]);
     },
 
     /* ---- lookup my reservations by name + phone (both must match) ---- */

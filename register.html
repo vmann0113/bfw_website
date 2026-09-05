@@ -209,12 +209,44 @@
   <button class="go" id="selGo">예약 진행 →</button>
 </div>
 
+<!-- seat sheet : 구역 → 좌석 2단계 -->
+<div class="sheet" id="seatSheet">
+  <div class="sheet-card">
+    <button class="sheet-close" data-close="seatSheet">닫기 ✕</button>
+    <h2 id="seatTitle">좌석 선택</h2>
+    <p class="sub" id="seatSub"></p>
+
+    <!-- 1단계 : 구역 -->
+    <div id="zoneStep">
+      <div class="stage-bar">무대 · LED 스크린</div>
+      <div class="zone-map" id="zoneMap"></div>
+      <p class="seat-hint">앉으실 <b>구역</b>을 먼저 고르세요. 무대와 런웨이에 가까울수록 앞자리입니다.</p>
+    </div>
+
+    <!-- 2단계 : 좌석 -->
+    <div id="seatStep" class="hidden">
+      <button class="btn ghost sm" id="zoneBack" style="margin-bottom:14px">← 구역 다시 선택</button>
+      <div class="stage-bar">무대 방향 ↑</div>
+      <div class="seat-grid-wrap">
+        <div class="seat-grid" id="seatGrid"></div>
+        <div class="runway-side" id="runwaySide">런웨이</div>
+      </div>
+      <div class="seat-legend">
+        <span><i class="sl free"></i>선택 가능</span>
+        <span><i class="sl taken"></i>예약됨</span>
+        <span><i class="sl invite"></i>초청석</span>
+        <span><i class="sl sel"></i>선택한 자리</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- form sheet -->
 <div class="sheet" id="formSheet">
   <div class="sheet-card">
     <button class="sheet-close" data-close="formSheet">닫기 ✕</button>
     <h2>예약 정보</h2>
-    <p class="sub">선택한 쇼의 좌석을 확보합니다. 1인 1석 · 입력하신 정보로 QR이 발급됩니다.</p>
+    <p class="sub">선택하신 좌석을 확보합니다. 1인 1석 · 입력하신 정보로 QR이 발급됩니다.</p>
     <div class="chosen" id="chosenList"></div>
     <form class="rsv-form" id="rsvForm">
       <div class="f-row">

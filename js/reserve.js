@@ -7,8 +7,17 @@
   var Api = window.BFWApi;
   var cfg = BFW.load();
   var $ = function (id) { return document.getElementById(id); };
-  var selected = []; // ordered list of showIds
-  var avail = {};    // { showId: {capacity, reserved, remaining} }
+  // 선택 항목: [{ showId, zoneCode, seatId, seatLabel }] — 쇼당 한 자리
+  var selected = [];
+  var avail = {};      // { showId: {capacity, reserved, remaining, closed} }
+  var zoneAvail = {};  // { showId: [ {code,label,side,sort,rows,seatCount,remaining} ] }
+  var seatCtx = null;  // 좌석 시트가 다루는 { showId, zoneCode, zone }
+
+  function selIndex(showId) {
+    for (var i = 0; i < selected.length; i++) if (selected[i].showId === showId) return i;
+    return -1;
+  }
+  function selOf(showId) { var i = selIndex(showId); return i >= 0 ? selected[i] : null; }
 
   /* ---- brand wordmark ---- */
   (function () {
@@ -20,7 +29,7 @@
   var shows = (cfg.shows || []).slice();
   $("mShows").textContent = shows.length + " Shows";
   var caps = shows.map(function (s) { return s.cap || cfg.reserve.defaultCap || 300; });
-  $("mCap").textContent = "쇼당 " + (cfg.reserve.defaultCap || 300) + "석";
+  $("mCap").textContent = "쇼당 " + (cfg.reserve.defaultCap || 300) + "석 · 지정좌석";
   $("bookNote").textContent = cfg.reserve.note || "";
 
   /* ---- closed state ---- */
@@ -35,11 +44,12 @@
 
   // pull live seat counts, then render
   function refreshAvailability() {
-    return Api.availability().then(function (map) {
-      avail = map || {};
+    return Promise.all([Api.availability(), Api.zoneAvailability()]).then(function (res) {
+      avail = res[0] || {};
+      zoneAvail = res[1] || {};
       renderGroups();
     }).catch(function () {
-      avail = {};
+      avail = {}; zoneAvail = {};
       renderGroups();
     });
   }
@@ -86,7 +96,7 @@
         var cap = capOf(s), remain = remainOf(s);
         var closed = closedOf(s), full = remain <= 0, blocked = full || closed;
         var low = !blocked && remain > 0 && remain <= 30;
-        var isSel = selected.indexOf(s.id) >= 0;
+        var mySel = selOf(s.id), isSel = !!mySel;
         var pct = Math.min(100, Math.round(((cap - remain) / cap) * 100));
         var card = document.createElement("button");
         card.type = "button";
@@ -99,6 +109,7 @@
           (s.titleKo ? '<div class="sc-ko">' + esc(s.titleKo) + "</div>" : "") +
           '<div class="sc-venue">' + esc(s.lineup || s.venue || "") + "</div>" +
           (s.tbd ? '<div class="tbd-tag">참여 브랜드 추첨 배치 예정</div>' : "") +
+          (mySel ? '<div class="sc-seat">선택한 자리 · ' + esc(mySel.seatLabel) + '</div>' : "") +
           '<div class="cap">' +
             '<div class="cap-bar"><div class="cap-fill" style="width:' + pct + '%;' + (low || blocked ? "background:var(--coral)" : "") + '"></div></div>' +
             '<div class="cap-row">' +
@@ -110,20 +121,137 @@
               '<span class="cap-total">' + (cap - remain) + " / " + cap + "</span>" +
             "</div>" +
           "</div>";
-        if (!blocked) card.addEventListener("click", function () { toggle(s.id); });
+        if (!blocked) card.addEventListener("click", function () { openSeatSheet(s.id); });
         grid.appendChild(card);
       });
       wrap.appendChild(group);
     });
   }
 
-  function toggle(id) {
-    var i = selected.indexOf(id);
+  function unselect(showId) {
+    var i = selIndex(showId);
     if (i >= 0) selected.splice(i, 1);
-    else selected.push(id);
     renderGroups();
     syncBar();
   }
+
+  /* ---- 좌석 시트 1단계 : 구역 고르기 ---- */
+  function openSeatSheet(showId) {
+    var s = showById(showId);
+    if (!s) return;
+    seatCtx = { showId: showId, zoneCode: null, zone: null };
+    $("seatTitle").textContent = s.titleKo || s.title || "좌석 선택";
+    $("seatSub").textContent =
+      "Day " + s.day + " · " + (s.date || "") + (s.dow ? " (" + s.dow + ")" : "") +
+      " · " + (s.time || "") + (s.end ? "–" + s.end : "");
+    $("zoneStep").classList.remove("hidden");
+    $("seatStep").classList.add("hidden");
+    renderZones();
+    openSheet("seatSheet");
+  }
+
+  function zoneBtn(z) {
+    var b = document.createElement("button");
+    b.type = "button";
+    var low = z.remaining > 0 && z.remaining <= 6;
+    b.className = "zone-btn" + (low ? " low" : "");
+    b.innerHTML =
+      '<div class="zb-name">' + esc(z.label) + "</div>" +
+      '<div class="zb-rem">' + (z.remaining > 0 ? "잔여 " + z.remaining + "석" : "잔여 없음") +
+      " · 전체 " + z.seatCount + "석</div>";
+    if (z.remaining > 0) b.addEventListener("click", function () { openZone(z.code); });
+    else b.disabled = true;
+    return b;
+  }
+
+  function renderZones() {
+    var list = zoneAvail[seatCtx.showId] || [];
+    var wrap = $("zoneMap");
+    wrap.innerHTML = "";
+    if (!list.length) {
+      wrap.innerHTML = '<p class="lookup-empty">구역 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';
+      return;
+    }
+    function bySort(a, b) { return a.sort - b.sort; }
+    var L = list.filter(function (z) { return z.side === "L"; }).sort(bySort);
+    var R = list.filter(function (z) { return z.side === "R"; }).sort(bySort);
+
+    var colL = document.createElement("div"); colL.className = "zone-col";
+    L.forEach(function (z) { colL.appendChild(zoneBtn(z)); });
+    var mid = document.createElement("div");
+    mid.className = "zone-runway";
+    mid.innerHTML = "<span>RUNWAY</span>";
+    var colR = document.createElement("div"); colR.className = "zone-col";
+    R.forEach(function (z) { colR.appendChild(zoneBtn(z)); });
+
+    wrap.appendChild(colL); wrap.appendChild(mid); wrap.appendChild(colR);
+  }
+
+  /* ---- 좌석 시트 2단계 : 자리 고르기 ---- */
+  function openZone(zoneCode) {
+    var list = zoneAvail[seatCtx.showId] || [];
+    var z = list.filter(function (x) { return x.code === zoneCode; })[0];
+    if (!z) return;
+    seatCtx.zoneCode = zoneCode;
+    seatCtx.zone = z;
+    $("zoneStep").classList.add("hidden");
+    $("seatStep").classList.remove("hidden");
+    $("seatGrid").innerHTML = '<p class="lookup-empty">좌석을 불러오는 중…</p>';
+    Api.seatMap(seatCtx.showId, zoneCode).then(renderSeatGrid);
+  }
+
+  function renderSeatGrid(seats) {
+    var z = seatCtx.zone, R = z.rows, grid = $("seatGrid");
+    var byNum = {};
+    (seats || []).forEach(function (x) { byNum[x.num] = x; });
+    var mySel = selOf(seatCtx.showId);
+
+    grid.innerHTML = "";
+    grid.style.gridTemplateColumns = "repeat(3, auto)";
+    for (var r = 1; r <= R; r++) {
+      // 실제 배치도와 같은 순서. 좌측 구역은 바깥단이 왼쪽, 우측 구역은 반대.
+      var nums = (z.side === "L") ? [2 * R + r, R + r, r] : [r, R + r, 2 * R + r];
+      for (var c = 0; c < 3; c++) {
+        var st = byNum[nums[c]] || { status: "blocked", num: nums[c], seatId: null };
+        var picked = !!(mySel && mySel.seatId && mySel.seatId === st.seatId);
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "seat " + (picked ? "sel" : (st.status === "free" ? "" : st.status));
+        b.textContent = st.num;
+        b.setAttribute("aria-label", z.label + " " + st.num + "번" +
+          (st.status === "free" ? " 선택 가능" : st.status === "taken" ? " 예약됨" : " 선택 불가"));
+        if (st.status === "free" || picked) {
+          (function (seat) { b.addEventListener("click", function () { pickSeat(seat); }); })(st);
+        } else {
+          b.disabled = true;
+        }
+        grid.appendChild(b);
+      }
+    }
+    // 런웨이 표시를 실제 방향에 맞춰 옮긴다 (좌측 구역은 오른쪽이 런웨이)
+    var side = $("runwaySide"), wrap = grid.parentNode;
+    if (z.side === "L") wrap.appendChild(side);
+    else wrap.insertBefore(side, grid);
+  }
+
+  function pickSeat(seat) {
+    if (!seat || !seat.seatId) return;
+    var item = {
+      showId: seatCtx.showId, zoneCode: seatCtx.zoneCode,
+      seatId: seat.seatId, seatLabel: seatCtx.zone.label + " " + seat.num + "번"
+    };
+    var i = selIndex(seatCtx.showId);
+    if (i >= 0) selected[i] = item; else selected.push(item);
+    closeSheet("seatSheet");
+    renderGroups();
+    syncBar();
+  }
+
+  $("zoneBack").addEventListener("click", function () {
+    $("seatStep").classList.add("hidden");
+    $("zoneStep").classList.remove("hidden");
+    renderZones();
+  });
 
   function syncBar() {
     var bar = $("selBar");
@@ -141,17 +269,18 @@
   function renderChosen() {
     var wrap = $("chosenList");
     wrap.innerHTML = "";
-    selected.forEach(function (id) {
-      var s = showById(id);
+    selected.forEach(function (it) {
+      var s = showById(it.showId);
       if (!s) return;
       var row = document.createElement("div");
       row.className = "chosen-row";
       row.innerHTML =
         '<span class="ct">D' + esc(s.day) + " · " + esc(s.time) + "</span>" +
-        '<span class="cn">' + esc(s.titleKo || s.title) + "</span>" +
+        '<span class="cn">' + esc(s.titleKo || s.title) +
+          ' · <b>' + esc(it.seatLabel) + "</b></span>" +
         '<button type="button" class="cx" aria-label="제거">✕</button>';
       row.querySelector(".cx").addEventListener("click", function () {
-        toggle(id);
+        unselect(it.showId);
         if (!selected.length) closeSheet("formSheet");
         else renderChosen();
       });
@@ -176,17 +305,18 @@
     var origLabel = submitBtn.innerHTML;
     submitBtn.innerHTML = "예약 처리 중…";
 
-    var ids = selected.slice();
-    var done = [], failFull = [], failDup = [], failErr = [], failClosed = [];
+    var picks = selected.slice();
+    var done = [], failFull = [], failDup = [], failErr = [], failClosed = [], failTaken = [];
 
     // process sequentially so the server enforces first-come order cleanly
     var chain = Promise.resolve();
-    ids.forEach(function (id) {
-      var s = showById(id);
+    picks.forEach(function (it) {
+      var s = showById(it.showId);
       if (!s) return;
       chain = chain.then(function () {
         return Api.reserve({
-          showId: s.id, showTitle: s.title, titleKo: s.titleKo, lineup: s.lineup,
+          showId: s.id, seatId: it.seatId,
+          showTitle: s.title, titleKo: s.titleKo, lineup: s.lineup,
           day: s.day, date: s.date, dow: s.dow, time: s.time, end: s.end, venue: s.venue,
           name: name, phone: phone, email: email, marketing: mkt
         }).then(function (res) {
@@ -194,6 +324,7 @@
           else if (res.reason === "dup") failDup.push(s);
           else if (res.reason === "full") failFull.push(s);
           else if (res.reason === "closed") failClosed.push(s);
+          else if (res.reason === "taken" || res.reason === "locked") failTaken.push(it);
           else failErr.push(s);
         });
       });
@@ -204,7 +335,7 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = origLabel;
       closeSheet("formSheet");
-      showDone(done, failFull, failDup, failErr, failClosed);
+      showDone(done, failFull, failDup, failErr, failClosed, failTaken);
       try { localStorage.setItem("bfw_last_phone", phone); localStorage.setItem("bfw_last_name", name); } catch (e2) {}
       $("fName").value = ""; $("fPhone").value = ""; $("fEmail").value = "";
       $("fAgree").checked = false; $("fMkt").checked = false;
@@ -213,7 +344,7 @@
     });
   });
 
-  function showDone(done, failFull, failDup, failErr, failClosed) {
+  function showDone(done, failFull, failDup, failErr, failClosed, failTaken) {
     var wrap = $("doneTickets");
     wrap.innerHTML = "";
     done.forEach(function (r) { wrap.appendChild(ticketEl(r, false)); });
@@ -222,6 +353,7 @@
     var msgs = [];
     if (failFull && failFull.length) msgs.push("‘" + failFull.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 방금 좌석이 마감되어 예약되지 않았습니다.");
     if (failDup && failDup.length) msgs.push("‘" + failDup.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 이미 이 연락처로 예약되어 있습니다.");
+    if (failTaken && failTaken.length) msgs.push("‘" + failTaken.map(function (it) { return it.seatLabel; }).join(", ") + "’ 은(는) 방금 다른 분이 선택하셨습니다. 다시 들어가 다른 자리를 골라 주세요.");
     if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 공연 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
     if (failErr && failErr.length) msgs.push("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     if (msgs.length) {
@@ -246,6 +378,7 @@
         '<div class="tt">Day ' + esc(r.day) + " · " + esc(r.date) + " · " + esc(r.time) + (r.end ? "–" + esc(r.end) : "") + "</div>" +
         '<div class="tn">' + esc(r.titleKo || r.showTitle) + "</div>" +
         '<div class="tv">' + esc(r.showTitle || "") + (r.lineup ? " · " + esc(r.lineup) : "") + " · " + esc(r.name) + "</div>" +
+        (r.seatLabel ? '<div class="sc-seat">' + esc(r.seatLabel) + "</div>" : "") +
         '<div class="code">' + esc(dispCode(r.code)) + "</div>" +
         '<div class="badge ' + (r.checkedIn ? "entered" : "ok") + '">' + (r.checkedIn ? "입장 완료" : "예약 완료") + "</div>" +
       "</div>" +
