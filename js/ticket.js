@@ -57,7 +57,9 @@
         '<div class="when">' + esc(whenText(r)) + "</div>" +
       "</div>" +
       '<div class="t-body">' +
-        '<div class="qr">' + qrSvg("BFW-" + r.code) + "</div>" +
+        '<div class="live"><i></i>LIVE · 실시간 화면</div>' +
+        '<div class="qr-frame"><div class="qr-spin"></div>' +
+          '<div class="qr-inner">' + qrSvg("BFW-" + r.code) + "</div></div>" +
         '<div class="code">BFW-' + esc(r.code) + "</div>" +
         '<div class="who">' + esc(r.name_masked || "") + "님</div>" +
         '<div class="rows">' +
