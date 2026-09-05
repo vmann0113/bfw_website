@@ -55,26 +55,23 @@
     font-size: .92rem; font-weight: 700; letter-spacing: .02em; }
 
   .t-body { padding: 20px 18px 22px; position: relative; z-index: 2; text-align: center; }
-  /* ── 도용 방지 : QR을 감싼 굵은 테두리의 색이 무지개처럼 계속 바뀐다 ──
-     캡처한 사진은 색이 한 가지로 멈춰 있어 스태프가 바로 구분한다.
-     흐르는 띠가 QR을 덮으면 스캔 인식률이 떨어지므로 QR만 띠보다 위에 둔다. */
+  /* ── 도용 방지 : QR을 감싼 굵은 테두리에 여러 색이 동시에 흐른다(홀로그램) ──
+     캡처한 사진은 색 배치가 한 자리에 멈춰 있어 스태프가 육안으로 구분한다.
+     흐르는 띠는 이 흰 상자에 가려 QR 위를 지나지 않으므로 스캔에 영향이 없다. */
   .qr-frame {
     position: relative; z-index: 4; width: 252px; margin: 0 auto 14px;
-    box-sizing: border-box; border: 9px solid #0B2E9E; border-radius: 24px;
-    background: #fff; padding: 18px;
-    animation: hue 5s linear infinite;
+    box-sizing: border-box; padding: 10px; border-radius: 24px;
+    background: linear-gradient(115deg,
+      #e5484d, #f76b15, #ffc53d, #30a46c, #17b6a0, #0b6bcb, #8e4ec6, #e5484d);
+    background-size: 200% 200%;
+    animation: holo 3.5s linear infinite;
   }
-  @keyframes hue {
-    0%   { border-color: #e5484d; }
-    14%  { border-color: #f76b15; }
-    28%  { border-color: #ffc53d; }
-    42%  { border-color: #30a46c; }
-    57%  { border-color: #17b6a0; }
-    71%  { border-color: #0b6bcb; }
-    85%  { border-color: #8e4ec6; }
-    100% { border-color: #e5484d; }
+  @keyframes holo {
+    0%   { background-position:   0% 50%; }
+    100% { background-position: 100% 50%; }
   }
-  .qr-frame svg { width: 100%; height: auto; display: block; }
+  .qr-inner { background: #fff; border-radius: 15px; padding: 17px; }
+  .qr-inner svg { width: 100%; height: auto; display: block; }
   .live { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px;
     font-family: "Space Mono", monospace; font-size: .64rem; letter-spacing: .16em; color: var(--mute); }
   .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
