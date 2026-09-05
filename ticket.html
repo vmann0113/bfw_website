@@ -33,19 +33,9 @@
     color: var(--navy); background: #fff; border: 1.5px solid var(--line);
     border-radius: 999px; padding: 5px 12px; }
 
-  .ticket { position: relative; overflow: hidden; background: #fff;
+  .ticket { position: relative; background: #fff; overflow: hidden;
     border-radius: 18px; border: 1.5px solid var(--line);
     box-shadow: 0 6px 26px rgba(20,35,90,.10); margin-bottom: 18px; }
-
-  /* ── 도용 방지 : 위아래로 계속 흐르는 띠 ──
-     화면을 캡처하면 띠가 멈추므로 스태프가 실제 화면인지 바로 구분한다. */
-  .ticket::after {
-    content: ""; position: absolute; left: 0; right: 0; height: 34%;
-    background: linear-gradient(180deg,
-      rgba(11,46,158,0) 0%, rgba(11,46,158,.13) 45%, rgba(23,182,160,.16) 55%, rgba(11,46,158,0) 100%);
-    animation: sweep 2.6s linear infinite; pointer-events: none; z-index: 3;
-  }
-  @keyframes sweep { 0% { top: -34%; } 100% { top: 100%; } }
 
   .t-head { background: var(--navy); color: #fff; padding: 16px 18px; position: relative; z-index: 2; }
   .t-head .kicker { font-family: "Space Mono", monospace; font-size: .62rem;
@@ -61,9 +51,9 @@
        ② 그보다 12px 작은 흰 둥근 사각형  → ①이 테두리처럼 보인다
        ③ 그보다 24px 작은 QR              → 흰 여백이 QR을 감싼다
      캡처한 사진은 색 배치가 멈춰 있어 스태프가 육안으로 구분한다.
-     흐르는 띠는 ②에 가려 QR 위를 지나지 않으므로 스캔에 영향이 없다. */
+     QR 위에는 아무것도 얹지 않아 리더기 인식률에 영향이 없다. */
   .qr-frame {
-    position: relative; z-index: 4;
+    position: relative;
     width: 264px; height: 264px; margin: 0 auto 16px;
     box-sizing: border-box; padding: 12px; border-radius: 30px;
     background: linear-gradient(115deg,
@@ -112,7 +102,6 @@
   /* 움직임을 줄이도록 설정한 기기에서도 완전히 멈추면 안 된다(위조 판별 수단이므로).
      느리게 돌 뿐 계속 움직인다. */
   @media (prefers-reduced-motion: reduce) {
-    .ticket::after { animation-duration: 7s; }
     .qr-frame { animation-duration: 9s; }
   }
 </style>
