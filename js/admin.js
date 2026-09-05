@@ -518,7 +518,7 @@
      좌석 · 초청석 관리
      쇼별로 자리를 잠그면 관람객 예약 화면에서 선택되지 않는다.
      ========================================================== */
-  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {}, szMode = "free";
+  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {}, szMode = "free", szResvCount = 0;
 
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function seatIdOf(zoneCode, num) { return zoneCode + "-" + pad2(num); }
@@ -553,6 +553,7 @@
     Promise.all([BFWApi.zoneAvailability(), BFWApi.seatAdminMap(szShowId), BFWApi.availability()])
       .then(function (res) {
       szMode = ((res[2] || {})[szShowId] || {}).mode || "free";
+      szResvCount = ((res[2] || {})[szShowId] || {}).reserved || 0;
       renderMode();
       szZones = ((res[0] || {})[szShowId] || []).slice();
       szSeats = {};
@@ -637,12 +638,22 @@
   }
 
   function renderMode() {
+    var locked = szResvCount > 0;   // 예약이 있으면 방식을 못 바꾼다
     document.querySelectorAll('input[name="szMode"]').forEach(function (r) {
       r.checked = (r.value === szMode);
+      r.disabled = locked;
     });
-    $("szModeNote").innerHTML = szMode === "assigned"
-      ? "관람객이 예약할 때 <b>구역 → 좌석</b> 순으로 자리를 직접 고릅니다. 발급되는 QR과 안내 문자에 좌석번호가 함께 나갑니다."
-      : "관람객은 <b>쇼만 선택</b>하고 자리는 현장에서 선착순으로 앉습니다. 아래에서 초청석을 잠그면 그만큼 온라인 정원이 줄어듭니다.";
+    var row = document.querySelector(".mode-row");
+    if (row) row.classList.toggle("is-locked", locked);
+
+    var cur = szMode === "assigned"
+      ? "지금 <b>지정좌석</b>입니다. 관람객이 <b>구역 → 좌석</b> 순으로 자리를 직접 고르고, QR과 안내 문자에 좌석번호가 함께 나갑니다."
+      : "지금 <b>자유석</b>입니다. 관람객은 <b>쇼만 선택</b>하고 자리는 현장에서 선착순으로 앉습니다.";
+    var extra = locked
+      ? '<span class="mode-warn">⚠ 이 쇼에 이미 예약 ' + szResvCount +
+        "건이 들어와 방식을 바꿀 수 없습니다. 바꾸려면 <b>예약 현황</b> 탭에서 해당 예약을 먼저 취소하세요.</span>"
+      : "";
+    $("szModeNote").innerHTML = cur + extra;
   }
 
   function changeMode(mode) {
@@ -654,7 +665,8 @@
         toast(mode === "assigned" ? "지정좌석제로 바꿨습니다." : "자유석으로 바꿨습니다.");
         loadSeats();
       } else if (r && r.reason === "hasreservations") {
-        toast("이미 예약 " + (r.count || "") + "건이 들어와 방식을 바꿀 수 없습니다. 예약을 정리한 뒤 변경하세요.", true);
+        szResvCount = r.count || szResvCount || 1;
+        toast("예약 " + szResvCount + "건이 있어 방식을 바꿀 수 없습니다.", true);
         renderMode();
       } else if (r && r.reason === "forbidden") {
         toast("스태프 로그인이 필요합니다.", true);
@@ -674,7 +686,9 @@
       if (st.status === "taken") take++;
       else if (st.status !== "free") lock++;
     });
+    var sh = (cfg.shows || []).filter(function (x) { return x.id === szShowId; })[0] || {};
     $("szSummary").innerHTML =
+      '<span class="s-show"><b>' + esc(szShowId) + "</b> " + esc(sh.titleKo || sh.title || "") + "</span>" +
       "<span>전체 <b>" + total + "</b>석</span>" +
       '<span class="s-lock">초청석 <b>' + lock + "</b>석</span>" +
       '<span class="s-take">관람객 예약 <b>' + take + "</b>석</span>" +

@@ -350,3 +350,11 @@ td .row-acts { display: flex; gap: 6px; }
 .mode-row label em { font-style: normal; color: var(--a-mute); font-size: .82rem; }
 .mode-row label span { font-weight: 700; }
 .mode-note { width: 100%; margin: 4px 0 0; font-size: .84rem; color: var(--a-mute); line-height: 1.6; }
+
+.mode-row.is-locked label { opacity: .5; cursor: not-allowed; }
+.mode-warn { display: block; margin-top: 8px; padding: 10px 12px; border-radius: 9px;
+  background: color-mix(in oklch, var(--a-danger) 10%, transparent);
+  border: 1.5px solid color-mix(in oklch, var(--a-danger) 40%, transparent);
+  color: var(--a-ink); }
+.seat-summary .s-show { font-family: var(--a-kr); }
+.seat-summary .s-show b { font-family: var(--a-mono); color: var(--a-accent-deep); }
