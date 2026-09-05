@@ -70,7 +70,7 @@ async function sb(path, opts = {}) {
 }
 
 const RESV_COLS =
-  "id,code,show_id,title_ko,show_title,day,date,start_time,end_time,venue," +
+  "id,code,show_id,title_ko,show_title,lineup,day,date,start_time,end_time,venue," +
   "name,phone,phone_key,seat_label,status,source";
 
 async function findByCodes(codes) {
@@ -129,7 +129,7 @@ function buildMessage(kind, rows) {
         `${name}님, 아래와 같이 예약되었습니다.\n\n` +
         `${itemLines(rows)}\n\n` +
         `· 입장 시 QR 또는 예약번호를 제시해 주세요\n` +
-        `· 시작 20분 전까지 입장 바랍니다\n` +
+        `· 시작 20분 전까지 입장대기해 주세요\n` +
         `· 벡스코 제1전시장 3B홀\n\n` +
         `예약 확인 ${SITE}/register.html`
     };
@@ -142,7 +142,7 @@ function buildMessage(kind, rows) {
         `${name}님\n\n` +
         `${itemLines(rows)}\n\n` +
         `· 벡스코 제1전시장 3B홀\n` +
-        `· 시작 20분 전까지 입장해 주세요\n` +
+        `· 시작 20분 전까지 입장대기해 주세요\n` +
         `· 못 오시면 홈페이지에서 취소해 주시면 다른 분이 관람하실 수 있습니다\n\n` +
         `예약 확인 ${SITE}/register.html`
     };
