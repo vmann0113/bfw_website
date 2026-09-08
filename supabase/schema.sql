@@ -192,7 +192,7 @@ values
   ('S09',3,'2026.10.31','토','11:00','11:30','Joint Show ⑦','연합쇼 ⑦','신라대학교 · 영산대학교','메인 런웨이',300,false,9),
   ('S10',3,'2026.10.31','토','13:00','13:30','Joint Show ⑧','연합쇼 ⑧','부산대학교','메인 런웨이',300,false,10),
   ('S11',3,'2026.10.31','토','14:30','15:00','Joint Show ⑨','연합쇼 ⑨','카마모에X소티에 · 스튜디오 디 뻬를라 · 프랭커스','메인 런웨이',300,false,11),
-  ('S12',3,'2026.10.31','토','16:00','16:30','Joint Show ⑩','연합쇼 ⑩','마르즈 · 미지미지 · 바주요','메인 런웨이',300,false,12),
+  ('S12',3,'2026.10.31','토','16:00','16:30','Joint Show ⑩','연합쇼 ⑩','메르최 · 미지미지 · 바주요','메인 런웨이',300,false,12),
   ('S13',3,'2026.10.31','토','17:30','18:00','Joint Show ⑪','연합쇼 ⑪','동서대학교','메인 런웨이',300,false,13)
 on conflict (id) do update set
   day=excluded.day, date=excluded.date, dow=excluded.dow,
@@ -291,6 +291,31 @@ grant select on public.zone_availability to anon, authenticated;
 --   · seating_mode='assigned' → 관람객이 좌석을 지정한다 (p_seat_id 필수)
 --   · seating_mode='free'     → 잔여석만 세고 현장 착석은 선착순 (p_seat_id 무시)
 --  어느 쪽이든 초청석으로 잠근 자리는 온라인 정원에서 자동으로 빠진다.
+-- ===================================================================
+--  오픈 스위치 (서버측)
+--  화면에서 예약 입구를 숨겨도, 이 함수들을 직접 호출하면 예약이 된다.
+--  그래서 "아직 안 열었다"는 판단을 서버에서 한 번 더 한다.
+--  오픈할 때 :  update public.app_settings set reservations_open = true;
+-- ===================================================================
+create table if not exists public.app_settings (
+  id                boolean primary key default true check (id),
+  reservations_open boolean     not null default false,
+  press_open        boolean     not null default false,
+  updated_at        timestamptz not null default now()
+);
+insert into public.app_settings (id) values (true) on conflict (id) do nothing;
+alter table public.app_settings enable row level security;  -- 정책 없음 = 직접 접근 차단
+
+create or replace function public.reservations_open() returns boolean
+language sql stable security definer set search_path = public as $fn$
+  select coalesce((select reservations_open from public.app_settings where id), false);
+$fn$;
+
+create or replace function public.press_open() returns boolean
+language sql stable security definer set search_path = public as $fn$
+  select coalesce((select press_open from public.app_settings where id), false);
+$fn$;
+
 drop function if exists public.reserve_seat(text,text,text,text,boolean);
 drop function if exists public.reserve_seat(text,text,text,text,text,boolean);
 
@@ -312,6 +337,11 @@ declare
   v_seat_id  text := null;
   v_label    text := null;
 begin
+  -- 아직 오픈 전이면 어떤 경로로 불러도 받지 않는다
+  if not public.reservations_open() then
+    return json_build_object('ok', false, 'reason', 'notopen');
+  end if;
+
   v_pkey := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
   if length(v_pkey) < 9 then
     return json_build_object('ok', false, 'reason', 'badphone');
@@ -589,6 +619,10 @@ create or replace function public.press_apply(
 ) returns jsonb language plpgsql security definer set search_path = public as $$
 declare a public.press_applications; v_pkey text;
 begin
+  if not public.press_open() then
+    return jsonb_build_object('ok', false, 'reason', 'notopen');
+  end if;
+
   v_pkey := regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g');
   if length(v_pkey) < 9 then
     return jsonb_build_object('ok', false, 'reason', 'badphone');

@@ -16,6 +16,18 @@
     else nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
   })();
 
+  /* ---- 오픈 전 잠금 : register.html 과 같은 이유 ----
+     링크만 숨기면 주소를 직접 친 사람은 신청 폼을 만난다. ---- */
+  if (!(BFW.baked().reserve || {}).published) {
+    var pane = document.getElementById("applyPane");
+    if (pane) {
+      pane.innerHTML =
+        '<div class="closed-note">프레스 방문 신청은 아직 열리지 않았습니다.<br>' +
+        '취재 문의는 사무국으로 연락해 주세요.</div>';
+    }
+    return;
+  }
+
   var pv = cfg.pressVisit || { open: true, note: "" };
   $("prsNote").textContent = pv.note || "";
   if (!pv.open) {

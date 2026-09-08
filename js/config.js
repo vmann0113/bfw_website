@@ -510,6 +510,9 @@
     formatPhone: formatPhone,
     bindPhone: bindPhone,
     bindPhonesIn: bindPhonesIn,
+    // 브라우저 저장값(관리자 편집)이 덮을 수 없는 원본 설정.
+    // 오픈 여부처럼 '남이 켜면 안 되는' 판단은 반드시 이걸로 한다.
+    baked: function () { return merge(clone(DEFAULTS), BAKED); },
     SUPABASE: SUPABASE,
     hasBackend: function () { return !!(SUPABASE.url && SUPABASE.anonKey); },
     DEFAULTS: DEFAULTS,

@@ -28,6 +28,32 @@
     else nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
   })();
 
+  /* ---- 오픈 전 잠금 ----------------------------------------------
+     메인 화면의 링크를 숨기는 것만으로는 부족하다. 주소를 직접 친
+     사람은 그대로 폼을 만나고 예약까지 된다. 오픈(published) 전에는
+     페이지를 안내문으로 대체하고 아무것도 초기화하지 않는다.
+     ----------------------------------------------------------------- */
+  if (!(BFW.baked().reserve || {}).published) {
+    lockUntilOpen();
+    return;
+  }
+  function lockUntilOpen() {
+    var tabs = document.querySelector(".tabs-row");
+    if (tabs) tabs.style.display = "none";
+    var look = $("lookupPane");
+    if (look) look.classList.add("hidden");
+    var bar = $("selBar");
+    if (bar) bar.style.display = "none";
+    var px = document.querySelector(".press-x");
+    if (px) px.style.display = "none";
+    var book = $("bookPane");
+    if (book) {
+      book.innerHTML =
+        '<div class="closed-note">관람 예약은 아직 열리지 않았습니다.<br>' +
+        '오픈 일정은 홈페이지와 공식 채널로 안내드립니다.</div>';
+    }
+  }
+
   // 전화번호 칸은 숫자만 받고 하이픈을 자동으로 넣는다
   if (BFW.bindPhonesIn) BFW.bindPhonesIn(document);
 
@@ -340,7 +366,7 @@
           if (res.ok) done.push(res.entry);
           else if (res.reason === "dup") failDup.push(s);
           else if (res.reason === "full") failFull.push(s);
-          else if (res.reason === "closed") failClosed.push(s);
+          else if (res.reason === "closed" || res.reason === "notopen") failClosed.push(s);
           else if (res.reason === "taken" || res.reason === "locked") failTaken.push(it);
           else failErr.push(s);
         });
