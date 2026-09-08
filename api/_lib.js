@@ -291,7 +291,8 @@ function health() {
     mode: mode(),
     aligo: { key: !!ALIGO.key, userId: !!ALIGO.userId, sender: !!ALIGO.sender, senderKey: !!ALIGO.senderKey },
     templates: { reserved: !!ALIGO.tpl.reserved, reminder: !!ALIGO.tpl.reminder, cancelled: !!ALIGO.tpl.cancelled },
-    supabase: { url: !!SB_URL, serviceKey: !!SB_KEY },
+    // 주소는 비밀이 아니라 그대로, 키는 길이만 (오타·줄바꿈 섞임을 잡기 위해)
+    supabase: { url: SB_URL || null, serviceKeyLen: SB_KEY.length, serviceKeyLooksJwt: SB_KEY.split(".").length === 3 },
     site: SITE,
     testmode: ALIGO.testmode === "Y"
   };

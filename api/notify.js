@@ -36,7 +36,11 @@ module.exports = async (req, res) => {
   try {
     rows = await L.findByCodes(codes.map((c) => c.replace(/^BFW-?/i, "")));
   } catch (e) {
-    return L.json(res, 500, { ok: false, error: "lookup failed" });
+    // 원인을 감추면 고칠 수가 없다. 키 값은 담지 않고 사유만 돌려준다.
+    return L.json(res, 500, {
+      ok: false, error: "lookup failed",
+      status: e && e.status, detail: (e && e.data) || String(e && e.message)
+    });
   }
 
   // 예약번호와 연락처가 맞는 건만 남긴다
