@@ -13,7 +13,19 @@ const L = require("./_lib");
 
 module.exports = async (req, res) => {
   // GET : 발송하지 않고 설정 상태만 알려준다 (값은 내보내지 않음)
-  if (req.method === "GET") return L.json(res, 200, { ok: true, health: L.health() });
+  if (req.method === "GET") {
+    // ?ip=1 : 이 함수가 바깥으로 나갈 때 쓰는 IP. 알리고 IP 등록에 필요해서 잰다.
+    if (req.url && req.url.indexOf("ip=1") >= 0) {
+      try {
+        const r = await fetch("https://api.ipify.org?format=json");
+        const d = await r.json();
+        return L.json(res, 200, { ok: true, outboundIp: d.ip, region: process.env.VERCEL_REGION || null });
+      } catch (e) {
+        return L.json(res, 200, { ok: false, error: String(e && e.message) });
+      }
+    }
+    return L.json(res, 200, { ok: true, health: L.health() });
+  }
   if (req.method !== "POST") return L.json(res, 405, { ok: false, error: "POST only" });
 
   let body = req.body;
