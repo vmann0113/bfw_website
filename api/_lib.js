@@ -272,7 +272,32 @@ async function deliver(kind, to, name, msg) {
   return { ok: true, channel: "dryrun", detail: "발송 설정이 없어 미리보기만 했습니다" };
 }
 
+/* 지금 어떤 경로로 나가는지 알려준다 — 점검용.
+   alimtalk : 알림톡으로 나감 (실패하면 문자로 자동 대체)
+   sms      : 알림톡 설정이 없어 문자로만 나감
+   dryrun   : 발송 설정이 아예 없어 미리보기만 하고 실제로는 안 나감 */
+function mode() {
+  var kinds = ["reserved", "reminder", "cancelled"];
+  var ready = kinds.filter(function (k) { return hasAlimtalk(k); });
+  if (ready.length === kinds.length) return "alimtalk";
+  if (ready.length) return "alimtalk(" + ready.join(",") + ")+sms";
+  if (hasSms()) return "sms";
+  return "dryrun";
+}
+
+/* 설정이 어디까지 채워졌는지 — 값은 절대 내보내지 않고 채워졌는지만 */
+function health() {
+  return {
+    mode: mode(),
+    aligo: { key: !!ALIGO.key, userId: !!ALIGO.userId, sender: !!ALIGO.sender, senderKey: !!ALIGO.senderKey },
+    templates: { reserved: !!ALIGO.tpl.reserved, reminder: !!ALIGO.tpl.reminder, cancelled: !!ALIGO.tpl.cancelled },
+    supabase: { url: !!SB_URL, serviceKey: !!SB_KEY },
+    site: SITE,
+    testmode: ALIGO.testmode === "Y"
+  };
+}
+
 module.exports = {
   json, digits, sb, findByCodes, alreadySent, logNoti,
-  buildMessage, deliver, hasSms, hasAlimtalk, ALIGO, SITE
+  buildMessage, deliver, hasSms, hasAlimtalk, mode, health, ALIGO, SITE
 };

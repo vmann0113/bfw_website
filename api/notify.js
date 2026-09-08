@@ -12,6 +12,8 @@
 const L = require("./_lib");
 
 module.exports = async (req, res) => {
+  // GET : 발송하지 않고 설정 상태만 알려준다 (값은 내보내지 않음)
+  if (req.method === "GET") return L.json(res, 200, { ok: true, health: L.health() });
   if (req.method !== "POST") return L.json(res, 405, { ok: false, error: "POST only" });
 
   let body = req.body;
