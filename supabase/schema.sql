@@ -1001,7 +1001,7 @@ create table if not exists public.seat_hold_log (
   holder_id     uuid,                      -- 참여사가 지워져도 이력은 남는다
   show_id       text not null,
   holder_name   text not null,             -- 그 시점의 이름을 박아둔다
-  action        text not null,             -- 'save' | 'restore'
+  action        text not null,             -- 'save' | 'restore' | 'delete'
   prev_seat_ids text[] not null default '{}',   -- 바꾸기 전
   seat_ids      text[] not null default '{}',   -- 바꾼 후
   prev_count    int not null default 0,
@@ -1197,8 +1197,14 @@ begin
             p_kind, p_max_seats, p_zones, p_close_at)
     returning * into h;
   end if;
-  return json_build_object('ok', true, 'token', h.token,
-                           'name', h.name, 'showId', h.show_id);
+  return json_build_object(
+    'ok', true, 'id', h.id, 'token', h.token, 'name', h.name, 'showId', h.show_id,
+    -- 구역을 좁혔는데 이미 고른 좌석이 새 구역 밖에 있으면 알려준다.
+    -- 참여사가 다음에 저장할 때 그 좌석은 풀리게 된다.
+    'outOfZone', case when h.zones is null then 0 else (
+       select count(*) from show_seat_locks l join seats se on se.id = l.seat_id
+        where l.holder_id = h.id and not (se.zone_code = any(h.zones))) end
+  );
 end $fn$;
 
 -- ---- 저장 이력 조회 (스태프 전용) ----
@@ -1292,6 +1298,81 @@ returns table (
    order by s.sort, coalesce(h.name, ''), se.zone_code, se.num
 $fn$;
 
+-- ---- 확보 창구 켜기/끄기 (스태프 전용) ----
+create or replace function public.holds_set_open(p_open boolean)
+returns json language plpgsql security definer set search_path = public as $fn$
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  update app_settings set holds_open = coalesce(p_open, false), updated_at = now() where id;
+  return json_build_object('ok', true, 'holdsOpen', public.holds_open());
+end $fn$;
+
+-- ---- 주최측 현황판 (스태프 전용) ----
+--  스위치 상태, 쇼별 정원·예약·확보·일반잔여·예약방식, 참여사 전체를 한 번에.
+--  예약을 열기 전 이상한 잠금(예: 테스트 잔여물)을 여기서 잡아낸다.
+create or replace function public.holds_board()
+returns json language plpgsql security definer set search_path = public as $fn$
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  return json_build_object(
+    'ok', true,
+    'holdsOpen', public.holds_open(),
+    'reservationsOpen', public.reservations_open(),
+    'shows', (select coalesce(json_agg(x order by x.sort), '[]'::json) from (
+       select s.id, s.title_ko, s.lineup, s.date, s.start_time, s.capacity, s.sort, s.seating_mode,
+              (select count(*) from reservations r
+                where r.show_id = s.id and r.status = 'reserved')                    as reserved,
+              (select count(*) from show_seat_locks l where l.show_id = s.id)          as locked,
+              (select count(*) from show_seat_locks l
+                where l.show_id = s.id and l.holder_id is null)                        as staff_locked
+         from shows s) x),
+    'holders', (select coalesce(json_agg(y order by y.show_id, y.name), '[]'::json) from (
+       select h.id, h.show_id, h.name, h.kind, h.max_seats, h.zones, h.token,
+              (select count(*) from show_seat_locks l where l.holder_id = h.id) as held,
+              h.contact_name, h.contact_phone, h.saved_at, h.created_at
+         from seat_holders h) y)
+  );
+end $fn$;
+
+-- ---- 참여사 삭제 (스태프 전용) ----
+--  잡아둔 좌석은 함께 풀린다(show_seat_locks 가 cascade). 지우기 전에
+--  무엇을 갖고 있었는지 이력에 통째로 남긴다 — 조사 결과를 잃지 않기 위해.
+create or replace function public.holder_delete(p_id uuid)
+returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  h      public.seat_holders;
+  v_prev text[];
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  select * into h from seat_holders where id = p_id;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'noholder');
+  end if;
+  perform 1 from shows where id = h.show_id for update;
+
+  select coalesce(array_agg(seat_id order by seat_id), '{}') into v_prev
+    from show_seat_locks where holder_id = h.id;
+
+  insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                             prev_seat_ids, seat_ids, prev_count, seat_count,
+                             contact_name, contact_phone, note)
+  values (h.id, h.show_id, h.name, 'delete',
+          v_prev, '{}', coalesce(array_length(v_prev, 1), 0), 0,
+          h.contact_name, h.contact_phone,
+          '참여사 삭제 — 구분 ' || h.kind ||
+          coalesce(' / 구역 ' || array_to_string(h.zones, ','), '') ||
+          coalesce(' / 한도 ' || h.max_seats, ''));
+
+  delete from seat_holders where id = h.id;
+  return json_build_object('ok', true, 'released', coalesce(array_length(v_prev, 1), 0));
+end $fn$;
+
 -- ---- 누가 몇 석 확보했는지 (스태프 전용) ----
 create or replace function public.holder_list()
 returns table (
@@ -1339,7 +1420,11 @@ revoke all on function
   public.holder_list(),
   public.hold_log(text,int),
   public.hold_restore(bigint,text),
-  public.hold_export()
+  public.hold_export(),
+  public.holds_set_open(boolean),
+  public.holds_board(),
+  public.holder_delete(uuid),
+  public.is_staff()
   from public, anon, authenticated;
 
 -- 관람객(비로그인)도 쓸 수 있는 것
@@ -1373,6 +1458,9 @@ grant execute on function public.is_staff()                    to authenticated;
 grant execute on function public.hold_log(text,int)            to authenticated;
 grant execute on function public.hold_restore(bigint,text)     to authenticated;
 grant execute on function public.hold_export()                 to authenticated;
+grant execute on function public.holds_set_open(boolean)       to authenticated;
+grant execute on function public.holds_board()                 to authenticated;
+grant execute on function public.holder_delete(uuid)           to authenticated;
 grant execute on function public.press_set_status(uuid,text)   to authenticated;
 grant execute on function public.press_find(text)              to authenticated;
 grant execute on function public.press_check_in(text)          to authenticated;

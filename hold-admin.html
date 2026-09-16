@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사전 좌석 확보 관리 | 부산패션위크 2026</title>
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#0a1a4a" />
+<link rel="icon" href="images/favicon.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  /* 이 화면 전용. css/styles.css 와 admin.html 을 건드리지 않는다. */
+  :root{
+    --ink:#1b2340; --ink-mute:#6b7490; --line:#e3e7ef;
+    --paper:#fff; --paper-2:#f6f8fc;
+    --navy:#0b2e9e; --navy-soft:#eef2ff;
+    --warn:#8a5300; --warn-soft:#fff7e8; --warn-line:#f2e0bb;
+    --bad:#b3261e; --bad-soft:#fdeceb; --bad-line:#f6cfcb;
+    --ok:#1f7a4d; --ok-soft:#e9f7f0; --ok-line:#c9e8d8;
+    --mono:"Space Mono",ui-monospace,monospace;
+    --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);
+       -webkit-text-size-adjust:100%;font-size:15px}
+  button,input,select{font-family:var(--kr)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 16px 80px}
+
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
+  h1{margin:6px 0 0;font-size:1.4rem;font-weight:800}
+  h2{margin:0;font-size:1.06rem;font-weight:800}
+  .sub{color:var(--ink-mute);font-size:.86rem}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;
+        box-shadow:0 1px 3px rgba(20,35,90,.04)}
+  .stack>*+*{margin-top:14px}
+
+  .btn{padding:9px 14px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+       color:var(--ink);font-size:.86rem;cursor:pointer;white-space:nowrap}
+  .btn:hover:not(:disabled){border-color:var(--navy);color:var(--navy)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.pri{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
+  .btn.pri:hover:not(:disabled){background:#0a2887;color:#fff}
+  .btn.bad{color:var(--bad);border-color:var(--bad-line)}
+  .btn.bad:hover:not(:disabled){background:var(--bad-soft);color:var(--bad)}
+  .btn.sm{padding:5px 9px;font-size:.78rem;border-radius:7px}
+
+  input[type=text],input[type=email],input[type=password],input[type=number],select{
+    width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:.92rem;background:var(--paper)}
+  input:focus,select:focus{outline:none;border-color:var(--navy)}
+  label{display:block;font-size:.78rem;color:var(--ink-mute);margin-bottom:5px}
+
+  .note{border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.6}
+  .note h4{margin:0 0 4px;font-size:.92rem}
+  .note.info{background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
+  .note.warn{background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn)}
+  .note.bad{background:var(--bad-soft);border:1px solid var(--bad-line);color:var(--bad)}
+  .note.ok{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok)}
+
+  /* 로그인 */
+  .login{max-width:380px;margin:60px auto 0}
+  .login .card>*+*{margin-top:12px}
+
+  /* 상단 */
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .who{font-size:.8rem;color:var(--ink-mute)}
+  .switch{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+        font-size:.84rem;font-weight:700;border:1px solid}
+  .pill i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .pill.on{background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok)} .pill.on i{background:var(--ok)}
+  .pill.off{background:var(--paper-2);border-color:var(--line);color:var(--ink-mute)} .pill.off i{background:#aab1c4}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* 쇼 카드 */
+  .show-h{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+  .show-h .t{font-weight:800;font-size:1.02rem}
+  .show-h .l{color:var(--ink-mute);font-size:.86rem;margin-top:2px}
+  .stats{display:flex;gap:6px;flex-wrap:wrap}
+  .stat{font-size:.78rem;padding:4px 9px;border-radius:999px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-mute)}
+  .stat b{color:var(--ink);font-family:var(--mono)}
+  .stat.hi{background:var(--navy-soft);border-color:#d7e0ff}
+  .stat.hi b{color:var(--navy)}
+
+  /* 구역 배정 현황 */
+  .zmap{display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;margin-top:14px}
+  .zcol{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .zrun{background:linear-gradient(180deg,#dfe6f7,#eef2ff);border-radius:6px}
+  .zc{border:1px dashed var(--line);border-radius:8px;padding:7px 6px;text-align:center;min-height:52px;background:var(--paper-2)}
+  .zc b{display:block;font-size:.86rem}
+  .zc span{display:block;font-size:.68rem;color:var(--ink-mute);margin-top:2px;line-height:1.25;word-break:keep-all}
+  .zc.taken{border-style:solid;background:var(--paper)}
+  .zc.clash{border-color:var(--bad)!important;background:var(--bad-soft)!important}
+
+  /* 참여사 표 */
+  .tbl-wrap{overflow-x:auto;margin-top:14px}
+  table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:760px}
+  th{text-align:left;font-weight:600;font-size:.74rem;color:var(--ink-mute);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+  .kind{font-size:.72rem;padding:2px 7px;border-radius:5px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-mute)}
+  .mono{font-family:var(--mono);font-size:.82rem}
+  .acts{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}
+  .empty{color:var(--ink-mute);font-size:.86rem;padding:10px 0}
+
+  /* 구역 고르기 */
+  .zpick{display:flex;gap:5px;flex-wrap:wrap}
+  .zpick button{width:34px;height:32px;border-radius:7px;border:1px solid var(--line);background:var(--paper);
+                font-weight:700;font-size:.84rem;cursor:pointer;position:relative}
+  .zpick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .zpick button.used:not(.on){border-color:#c9a86a;background:var(--warn-soft);color:var(--warn)}
+  .zpick .gap{width:8px}
+
+  /* 편집 폼 */
+  .form{margin-top:14px;padding:14px;border-radius:12px;background:var(--paper-2);border:1px solid var(--line)}
+  .form .row{display:grid;grid-template-columns:1.4fr .9fr .8fr;gap:10px}
+  .form .row2{margin-top:10px}
+  .form .foot{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .form .hint{font-size:.76rem;color:var(--ink-mute);margin-top:6px}
+
+  /* 이력 */
+  .log td{font-size:.8rem}
+  .log .seats{max-width:340px;color:var(--ink-mute);font-family:var(--mono);font-size:.72rem;word-break:break-all}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2340;color:#fff;
+         padding:11px 18px;border-radius:10px;font-size:.88rem;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.18);
+         max-width:calc(100% - 32px)}
+  .toast.err{background:var(--bad)}
+
+  @media (max-width:760px){
+    .form .row{grid-template-columns:1fr}
+    .zcol{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- 로그인 -->
+  <div class="login" id="loginView" hidden>
+    <div class="card">
+      <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+      <h1>사전 좌석 확보 관리</h1>
+      <p class="sub">스태프 명단에 등록된 계정으로 로그인하세요.</p>
+      <div>
+        <label for="lEmail">이메일</label>
+        <input type="email" id="lEmail" autocomplete="username" />
+      </div>
+      <div>
+        <label for="lPw">비밀번호</label>
+        <input type="password" id="lPw" autocomplete="current-password" />
+      </div>
+      <button class="btn pri" id="lBtn" type="button" style="width:100%;padding:11px">로그인</button>
+      <div id="lMsg"></div>
+    </div>
+  </div>
+
+  <!-- 본 화면 -->
+  <div id="mainView" hidden class="stack">
+    <div class="head">
+      <div>
+        <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+        <h1>사전 좌석 확보 관리</h1>
+        <div class="who" id="whoAmI"></div>
+      </div>
+      <div class="tools">
+        <button class="btn" id="reloadBtn" type="button">새로고침</button>
+        <button class="btn" id="exportBtn" type="button">확보 현황 엑셀</button>
+        <button class="btn" id="logoutBtn" type="button">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="switch">
+        <h2>확보 창구</h2>
+        <span class="pill off" id="holdPill"><i></i><span>—</span></span>
+        <span class="sub" id="holdDesc"></span>
+        <span style="margin-left:auto"></span>
+        <button class="btn pri" id="holdToggle" type="button">—</button>
+      </div>
+    </div>
+
+    <div id="alerts" class="stack"></div>
+    <div id="shows" class="stack"></div>
+
+    <div class="card">
+      <div class="show-h">
+        <div>
+          <h2>변경 이력</h2>
+          <div class="sub">저장·삭제·되돌리기가 모두 남습니다. 실수로 지웠다면 여기서 되돌리세요.</div>
+        </div>
+        <button class="btn sm" id="logBtn" type="button">이력 불러오기</button>
+      </div>
+      <div id="logBox"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/hold-admin.js?v=20260917a"></script>
+</body>
+</html>

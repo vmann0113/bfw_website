@@ -207,11 +207,28 @@
       });
     }
 
-    /* 이미 확보한 좌석을 골라둔 상태로 시작 */
+    /* 이미 확보한 좌석을 골라둔 상태로 시작.
+       단, 주최측이 구역을 바꿔 '배정 구역 밖'이 된 좌석은 빼고 시작한다.
+       그대로 두면 저장할 때 구역 밖이라는 이유로 전체가 거부되어
+       참여사가 아무것도 저장하지 못하게 된다. 대신 분명히 알린다. */
     picked = {};
-    data.seats.forEach(function (s) { if (s.state === "mine") picked[s.id] = true; });
+    var outside = [];
+    data.seats.forEach(function (s) {
+      if (s.state !== "mine") return;
+      if (allowed && allowed.indexOf(s.zone_code) < 0) { outside.push(s.id); return; }
+      picked[s.id] = true;
+    });
+    // '되돌리기' 는 서버에 실제로 저장된 상태로 돌아가야 하므로 구역 밖 좌석도 포함한다
     saved = {};
-    keys(picked).forEach(function (k) { saved[k] = true; });
+    data.seats.forEach(function (s) { if (s.state === "mine") saved[s.id] = true; });
+    if (outside.length && !h.closed) {
+      $("notices").insertAdjacentHTML("beforeend",
+        '<div class="note warn"><h4>배정 구역이 바뀌었습니다</h4>' +
+        "주최측에서 선택 가능 구역을 조정해, 이전에 확보하신 좌석 중 <b>" + outside.length +
+        "석</b>(" + esc(outside.join(", ")) + ")이 배정 구역 밖에 있습니다. " +
+        "이 좌석은 선택에서 뺐으며, <b>저장하시면 해제</b>됩니다. " +
+        "문의는 사무국으로 연락해 주세요.</div>");
+    }
 
     if (h.closed) {
       document.querySelectorAll(".seat, .zbtns button").forEach(function (b) { b.disabled = true; });
@@ -343,8 +360,14 @@
   });
 
   $("resetBtn").addEventListener("click", function () {
+    var allowed = data && data.holder.zones;
+    var zoneOf = {};
+    (data ? data.seats : []).forEach(function (s) { zoneOf[s.id] = s.zone_code; });
     picked = {};
-    keys(saved).forEach(function (k) { picked[k] = true; });
+    keys(saved).forEach(function (k) {
+      if (allowed && allowed.indexOf(zoneOf[k]) < 0) return;  // 구역 밖은 되살리지 않는다
+      picked[k] = true;
+    });
     paint();
     say("마지막으로 저장한 상태로 되돌렸습니다", "");
   });
