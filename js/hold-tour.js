@@ -70,7 +70,15 @@
   function start(opt) {
     if (active) active.end(false);   // 이미 떠 있는 안내를 먼저 닫는다
     css();
-    var steps = (opt.steps || []).slice();
+    // 대상을 정해둔 단계인데 그 요소가 지금 화면에 없거나 숨겨져 있으면 건너뛴다.
+    // (없는 칸을 가리키며 '여기에 적으세요' 라고 안내하는 일이 없도록)
+    var steps = (opt.steps || []).filter(function (st) {
+      if (!st.el) return true;
+      var el = typeof st.el === "function" ? st.el() : document.querySelector(st.el);
+      if (!el) return false;
+      var r = el.getBoundingClientRect();
+      return !(r.width === 0 && r.height === 0);
+    });
     if (!steps.length) return;
     var i = 0;
 

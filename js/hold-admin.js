@@ -594,9 +594,13 @@
             focusId = d.id;
             renderHolders(); renderTool(); renderMap();
             var url = location.origin + location.pathname.replace(/[^/]*$/, "") + "hold.html?t=" + d.token;
+            // 참여사가 하나뿐이면 배정 없이 전 좌석에서 고르므로 배정을 권하지 않는다
+            var many = mapData.holders.length > 1;
             copyText(url).then(function () {
-              toast(name + " 추가 — 링크 복사됨. 이제 지도에서 좌석을 골라 '배정에 추가'를 누르세요");
-            }).catch(function () { toast(name + " 추가했습니다. 지도에서 좌석을 골라 배정하세요"); });
+              toast(name + " 추가 — 링크 복사됨. " + (many
+                ? "여러 참여사 쇼이니 지도에서 좌석을 골라 '배정에 추가'로 나눠 주세요"
+                : "카카오톡·메일로 보내시면 됩니다"));
+            }).catch(function () { toast(name + " 추가했습니다. '링크' 버튼으로 주소를 복사해 보내세요"); });
           } else {
             toast(name + " 저장했습니다");
           }
@@ -775,6 +779,7 @@
   function boxOf(id) { var e = $(id); return e ? (e.closest(".box") || e) : null; }
   function lineOf(id) { var e = $(id); return e ? (e.closest(".line") || e) : null; }
   function tourSteps() {
+    var nH = mapData ? mapData.holders.length : 0;
     return [
       { el: null,
         title: "사전 좌석 확보 관리",
@@ -812,18 +817,24 @@
               "좌석에 마우스를 올리면 누구 좌석인지 나옵니다. 구역 글자(A~H)를 누르면 구역 전체가 선택됩니다." },
       { el: function () { return lineOf("allotTo"); },
         title: "③ 고른 좌석을 참여사에게 배정",
-        html: "참여사를 고르고 <span class='k'>배정에 추가</span>. 브랜드끼리 협의해 나눈 구역·좌석을 이렇게 나눠 줍니다.<br><br>" +
+        html: (nH ? "" : "<b>지금 이 쇼에는 참여사가 없어</b> 배정할 곳이 없습니다. 참여사를 추가하면 여기서 고를 수 있습니다.<br><br>") +
+              "<b>여러 참여사가 함께하는 쇼</b>에서 씁니다. 참여사를 고르고 <b>배정에 추가</b>. 브랜드끼리 협의해 나눈 구역·좌석을 이렇게 나눠 줍니다. " +
+              "참여사가 하나뿐인 쇼는 배정하지 않아도 전 좌석에서 고를 수 있습니다.<br><br>" +
               "다른 참여사에 이미 배정된 좌석이면 <b>옮길지 먼저 묻고</b>, 그 참여사가 이미 확보했으면 <b>한 번 더</b> 묻습니다." },
       { el: function () { return lineOf("staffOn"); },
         title: "주최측이 직접 확보",
         html: "개막식 내빈석처럼 <b>링크 없이 주최측이 잡을 좌석</b>은 여기서 바로 확보합니다.<br>참여사가 이미 확보한 좌석은 건드리지 않고 건너뜁니다." },
       { el: "#holderList",
         title: "참여사 관리",
-        html: "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
-              "줄을 누르면 지도에서 <b>그 참여사 좌석만 강조</b>됩니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다." },
+        html: nH
+          ? "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
+            "줄을 누르면 지도에서 <b>그 참여사 좌석만 강조</b>됩니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다."
+          : "추가한 참여사가 이곳에 한 줄씩 나오고, 줄마다 <b>링크</b>(다시 복사) · <b>배정 보기</b> · <b>수정</b> · <b>삭제</b> 버튼이 붙습니다.<br><br>" +
+            "지금 이 쇼에는 아직 참여사가 없습니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다." },
       { el: function () { return boxOf("logBtn"); },
         title: "변경 이력과 엑셀",
-        html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. 참여사가 실수로 지웠다면 <span class='k'>직전으로</span> 되돌릴 수 있어요.<br><br>" +
+        html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. <span class='k'>이 쇼 이력 보기</span>를 누르면 목록이 열리고, " +
+              "참여사가 실수로 지웠다면 그 줄의 <b>직전으로</b> 버튼으로 되돌릴 수 있어요.<br><br>" +
               "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 보관하거나 의자 라벨 인쇄에 쓰세요." },
       { el: null,
         title: "진행 순서",
