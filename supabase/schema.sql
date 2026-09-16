@@ -818,9 +818,11 @@ begin
     return json_build_object('ok', false, 'reason', 'noseats');
   end if;
 
+  -- 참여사가 확보한 좌석(holder_id 있음)은 이 도구로 풀거나 덮어쓰지 않는다.
+  -- 그 좌석은 사전 좌석 확보 화면에서만, 이력을 남기며 바뀐다.
   if p_kind is null then
     delete from show_seat_locks
-     where show_id = p_show_id and seat_id = any(p_seat_ids);
+     where show_id = p_show_id and seat_id = any(p_seat_ids) and holder_id is null;
     get diagnostics v_n = row_count;
     return json_build_object('ok', true, 'unlocked', v_n);
   end if;
@@ -835,7 +837,8 @@ begin
   insert into show_seat_locks (show_id, seat_id, kind, note)
   select p_show_id, sid, p_kind, p_note from unnest(p_seat_ids) as sid
   on conflict (show_id, seat_id) do update
-    set kind = excluded.kind, note = excluded.note;
+    set kind = excluded.kind, note = excluded.note
+    where show_seat_locks.holder_id is null;
   get diagnostics v_n = row_count;
   return json_build_object('ok', true, 'locked', v_n);
 end $$;
@@ -867,6 +870,11 @@ begin
   if exists (select 1 from reservations
              where show_id = p_show_id and seat_id = p_seat_id and status = 'reserved') then
     return json_build_object('ok', false, 'reason', 'taken');
+  end if;
+  -- 브랜드·대학이 사전에 확보한 좌석이면 그 참여사 몫이라 넣지 않는다
+  if exists (select 1 from show_seat_locks
+             where show_id = p_show_id and seat_id = p_seat_id and holder_id is not null) then
+    return json_build_object('ok', false, 'reason', 'heldbyholder');
   end if;
 
   v_pkey := nullif(regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g'), '');
@@ -1160,6 +1168,16 @@ begin
    where show_id = h.show_id and seat_id = any(v_ids) and status = 'reserved';
   if v_taken is not null then
     return json_build_object('ok', false, 'reason', 'occupied', 'seats', v_taken);
+  end if;
+
+  -- 늘리는 저장일 때만 : 다른 확보 + 내 확보 + 일반 예약 인원이 정원을 넘으면 막는다.
+  -- (자유석 쇼의 일반 예약은 좌석이 정해져 있지 않아 위 검사로는 못 잡는다)
+  if cardinality(v_ids) > (select count(*) from show_seat_locks where holder_id = h.id)
+     and (select count(*) from show_seat_locks where show_id = h.show_id and (holder_id is null or holder_id <> h.id))
+         + cardinality(v_ids)
+         + (select count(*) from reservations where show_id = h.show_id and status = 'reserved')
+         > v_show.capacity then
+    return json_build_object('ok', false, 'reason', 'full');
   end if;
 
   -- 바꾸기 전 상태를 먼저 담아둔다 (이력에 남겨 되돌릴 수 있게)
@@ -1717,6 +1735,24 @@ begin
   return json_build_object('ok', true, 'changed', v_n, 'skipped', coalesce(v_skip, '{}'));
 end $fn$;
 
+-- ---- 사전 좌석 확보 전체 백업 (스태프 전용) ----
+--  참여사(링크 열쇠·담당자 포함), 확보·주최측 잠금 좌석, 변경 이력 전부를 한 덩어리로.
+--  이 파일 하나면 무슨 일이 생겨도 누가 어떤 좌석을 갖고 있었는지 되살릴 수 있다.
+create or replace function public.hold_backup()
+returns json language plpgsql security definer set search_path = public as $fn$
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  return json_build_object(
+    'ok', true,
+    'takenAt', now(),
+    'holders', (select coalesce(json_agg(h order by h.show_id, h.name), '[]'::json) from seat_holders h),
+    'locks',   (select coalesce(json_agg(l order by l.show_id, l.seat_id), '[]'::json) from show_seat_locks l),
+    'log',     (select coalesce(json_agg(g order by g.id), '[]'::json) from seat_hold_log g)
+  );
+end $fn$;
+
 -- ---- 누가 몇 석 확보했는지 (스태프 전용) ----
 create or replace function public.holder_list()
 returns table (
@@ -1767,6 +1803,7 @@ revoke all on function
   public.hold_export(),
   public.holds_set_open(boolean),
   public.holder_open_set(uuid[],boolean,text),
+  public.hold_backup(),
   public.holds_board(),
   public.holder_delete(uuid),
   public.is_staff(),
@@ -1808,6 +1845,7 @@ grant execute on function public.hold_restore(bigint,text)     to authenticated;
 grant execute on function public.hold_export()                 to authenticated;
 grant execute on function public.holds_set_open(boolean)       to authenticated;
 grant execute on function public.holder_open_set(uuid[],boolean,text) to authenticated;
+grant execute on function public.hold_backup()                 to authenticated;
 grant execute on function public.holds_board()                 to authenticated;
 grant execute on function public.holder_delete(uuid)           to authenticated;
 grant execute on function public.holds_show_map(text)          to authenticated;
