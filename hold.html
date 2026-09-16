@@ -28,8 +28,12 @@
   body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);-webkit-text-size-adjust:100%}
   .wrap{max-width:880px;margin:0 auto;padding:24px 16px 200px}
 
-  .top{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 18px;
+  .top{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 18px;
        box-shadow:0 1px 3px rgba(20,35,90,.05)}
+  .help{position:absolute;top:16px;right:16px;padding:7px 12px;border-radius:9px;border:1px solid #c9d3f3;
+        background:var(--navy-soft);color:var(--navy);font-family:var(--kr);font-size:.84rem;font-weight:700;cursor:pointer}
+  .help:hover{background:#e2e8ff}
+  .top h1{padding-right:84px}
   .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
   .top h1{margin:8px 0 2px;font-size:1.3rem;line-height:1.35;font-weight:800}
   .top .who{font-size:1.02rem;color:var(--ink-mute);margin-top:6px}
@@ -102,6 +106,7 @@
   <div id="main" hidden>
 
     <div class="top">
+      <button type="button" class="help" id="helpBtn">사용법</button>
       <div class="eyebrow">2026 부산패션위크 · 사전 좌석 확보</div>
       <h1 id="showTitle">—</h1>
       <div class="who" id="holderName">—</div>
@@ -162,6 +167,7 @@
 <!-- 버전 표시 : vercel.json 이 js 를 1시간 캐시한다. 확보 기간 중 수정하면
      참여사가 옛 화면을 쓰게 되므로, 고칠 때마다 v= 값을 올린다. -->
 <script src="js/hall-map.js?v=20260917e"></script>
-<script src="js/hold.js?v=20260917f"></script>
+<script src="js/hold-tour.js?v=20260917d"></script>
+<script src="js/hold.js?v=20260917i"></script>
 </body>
 </html>

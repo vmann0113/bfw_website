@@ -89,6 +89,22 @@
     return (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + " " +
       String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
   }
+  /* 쇼 이름은 홈페이지 스케줄표와 똑같이 쓴다.
+     연합쇼는 참여 브랜드·학교 이름이 곧 쇼 이름이다("오교 · 리온베 · 이영희 프리젠트").
+     '연합쇼 ④' 같은 번호는 내부용이라 보여주지 않는다.
+     참여 칸이 비었거나 '오프닝'인 개막식·경진대회만 행사명을 쓴다. */
+  function showName(title, lineup) {
+    var lu = String(lineup || "").trim();
+    return (!lu || lu === "오프닝") ? String(title || "") : lu;
+  }
+  var DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  /* '2026.10.30' + '10:30' → '10.30(금) 10:30' */
+  function showWhen(date, time) {
+    var p = String(date || "").split(".");
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (+p[1]) + "." + (+p[2]) + (isNaN(d) ? "" : "(" + DOW[d.getDay()] + ")") + " " + (time || "");
+  }
+
   function tint(hex, a) {
     var n = parseInt(hex.slice(1), 16);
     return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
@@ -175,7 +191,10 @@
       return loadBoard().then(function () {
         var first = (board.shows || []).filter(function (s) { return NO_RESERVATION.indexOf(s.id) < 0; })[0];
         var pick = (board.shows || []).some(function (s) { return s.id === h; }) && NO_RESERVATION.indexOf(h) < 0 ? h : (first && first.id);
-        if (pick) selectShow(pick);
+        if (pick) selectShow(pick).then(function () {
+          // 처음 들어왔을 때 한 번 자동으로 안내한다
+          if (window.HoldTour) setTimeout(function () { window.HoldTour.autoStart({ key: TOUR_KEY, steps: tourSteps() }); }, 400);
+        });
       });
     }).catch(function () { saveSession(null); showLogin("로그인이 만료되었습니다. 다시 로그인해 주세요."); });
   }
@@ -213,20 +232,21 @@
     }
     (board.shows || []).forEach(function (s) {
       var hs = holdersOfBoard(s.id);
+      var nm = esc(showWhen(s.date, s.start_time) + " " + showName(s.title_ko, s.lineup));
       if (NO_RESERVATION.indexOf(s.id) >= 0) {
-        if (s.locked > 0 || hs.length) out.push(esc(s.id) + " 은 예약을 받지 않는 쇼인데 잠긴 좌석이나 참여사가 있습니다.");
+        if (s.locked > 0 || hs.length) out.push(nm + " 은 예약을 받지 않는 쇼인데 잠긴 좌석이나 참여사가 있습니다.");
         return;
       }
-      if (s.seating_mode !== "free") out.push(esc(s.id) + " 예약 방식이 '" + esc(s.seating_mode) + "' 입니다 (다른 쇼는 자유석).");
+      if (s.seating_mode !== "free") out.push(nm + " 예약 방식이 '" + esc(s.seating_mode) + "' 입니다 (다른 쇼는 자유석).");
       if (hs.length > 1) {
         hs.forEach(function (h) {
           if (h.allowed_seats == null) {
-            out.push(esc(s.id) + " <b>" + esc(h.name) + "</b> 는 배정 범위가 없어 <b>전 좌석</b>을 고를 수 있습니다. 여러 참여사 쇼라면 좌석을 나눠 배정하세요.");
+            out.push(nm + " <b>" + esc(h.name) + "</b> 는 배정 범위가 없어 <b>전 좌석</b>을 고를 수 있습니다. 여러 참여사 쇼라면 좌석을 나눠 배정하세요.");
           }
         });
       }
       hs.forEach(function (h) {
-        if (h.zones && h.zones.length) out.push(esc(s.id) + " " + esc(h.name) + " 에 이전 방식의 구역 제한(" + esc(h.zones.join(",")) + ")이 남아 있습니다. '수정'에서 저장하면 해제됩니다.");
+        if (h.zones && h.zones.length) out.push(nm + " " + esc(h.name) + " 에 이전 방식의 구역 제한(" + esc(h.zones.join(",")) + ")이 남아 있습니다. '수정'에서 저장하면 해제됩니다.");
       });
     });
     // 조작 영역을 밀어내지 않게 접어둔다. 건수는 제목에 보인다.
@@ -244,8 +264,8 @@
       var hs = holdersOfBoard(s.id);
       var left = Math.max(0, s.capacity - s.locked - s.reserved);
       h.push('<button type="button" class="shw' + (s.id === showId ? " on" : "") + '" data-show="' + esc(s.id) + '">' +
-        "<b>" + esc(s.id) + " · " + esc(s.title_ko) + "</b>" +
-        "<span>" + esc(s.date.slice(5)) + " " + esc(s.start_time) + " · 참여사 " + hs.length + " · 일반 " + left + "</span></button>");
+        "<b>" + esc(showName(s.title_ko, s.lineup)) + "</b>" +
+        "<span>" + esc(showWhen(s.date, s.start_time)) + " · 참여사 " + hs.length + " · 일반 " + left + "</span></button>");
     });
     $("showList").innerHTML = h.join("");
   }
@@ -290,8 +310,8 @@
     var d = mapData, s = d.show;
     $("showBox").hidden = false;
     $("toolBox").hidden = false;
-    $("showTitle").textContent = s.id + " · " + s.titleKo;
-    $("showSub").textContent = s.date + " " + s.startTime + (s.lineup ? " · " + s.lineup : "");
+    $("showTitle").textContent = showName(s.titleKo, s.lineup);
+    $("showSub").textContent = showWhen(s.date, s.startTime);
 
     var lock = { holder: 0, staff: 0 }, allotted = 0;
     var ai = allotIndex();
@@ -423,8 +443,8 @@
 
   function renderMap() {
     var d = mapData, ai = allotIndex();
-    $("mapTitle").textContent = d.show.id + " · " + d.show.titleKo;
-    $("mapSub").textContent = d.show.date + " " + d.show.startTime;
+    $("mapTitle").textContent = showName(d.show.titleKo, d.show.lineup);
+    $("mapSub").textContent = showWhen(d.show.date, d.show.startTime);
     renderLegend();
 
     map = window.HallMap.create($("map"), {
@@ -682,7 +702,8 @@
       rows = rows || [];
       var lines = [["쇼", "패션쇼", "날짜", "시각", "참여사", "구분", "좌석", "구역", "번호", "담당자", "연락처", "마지막 저장"]];
       rows.forEach(function (r) {
-        lines.push([r.show_id, r.title_ko, r.show_date, r.start_time, r.holder_name,
+        var sh = (board.shows || []).filter(function (x) { return x.id === r.show_id; })[0];
+        lines.push([r.show_id, sh ? showName(sh.title_ko, sh.lineup) : r.title_ko, r.show_date, r.start_time, r.holder_name,
           r.kind === "univ" ? "대학" : r.kind === "brand" ? "브랜드" : "주최측",
           r.seat_id, r.zone_code, r.seat_num, r.contact_name || "", r.contact_phone || "", when(r.saved_at)]);
       });
@@ -748,6 +769,75 @@
       if (!mapData || $("mainView").hidden) return;
       whenIdle().then(function () { var keep = selection.slice(); renderMap(); if (keep.length) map.setSelection(keep); });
     }, 180);
+  });
+
+  /* ================= 사용법 안내 ================= */
+  function boxOf(id) { var e = $(id); return e ? (e.closest(".box") || e) : null; }
+  function lineOf(id) { var e = $(id); return e ? (e.closest(".line") || e) : null; }
+  function tourSteps() {
+    return [
+      { el: null,
+        title: "사전 좌석 확보 관리",
+        html: "브랜드·대학이 좌석을 미리 잡도록 <b>링크를 만들어 보내고</b>, 여러 참여사가 함께하는 쇼는 <b>좌석을 나눠 주는</b> 화면입니다.<br><br>" +
+              "두 가지만 구분하시면 됩니다.<ul>" +
+              "<li><b>배정</b> — 그 참여사가 <b>고를 수 있는 범위</b> (주최측이 정함)</li>" +
+              "<li><b>확보</b> — 실제로 잡혀 <b>일반 예약에서 빠진 좌석</b> (참여사가 링크로, 또는 주최측이 직접)</li></ul>" },
+      { el: function () { return boxOf("holdPill"); },
+        title: "확보 창구 열기 · 닫기",
+        html: "창구가 <b>열려 있을 때만</b> 참여사가 링크로 좌석을 고치고 저장할 수 있습니다.<br>" +
+              "닫으면 참여사는 확보 내용을 <b>볼 수만</b> 있고, 확보된 좌석은 그대로 유지됩니다.<br><br>" +
+              "링크를 다 보낸 뒤 열고, 기간이 끝나면 닫으세요." },
+      { el: function () { return boxOf("showList"); },
+        title: "패션쇼 고르기",
+        html: "홈페이지 스케줄표와 같은 이름으로 나옵니다. 쇼마다 <b>참여사 수</b>와 <b>일반 공개 좌석 수</b>가 함께 보입니다." },
+      { el: "#kpis",
+        title: "이 쇼의 현황",
+        html: "<b>배정 · 참여사 확보 · 주최측 확보 · 일반 공개</b> 좌석 수입니다.<br><b>일반 공개</b>가 관람객이 예약할 수 있는 좌석입니다." },
+      { el: function () { var b = $("addBtn"); return b ? b.parentNode : null; },
+        title: "① 참여사를 추가하고 링크 보내기",
+        html: "<span class='k'>+ 참여사 추가</span> → 이름과 브랜드/대학을 넣으면 <b>링크가 자동으로 복사</b>됩니다.<br>" +
+              "카카오톡이나 메일로 그 참여사에게 보내시면 됩니다.<br><br>" +
+              "참여사마다 링크가 다르고, 받은 곳은 <b>자기 몫만</b> 고칠 수 있습니다. " +
+              "협업 쇼(예: 카마모에X소티에)는 <b>참여사 하나</b>로 등록하세요." },
+      { el: function () { return $("modeSeg") ? $("modeSeg").closest(".modes") : null; },
+        title: "② 지도에서 좌석 고르기",
+        html: "<ul><li><span class='k'>구역 단위</span> 좌석 하나만 눌러도 그 구역 전체</li>" +
+              "<li><span class='k'>좌석 단위</span> 누른 좌석만. <b>끌면</b> 여러 석</li></ul>" +
+              "예) A구역에서 뒤 3자리만 빼려면 → 구역 단위로 A를 한 번 → 좌석 단위로 바꿔 3자리.<br>" +
+              "구역별로 <span class='k'>A 33/36</span> 처럼 몇 석 골랐는지 보입니다." },
+      { el: "#mapPanel", maxH: 420,
+        title: "좌석 지도",
+        html: "벡스코 3B홀 모양 그대로입니다. 위가 <b>무대</b>, 가운데가 <b>런웨이</b>, 칸 안 숫자가 <b>좌석번호</b>예요(2025 배치도와 같은 번호).<ul>" +
+              "<li>연한 색 — 참여사 <b>배정</b></li><li>진한 색 — 참여사 <b>확보</b></li><li>짙은 회색 — <b>주최측 확보</b></li></ul>" +
+              "좌석에 마우스를 올리면 누구 좌석인지 나옵니다. 구역 글자(A~H)를 누르면 구역 전체가 선택됩니다." },
+      { el: function () { return lineOf("allotTo"); },
+        title: "③ 고른 좌석을 참여사에게 배정",
+        html: "참여사를 고르고 <span class='k'>배정에 추가</span>. 브랜드끼리 협의해 나눈 구역·좌석을 이렇게 나눠 줍니다.<br><br>" +
+              "다른 참여사에 이미 배정된 좌석이면 <b>옮길지 먼저 묻고</b>, 그 참여사가 이미 확보했으면 <b>한 번 더</b> 묻습니다." },
+      { el: function () { return lineOf("staffOn"); },
+        title: "주최측이 직접 확보",
+        html: "개막식 내빈석처럼 <b>링크 없이 주최측이 잡을 좌석</b>은 여기서 바로 확보합니다.<br>참여사가 이미 확보한 좌석은 건드리지 않고 건너뜁니다." },
+      { el: "#holderList",
+        title: "참여사 관리",
+        html: "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
+              "줄을 누르면 지도에서 <b>그 참여사 좌석만 강조</b>됩니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다." },
+      { el: function () { return boxOf("logBtn"); },
+        title: "변경 이력과 엑셀",
+        html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. 참여사가 실수로 지웠다면 <span class='k'>직전으로</span> 되돌릴 수 있어요.<br><br>" +
+              "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 보관하거나 의자 라벨 인쇄에 쓰세요." },
+      { el: null,
+        title: "진행 순서",
+        html: "<ol><li>쇼마다 <b>참여사 추가</b> → 링크 전달</li>" +
+              "<li>여러 참여사 쇼는 <b>좌석 배정</b></li>" +
+              "<li><b>확보 창구 열기</b></li>" +
+              "<li>기간이 끝나면 <b>창구 닫기</b></li>" +
+              "<li><b>엑셀</b> 내려받아 보관</li></ol><br>" +
+              "이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
+    ];
+  }
+  var TOUR_KEY = "bfw_tour_holdadmin_v1";
+  $("helpBtn").addEventListener("click", function () {
+    if (mapData && window.HoldTour) window.HoldTour.start({ key: TOUR_KEY, steps: tourSteps() });
   });
 
   $("reloadBtn").addEventListener("click", function () { reloadAll(true); });
