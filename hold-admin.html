@@ -136,6 +136,15 @@
   .tool .line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
   .tool .line select{width:auto;flex:1;min-width:140px}
   .tool .hint{font-size:.74rem;color:var(--ink-mute);margin-top:6px;line-height:1.5}
+  .tool .modes{display:flex;align-items:center;gap:10px}
+  .seg{display:inline-flex;border:1px solid #c9d3f3;border-radius:9px;overflow:hidden;background:#fff}
+  .seg button{padding:7px 14px;border:0;background:transparent;font-size:.84rem;color:var(--ink-mute);cursor:pointer;font-weight:600}
+  .seg button+button{border-left:1px solid #c9d3f3}
+  .seg button.on{background:var(--navy);color:#fff}
+  .tool .modehint{font-size:.76rem;color:#3a4a86;margin-top:6px;line-height:1.5}
+  .zsum{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:0}
+  .zsum span{font-size:.72rem;font-family:var(--mono);padding:2px 7px;border-radius:6px;background:#fff;border:1px solid #d7e0ff;color:#26356e}
+  .zsum span.part{border-color:#f2c48a;background:#fff7e8;color:#8a5300}
 
   /* 이력 */
   .tbl-wrap{overflow-x:auto;margin-top:8px}
@@ -219,12 +228,21 @@
         <div class="sub" id="showSub"></div>
         <div class="kpis" id="kpis"></div>
         <div class="tool" id="toolBox" hidden>
-          <div style="display:flex;align-items:baseline;gap:8px">
-            <span class="sub">지도에서 선택</span>
+          <div class="modes">
+            <span class="sub">선택 방식</span>
+            <div class="seg" id="modeSeg">
+              <button type="button" data-mode="zone">구역 단위</button>
+              <button type="button" data-mode="seat">좌석 단위</button>
+            </div>
+          </div>
+          <div class="modehint" id="modeHint"></div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:10px">
+            <span class="sub">선택</span>
             <span class="cnt" id="selCnt">0</span><span class="sub">석</span>
             <span style="margin-left:auto"></span>
             <button class="btn sm" id="clearSel" type="button">선택 해제</button>
           </div>
+          <div class="zsum" id="zoneSum"></div>
           <div class="line">
             <select id="allotTo"></select>
             <button class="btn sm pri" id="allotAdd" type="button">배정에 추가</button>
@@ -235,7 +253,6 @@
             <button class="btn sm" id="staffOff" type="button">주최측 확보 해제</button>
           </div>
           <div class="hint">
-            좌석을 누르거나 <b>끌어서</b> 여러 석을 고르세요. 지도의 <b>구역 글자(A~H)</b>를 누르면 구역 전체가 선택됩니다.<br>
             <b>배정</b> = 그 참여사가 링크로 고를 수 있는 범위. <b>확보</b> = 실제로 잡혀 일반 예약에서 빠진 좌석.
           </div>
         </div>
@@ -275,7 +292,7 @@
   </div>
 </div>
 
-<script src="js/hall-map.js?v=20260917d"></script>
-<script src="js/hold-admin.js?v=20260917e"></script>
+<script src="js/hall-map.js?v=20260917e"></script>
+<script src="js/hold-admin.js?v=20260917f"></script>
 </body>
 </html>

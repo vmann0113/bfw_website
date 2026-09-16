@@ -44,6 +44,7 @@
     "  display:flex;align-items:center;justify-content:center;touch-action:none;overflow:hidden}",
     ".hm-seat:disabled{cursor:not-allowed}",
     ".hm-seat.sel{outline:2px solid #ff4d6d;outline-offset:0;z-index:1;position:relative}",
+    ".hm[data-mode=zone] .hm-seat:not(:disabled){cursor:copy}",
     ".hm-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:12px;font-size:.74rem;color:#6b7490}",
     ".hm-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #dfe3ec;",
     "  vertical-align:-2px;margin-right:4px}"
@@ -63,6 +64,7 @@
       size: { w, h, gap, sep, lab, run },   // 칸 크기(px). 생략하면 기본값
       numbers: bool,                // 칸 안에 좌석번호 표시
       drag: bool,                   // 끌어서 여러 석 선택 (주최측 화면)
+      mode: 'seat' | 'zone',        // 선택 방식. zone 이면 좌석을 눌러도 그 구역 전체가 선택/해제
       decorate(seat, el),           // 좌석 칸의 색·글자·disabled 를 정한다
       canSelect(seat) -> bool,      // 선택할 수 있는 좌석인가
       onSeat(seat),                 // 칸을 눌렀을 때 (drag=false 일 때)
@@ -89,9 +91,11 @@
     seats.forEach(function (s) { byId[s.id] = s; });
     var sel = {};
     var els = {};
+    var mode = opt.mode === "zone" ? "zone" : "seat";
 
     var root = document.createElement("div");
     root.className = "hm";
+    root.setAttribute("data-mode", opt.mode === "zone" ? "zone" : "seat");
     if (sz.w) root.style.setProperty("--hm-w", sz.w + "px");
     if (sz.h) root.style.setProperty("--hm-h", sz.h + "px");
     if (sz.gap != null) root.style.setProperty("--hm-gap", sz.gap + "px");
@@ -207,6 +211,12 @@
       if (on && selectable(id)) sel[id] = true; else delete sel[id];
       if (els[id]) els[id].classList.toggle("sel", !!sel[id]);
     }
+    function toggleZone(code) {
+      var ids = seats.filter(function (x) { return x.z === code && selectable(x.id); })
+                     .map(function (x) { return x.id; });
+      var all = ids.length > 0 && ids.every(function (id) { return sel[id]; });
+      ids.forEach(function (id) { setSel(id, !all); });
+    }
 
     /* 같은 자리에 지도를 다시 그리면 이전 지도의 전역 처리기를 치운다.
        치우지 않으면 다시 그릴 때마다 window 에 쌓인다. */
@@ -221,6 +231,12 @@
         if (!el) return;
         e.preventDefault();
         var id = el.getAttribute("data-seat");
+        // 구역 단위 : 누른 좌석의 구역 전체를 선택/해제하고 끝 (끌기 없음)
+        if (mode === "zone") {
+          if (byId[id]) toggleZone(byId[id].z);
+          if (opt.onChange) opt.onChange(api.getSelection());
+          return;
+        }
         dragging = true;
         touched = {};
         paintOn = !sel[id];
@@ -264,6 +280,20 @@
       el: root,
       /* 끄는 중이면 다시 그리지 말 것 — 선택이 사라진다 */
       isDragging: function () { return dragging; },
+      getMode: function () { return mode; },
+      setMode: function (m) { mode = m === "zone" ? "zone" : "seat"; root.setAttribute("data-mode", mode); },
+      toggleZone: function (code) { toggleZone(code); if (opt.onChange) opt.onChange(api.getSelection()); },
+      /* 구역별 선택 현황 : [{ code, selected, total }] — total 은 고를 수 있는 좌석 수 */
+      summary: function () {
+        var m = {};
+        seats.forEach(function (x) {
+          if (!selectable(x.id)) return;
+          var r = m[x.z] || (m[x.z] = { code: x.z, selected: 0, total: 0 });
+          r.total++;
+          if (sel[x.id]) r.selected++;
+        });
+        return Object.keys(m).sort().map(function (k) { return m[k]; });
+      },
       getSelection: function () { return Object.keys(sel).sort(); },
       setSelection: function (ids) {
         Object.keys(sel).forEach(function (id) { setSel(id, false); });

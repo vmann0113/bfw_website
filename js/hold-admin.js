@@ -33,6 +33,7 @@
   var focusId = null;     // 지도에서 강조할 참여사
   var editing = null;     // { holderId|null, name, kind, max }
   var selection = [];
+  var selMode = "zone";   // 구역 단위로 시작 → 필요하면 좌석 단위로 바꿔 몇 자리 뺀다
 
   var $ = function (id) { return document.getElementById(id); };
   function esc(s) {
@@ -324,9 +325,33 @@
     else if (cur && holderById(cur)) $("allotTo").value = cur;
     syncTool();
   }
+  var MODE_HINT = {
+    zone: "좌석 어디를 눌러도 <b>그 구역 전체</b>가 선택/해제됩니다. 구역을 고른 뒤 몇 자리만 빼려면 <b>좌석 단위</b>로 바꾸세요.",
+    seat: "누른 좌석만 선택/해제됩니다. <b>끌면</b> 여러 석을 한 번에. 이미 선택된 좌석에서 끌기 시작하면 해제 방향으로 칠해집니다."
+  };
+  function syncMode() {
+    [].forEach.call($("modeSeg").querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-mode") === selMode);
+    });
+    $("modeHint").innerHTML = MODE_HINT[selMode];
+  }
+  $("modeSeg").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("button[data-mode]") : null;
+    if (!b) return;
+    selMode = b.getAttribute("data-mode");
+    if (map) map.setMode(selMode);
+    syncMode();
+  });
+
   function syncTool() {
     var n = selection.length, hasH = mapData && mapData.holders.length > 0;
     $("selCnt").textContent = n;
+    // 구역별 선택 현황 — 구역을 고른 뒤 몇 자리 뺐는지 바로 보인다. 일부만 선택된 구역은 노랗게.
+    var sum = map && map.summary ? map.summary().filter(function (z) { return z.selected > 0; }) : [];
+    $("zoneSum").innerHTML = sum.map(function (z) {
+      return '<span class="' + (z.selected < z.total ? "part" : "") + '">' + z.code + " " + z.selected + "/" + z.total + "</span>";
+    }).join("");
+    syncMode();
     $("clearSel").disabled = !n;
     $("allotAdd").disabled = !n || !hasH;
     $("allotRemove").disabled = !n || !hasH;
@@ -366,6 +391,7 @@
       size: fitSize(d),
       numbers: true,
       drag: true,
+      mode: selMode,
       decorate: function (x, el) {
         var who = null, how = "";
         // 진하게 칠한 칸(확보)은 흰 글자, 연한 칸(배정)은 참여사 색 글자로 번호가 읽히게 한다
@@ -383,14 +409,11 @@
         if (focusId && x.lock !== focusId && ai[x.id] !== focusId) el.style.opacity = ".28";
         el.title = x.z + "구역 " + x.n + "번 (" + x.t + "단 " + x.r + "열)" + (how ? " — " + how : "");
       },
-      onZone: function (code, seats) {
-        var ids = seats.map(function (s) { return s.id; });
-        var all = ids.every(function (id) { return selection.indexOf(id) >= 0; });
-        map.addSelection(ids, !all);
-      },
+      onZone: function (code) { map.toggleZone(code); },
       onChange: function (sel) { selection = sel; syncTool(); }
     });
     if (selection.length) map.setSelection(selection);
+    syncTool();   // 새 지도 기준으로 구역별 현황·버튼 상태를 맞춘다
 
   }
 
