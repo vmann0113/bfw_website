@@ -24,6 +24,21 @@ module.exports = async (req, res) => {
         return L.json(res, 200, { ok: false, error: String(e && e.message) });
       }
     }
+    // ?relay=1 : 중계가 살아 있는지. 조용히 죽는 게 가장 위험해서 확인 수단을 둔다.
+    if (req.url && req.url.indexOf("relay=1") >= 0) {
+      const u = L.ALIGO.relayUrl;
+      if (!u) return L.json(res, 200, { ok: false, relay: "미설정" });
+      try {
+        const r = await fetch(u + (u.indexOf("?") >= 0 ? "&" : "?") + "ip=1");
+        const t = await r.text();
+        let d = null;
+        try { d = JSON.parse(t); } catch (e) { d = { raw: t.slice(0, 200) }; }
+        return L.json(res, 200, { ok: r.ok, status: r.status, relay: d,
+          note: "relay.outboundIp 를 알리고 발송 서버 IP 에 등록해야 합니다" });
+      } catch (e) {
+        return L.json(res, 200, { ok: false, relay: "응답 없음", detail: String(e && e.message) });
+      }
+    }
     return L.json(res, 200, { ok: true, health: L.health() });
   }
   if (req.method !== "POST") return L.json(res, 405, { ok: false, error: "POST only" });

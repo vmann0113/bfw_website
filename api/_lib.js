@@ -34,7 +34,12 @@ const ALIGO = {
     reminder: process.env.ALIGO_TPL_REMINDER || "",
     cancelled: process.env.ALIGO_TPL_CANCELLED || ""
   },
-  testmode: process.env.ALIGO_TESTMODE === "Y" ? "Y" : "N"
+  testmode: process.env.ALIGO_TESTMODE === "Y" ? "Y" : "N",
+  // 알리고는 호출 서버 IP 를 화이트리스트로 막는다. Vercel 은 IP 가 수시로
+  // 바뀌어 등록이 불가능하므로, 고정 IP 를 가진 중계를 거쳐 나간다.
+  // 비워두면 알리고로 직접 호출한다(= IP 제한이 풀린 계정).
+  relayUrl: (process.env.ALIGO_RELAY_URL || "").trim(),
+  relaySecret: process.env.ALIGO_RELAY_SECRET || ""
 };
 
 const hasSms = () => !!(ALIGO.key && ALIGO.userId && ALIGO.sender);
@@ -237,11 +242,25 @@ async function postForm(url, params) {
   Object.keys(params).forEach((k) => {
     if (params[k] !== undefined && params[k] !== null && params[k] !== "") body.append(k, params[k]);
   });
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=utf-8" },
-    body
-  });
+  let r;
+  if (ALIGO.relayUrl) {
+    // 중계에 "이 주소로, 이 값들을 보내달라"고 넘긴다.
+    // 알리고 API 키는 중계에 저장하지 않고 요청마다 실어 보낸다.
+    r = await fetch(ALIGO.relayUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Relay-Secret": ALIGO.relaySecret
+      },
+      body: JSON.stringify({ url: url, form: body.toString() })
+    });
+  } else {
+    r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=utf-8" },
+      body
+    });
+  }
   const t = await r.text();
   try {
     return JSON.parse(t);
@@ -411,6 +430,9 @@ function health() {
     // 주소는 비밀이 아니라 그대로, 키는 길이만 (오타·줄바꿈 섞임을 잡기 위해)
     supabase: { url: SB_URL || null, serviceKeyLen: SB_KEY.length, serviceKeyLooksJwt: SB_KEY.split(".").length === 3 },
     site: SITE,
+    relay: ALIGO.relayUrl
+      ? { set: true, secret: !!ALIGO.relaySecret, host: (ALIGO.relayUrl.match(/^https?:\/\/([^/]+)/) || [])[1] || null }
+      : { set: false },
     testmode: ALIGO.testmode === "Y"
   };
 }
