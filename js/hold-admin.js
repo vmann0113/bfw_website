@@ -13,6 +13,48 @@
    =========================================================== */
 (function () {
   "use strict";
+  /* ---------- PC 전용 ----------
+     좌석 300석을 실제 홀 모양으로 보고 고르는 화면이라 휴대폰·태블릿에서는
+     쓰지 않게 한다. 휴대폰/태블릿이거나 창이 너무 좁으면 안내만 띄우고
+     아무것도 불러오지 않는다. (iPad 는 데스크톱 행세를 해서 터치로 가려낸다) */
+  function isMobileDevice() {
+    var ua = navigator.userAgent || "";
+    if (/Android|iPhone|iPad|iPod|Mobile|Windows Phone|BlackBerry|Opera Mini|IEMobile/i.test(ua)) return true;
+    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true;
+    return false;
+  }
+  function pcOnlyNotice() {
+    var st = document.createElement("style");
+    st.textContent =
+      ".pconly{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;" +
+      "background:#f6f8fc;font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;color:#1b2340}" +
+      ".pconly .card{max-width:420px;width:100%;background:#fff;border:1px solid #e3e7ef;border-radius:16px;" +
+      "padding:32px 24px;text-align:center;box-shadow:0 2px 12px rgba(20,35,90,.06)}" +
+      ".pconly .ic{width:56px;height:56px;margin:0 auto 16px;border-radius:14px;background:#eef2ff;display:flex;" +
+      "align-items:center;justify-content:center}" +
+      ".pconly .eb{font-family:'Space Mono',ui-monospace,monospace;font-size:.7rem;letter-spacing:.12em;color:#0b2e9e}" +
+      ".pconly h1{margin:8px 0 10px;font-size:1.25rem;font-weight:800;line-height:1.4}" +
+      ".pconly p{margin:0;font-size:.92rem;color:#6b7490;line-height:1.65;word-break:keep-all}" +
+      ".pconly .fine{margin-top:18px;padding-top:14px;border-top:1px solid #eef0f4;font-size:.78rem;color:#8a93ad;word-break:keep-all}" +
+      ".pconly h1{word-break:keep-all}";
+    document.head.appendChild(st);
+    document.body.innerHTML =
+      '<div class="pconly"><div class="card">' +
+      '<div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0b2e9e" stroke-width="1.8" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/>' +
+      '<path d="M8 21h8M12 17v4"/></svg></div>' +
+      '<div class="eb">2026 부산패션위크 · 주최측</div>' +
+      "<h1>PC화면에서 좌석 관리를 해주세요.</h1>" +
+      "<p>좌석 300석을 행사장 모양 그대로 보고 고르는 화면이라 휴대폰·태블릿에서는 이용할 수 없습니다.<br>" +
+      "이 관리 화면은 PC에서 열어 주세요.</p>" +
+      '<div class="fine">PC에서도 이 안내가 보이면 브라우저 창을 넓힌 뒤 새로고침해 주세요.</div>' +
+      "</div></div>";
+  }
+  if (isMobileDevice() || window.innerWidth < 760) {
+    pcOnlyNotice();
+    return;
+  }
+
 
   var SB = {
     url: "https://hjcrzdzrgmubipxcgzce.supabase.co",
