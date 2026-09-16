@@ -13,8 +13,15 @@
 (function () {
   "use strict";
 
-  var BFW = window.BFW || {};
-  var SB = BFW.SUPABASE || { url: "", anonKey: "" };
+  /* 이 화면은 메인 사이트 설정(js/config.js)에 기대지 않는다.
+     운영의 config.js 는 예약 기능을 숨기려고 키를 일부러 비워두었고,
+     거기를 채우면 메인 사이트의 공개 스위치를 건드리게 된다.
+     그래서 연결 정보를 여기 따로 둔다. anon 키는 브라우저에 노출되도록
+     설계된 공개 키이며, 실제 권한은 서버의 함수·RLS 가 막는다. */
+  var SB = {
+    url: "https://hjcrzdzrgmubipxcgzce.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqY3J6ZHpyZ211YmlweGNnemNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTcwMzEsImV4cCI6MjEwNDA5MzAzMX0.T_61-FVfL0fKkR3IDEO8x30UQGfMWBVL6oQAF5m4tF8"
+  };
   var $ = function (id) { return document.getElementById(id); };
 
   var token = (new URLSearchParams(location.search).get("t") || "").trim();
@@ -30,6 +37,27 @@
     });
   }
   function keys(o) { return Object.keys(o).filter(function (k) { return o[k]; }); }
+
+  /* 연락처 : 숫자만 받고 하이픈을 자동으로 넣는다 (010-1234-5678) */
+  function formatPhone(v) {
+    var d = String(v || "").replace(/[^0-9]/g, "").slice(0, 11);
+    if (d.length < 4) return d;
+    if (d.indexOf("02") === 0) {
+      if (d.length <= 5) return d.slice(0, 2) + "-" + d.slice(2);
+      if (d.length <= 9) return d.slice(0, 2) + "-" + d.slice(2, d.length - 4) + "-" + d.slice(-4);
+      return d.slice(0, 2) + "-" + d.slice(2, 6) + "-" + d.slice(6, 10);
+    }
+    if (d.length <= 7) return d.slice(0, 3) + "-" + d.slice(3);
+    if (d.length <= 10) return d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6);
+    return d.slice(0, 3) + "-" + d.slice(3, 7) + "-" + d.slice(7);
+  }
+  function bindPhone(el) {
+    if (!el || el.__phoneBound) return;
+    el.__phoneBound = true;
+    el.setAttribute("inputmode", "numeric");
+    el.addEventListener("input", function () { el.value = formatPhone(el.value); });
+    el.value = formatPhone(el.value);
+  }
 
   /* '9월 17일 00:15' — 한국 시간 기준 */
   function when(iso) {
@@ -191,7 +219,7 @@
     } else {
       $("cName").value = h.contactName || "";
       $("cPhone").value = h.contactPhone || "";
-      if (BFW.bindPhone) BFW.bindPhone($("cPhone"));
+      bindPhone($("cPhone"));
     }
 
     $("loading").hidden = true;
