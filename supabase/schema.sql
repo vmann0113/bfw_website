@@ -301,8 +301,12 @@ create table if not exists public.app_settings (
   id                boolean primary key default true check (id),
   reservations_open boolean     not null default false,
   press_open        boolean     not null default false,
+  holds_open        boolean     not null default false,
   updated_at        timestamptz not null default now()
 );
+-- 나중에 추가된 항목 (이미 만들어진 데이터베이스에도 붙도록)
+alter table public.app_settings
+  add column if not exists holds_open boolean not null default false;
 insert into public.app_settings (id) values (true) on conflict (id) do nothing;
 alter table public.app_settings enable row level security;  -- 정책 없음 = 직접 접근 차단
 
@@ -314,6 +318,14 @@ $fn$;
 create or replace function public.press_open() returns boolean
 language sql stable security definer set search_path = public as $fn$
   select coalesce((select press_open from public.app_settings where id), false);
+$fn$;
+
+-- 사전 좌석 확보 창구를 열어둘지. 브랜드·학교에게 링크를 뿌리는 기간에만 켠다.
+--   열 때  :  update public.app_settings set holds_open = true;
+--   닫을 때:  update public.app_settings set holds_open = false;
+create or replace function public.holds_open() returns boolean
+language sql stable security definer set search_path = public as $fn$
+  select coalesce((select holds_open from public.app_settings where id), false);
 $fn$;
 
 drop function if exists public.reserve_seat(text,text,text,text,boolean);
@@ -920,6 +932,352 @@ create policy "staff delete press" on public.press_applications
 
 -- ---- 실행 권한 ----
 -- 먼저 전부 회수한 뒤, 필요한 것만 다시 부여합니다.
+-- ===================================================================
+--  사전 좌석 확보 (브랜드 · 대학 자율 선택)
+--
+--  브랜드는 VIP 자리를, 대학은 관계자 자리를 미리 확보한다. 예전에는
+--  구글 시트/폼으로 받았는데, 그러면 확보한 자리가 일반 예약에서
+--  빠지지 않아 손으로 옮겨야 했다. 여기서는 확보하는 순간 바로
+--  show_seat_locks 에 들어가므로 일반 정원이 자동으로 줄어든다.
+--
+--  로그인을 만들지 않는다. 링크에 들어간 토큰이 열쇠다.
+--  각 브랜드/학교는 자기 몫만 만질 수 있고, 남의 확보분이나 스태프가
+--  잠근 자리(내빈석 등)는 건드릴 수 없다.
+-- ===================================================================
+create table if not exists public.seat_holders (
+  id            uuid primary key default gen_random_uuid(),
+  token         text unique not null,           -- 링크에 들어가는 열쇠
+  show_id       text not null references public.shows(id),
+  name          text not null,                  -- '메르최' | '동서대학교'
+  kind          text not null default 'brand',  -- 'brand'(브랜드) | 'univ'(대학)
+  max_seats     int,                            -- 확보 한도. null = 제한 없음
+  zones         text[],                         -- 고를 수 있는 구역. null = 전 구역
+  close_at      timestamptz,                    -- 이 시각 이후 수정 불가
+  contact_name  text,                           -- 마지막으로 저장한 담당자
+  contact_phone text,
+  saved_at      timestamptz,                    -- 마지막 저장 시각
+  created_at    timestamptz default now(),
+  unique (show_id, name)
+);
+create index if not exists idx_holders_show on public.seat_holders(show_id);
+alter table public.seat_holders enable row level security;  -- 정책 없음 = 직접 접근 차단
+
+-- ---- 저장 이력 (덧붙이기만 한다. 지우거나 고치지 않는다) ----
+--  저장할 때마다 '바꾸기 전'과 '바꾼 후'의 좌석 목록을 통째로 남긴다.
+--  브랜드가 실수로 전부 지웠거나, 누가 언제 무엇을 바꿨는지 따져야 할 때
+--  이 기록만 있으면 되돌릴 수 있다. 조사 결과 그 자체가 자산이므로
+--  현재 상태(show_seat_locks)와 별도로 보관한다.
+create table if not exists public.seat_hold_log (
+  id            bigserial primary key,
+  holder_id     uuid,                      -- 참여사가 지워져도 이력은 남는다
+  show_id       text not null,
+  holder_name   text not null,             -- 그 시점의 이름을 박아둔다
+  action        text not null,             -- 'save' | 'restore'
+  prev_seat_ids text[] not null default '{}',   -- 바꾸기 전
+  seat_ids      text[] not null default '{}',   -- 바꾼 후
+  prev_count    int not null default 0,
+  seat_count    int not null default 0,
+  contact_name  text,
+  contact_phone text,
+  note          text,
+  created_at    timestamptz not null default now()
+);
+create index if not exists idx_holdlog_holder on public.seat_hold_log(holder_id);
+create index if not exists idx_holdlog_show   on public.seat_hold_log(show_id, created_at desc);
+alter table public.seat_hold_log enable row level security;  -- 정책 없음 = 직접 접근 차단
+
+-- 어느 좌석이 누구 몫인지. null 이면 스태프가 잠근 자리(내빈석 등).
+alter table public.show_seat_locks
+  add column if not exists holder_id uuid references public.seat_holders(id) on delete cascade;
+create index if not exists idx_locks_holder on public.show_seat_locks(holder_id);
+
+-- ---- 링크로 보는 화면 : 내 정보 + 쇼 정보 + 좌석 상태 ----
+create or replace function public.holder_view(p_token text)
+returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  h       public.seat_holders;
+  v_show  public.shows;
+  v_seats json;
+  v_close timestamptz;
+begin
+  select * into h from seat_holders where token = btrim(p_token);
+  if not found then
+    return json_build_object('ok', false, 'reason', 'badtoken');
+  end if;
+  select * into v_show from shows where id = h.show_id;
+  -- 기한은 두지 않는다. 스태프가 창구를 열어둔 동안에만 수정할 수 있다.
+  -- (close_at 은 특정 참여사만 따로 마감해야 할 때를 위해 남겨둔다)
+  v_close := h.close_at;
+
+  select json_agg(x order by x.zone_code, x.num) into v_seats from (
+    select s.id, s.zone_code, s.num, s.tier, s.row_no,
+           case
+             when l.holder_id = h.id      then 'mine'
+             when l.holder_id is not null then 'other'
+             when l.seat_id  is not null  then 'staff'
+             when r.seat_id  is not null  then 'reserved'
+             else 'free'
+           end as state
+      from seats s
+      left join show_seat_locks l on l.show_id = h.show_id and l.seat_id = s.id
+      left join reservations    r on r.show_id = h.show_id and r.seat_id = s.id
+                                 and r.status = 'reserved'
+  ) x;
+
+  return json_build_object(
+    'ok', true,
+    'holder', json_build_object(
+      'name', h.name, 'kind', h.kind,
+      'maxSeats', h.max_seats, 'zones', h.zones,
+      'closeAt', v_close,
+      'closed', (not public.holds_open()) or (v_close is not null and now() >= v_close),
+      'contactName', h.contact_name, 'contactPhone', h.contact_phone,
+      'savedAt', h.saved_at),
+    'show', json_build_object(
+      'id', v_show.id, 'titleKo', v_show.title_ko, 'lineup', v_show.lineup,
+      'date', v_show.date, 'startTime', v_show.start_time, 'venue', v_show.venue,
+      'capacity', v_show.capacity),
+    'zones', (select json_agg(json_build_object(
+                'code', z.code, 'label', z.label, 'side', z.side,
+                'rows', z.rows_count, 'tiers', z.tiers, 'seatCount', z.seat_count)
+                order by z.side, z.sort) from zones z),
+    'seats', coalesce(v_seats, '[]'::json),
+    'lockedTotal', (select count(*) from show_seat_locks where show_id = h.show_id)
+  );
+end $fn$;
+
+-- ---- 확보 좌석 저장 : 보낸 목록으로 '내 몫'을 통째로 바꾼다 ----
+--  더하고 빼는 방식보다 단순하고, 같은 요청을 두 번 보내도 결과가 같다.
+create or replace function public.holder_set(
+  p_token text, p_seat_ids text[],
+  p_contact_name text default null, p_contact_phone text default null
+) returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  h       public.seat_holders;
+  v_show  public.shows;
+  v_close timestamptz;
+  v_ids   text[] := coalesce(p_seat_ids, '{}');
+  v_bad   text[];
+  v_taken text[];
+  v_prev  text[];
+begin
+  select * into h from seat_holders where token = btrim(p_token);
+  if not found then
+    return json_build_object('ok', false, 'reason', 'badtoken');
+  end if;
+
+  -- 같은 쇼에 여러 참여사가 동시에 저장할 수 있다. 쇼 행을 잠가 순서를 만든다.
+  select * into v_show from shows where id = h.show_id for update;
+  if not public.holds_open() then
+    return json_build_object('ok', false, 'reason', 'closed');
+  end if;
+  v_close := h.close_at;
+  if v_close is not null and now() >= v_close then
+    return json_build_object('ok', false, 'reason', 'closed');
+  end if;
+
+  if h.max_seats is not null and coalesce(array_length(v_ids, 1), 0) > h.max_seats then
+    return json_build_object('ok', false, 'reason', 'overmax', 'maxSeats', h.max_seats);
+  end if;
+
+  select array_agg(sid) into v_bad
+    from unnest(v_ids) sid
+   where not exists (select 1 from seats where id = sid);
+  if v_bad is not null then
+    return json_build_object('ok', false, 'reason', 'badseat', 'seats', v_bad);
+  end if;
+
+  if h.zones is not null then
+    select array_agg(s.id) into v_bad
+      from seats s where s.id = any(v_ids) and not (s.zone_code = any(h.zones));
+    if v_bad is not null then
+      return json_build_object('ok', false, 'reason', 'badzone', 'seats', v_bad);
+    end if;
+  end if;
+
+  -- 남이 이미 확보했거나 스태프가 잠근 자리
+  select array_agg(seat_id) into v_taken
+    from show_seat_locks
+   where show_id = h.show_id and seat_id = any(v_ids)
+     and (holder_id is null or holder_id <> h.id);
+  if v_taken is not null then
+    return json_build_object('ok', false, 'reason', 'taken', 'seats', v_taken);
+  end if;
+
+  -- 이미 관람객이 예약한 자리 (지정좌석 쇼에서만 생길 수 있다)
+  select array_agg(seat_id) into v_taken
+    from reservations
+   where show_id = h.show_id and seat_id = any(v_ids) and status = 'reserved';
+  if v_taken is not null then
+    return json_build_object('ok', false, 'reason', 'occupied', 'seats', v_taken);
+  end if;
+
+  -- 바꾸기 전 상태를 먼저 담아둔다 (이력에 남겨 되돌릴 수 있게)
+  select coalesce(array_agg(seat_id order by seat_id), '{}') into v_prev
+    from show_seat_locks where show_id = h.show_id and holder_id = h.id;
+
+  delete from show_seat_locks where show_id = h.show_id and holder_id = h.id;
+  if coalesce(array_length(v_ids, 1), 0) > 0 then
+    insert into show_seat_locks (show_id, seat_id, kind, note, holder_id)
+    select h.show_id, sid, 'invite', h.name, h.id from unnest(v_ids) sid;
+  end if;
+
+  insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                             prev_seat_ids, seat_ids, prev_count, seat_count,
+                             contact_name, contact_phone)
+  values (h.id, h.show_id, h.name, 'save',
+          v_prev, v_ids,
+          coalesce(array_length(v_prev, 1), 0), coalesce(array_length(v_ids, 1), 0),
+          nullif(btrim(p_contact_name), ''), nullif(btrim(p_contact_phone), ''));
+
+  update seat_holders
+     set contact_name  = coalesce(nullif(btrim(p_contact_name), ''), contact_name),
+         contact_phone = coalesce(nullif(btrim(p_contact_phone), ''), contact_phone),
+         saved_at      = now()
+   where id = h.id;
+
+  return json_build_object(
+    'ok', true,
+    'saved', coalesce(array_length(v_ids, 1), 0),
+    'publicRemaining', greatest(0, v_show.capacity -
+      (select count(*) from show_seat_locks where show_id = h.show_id))
+  );
+end $fn$;
+
+-- ---- 링크 만들기 (스태프 전용) ----
+--  같은 쇼·같은 이름으로 다시 부르면 링크를 유지한 채 조건만 바꾼다.
+create or replace function public.holder_upsert(
+  p_show_id text, p_name text, p_kind text default 'brand',
+  p_max_seats int default null, p_zones text[] default null,
+  p_close_at timestamptz default null
+) returns json language plpgsql security definer set search_path = public as $fn$
+declare h public.seat_holders;
+begin
+  if auth.role() <> 'authenticated' then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  select * into h from seat_holders where show_id = p_show_id and name = btrim(p_name);
+  if found then
+    update seat_holders
+       set kind = p_kind, max_seats = p_max_seats, zones = p_zones,
+           close_at = coalesce(p_close_at, close_at)
+     where id = h.id returning * into h;
+  else
+    insert into seat_holders (token, show_id, name, kind, max_seats, zones, close_at)
+    values (replace(gen_random_uuid()::text, '-', ''), p_show_id, btrim(p_name),
+            p_kind, p_max_seats, p_zones, p_close_at)
+    returning * into h;
+  end if;
+  return json_build_object('ok', true, 'token', h.token,
+                           'name', h.name, 'showId', h.show_id);
+end $fn$;
+
+-- ---- 저장 이력 조회 (스태프 전용) ----
+create or replace function public.hold_log(p_show_id text default null, p_limit int default 500)
+returns table (
+  id bigint, show_id text, holder_name text, action text,
+  prev_count int, seat_count int, seat_ids text[], prev_seat_ids text[],
+  contact_name text, contact_phone text, created_at timestamptz
+) language sql stable security definer set search_path = public as $fn$
+  select l.id, l.show_id, l.holder_name, l.action,
+         l.prev_count, l.seat_count, l.seat_ids, l.prev_seat_ids,
+         l.contact_name, l.contact_phone, l.created_at
+    from seat_hold_log l
+   where p_show_id is null or l.show_id = p_show_id
+   order by l.created_at desc
+   limit greatest(1, least(coalesce(p_limit, 500), 5000))
+$fn$;
+
+-- ---- 이력의 한 시점으로 되돌리기 (스태프 전용) ----
+--  실수로 지웠거나 잘못 덮어썼을 때 쓴다. 되돌리는 것도 이력에 남는다.
+create or replace function public.hold_restore(p_log_id bigint, p_which text default 'prev')
+returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  g       public.seat_hold_log;
+  h       public.seat_holders;
+  v_ids   text[];
+  v_prev  text[];
+  v_taken text[];
+begin
+  if auth.role() <> 'authenticated' then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  select * into g from seat_hold_log where id = p_log_id;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'nolog');
+  end if;
+  select * into h from seat_holders where id = g.holder_id;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'noholder');
+  end if;
+
+  v_ids := case when p_which = 'after' then g.seat_ids else g.prev_seat_ids end;
+  perform 1 from shows where id = h.show_id for update;
+
+  -- 그 사이 남이 차지한 자리가 있으면 그대로는 되돌릴 수 없다
+  select array_agg(seat_id) into v_taken
+    from show_seat_locks
+   where show_id = h.show_id and seat_id = any(v_ids)
+     and (holder_id is null or holder_id <> h.id);
+  if v_taken is not null then
+    return json_build_object('ok', false, 'reason', 'taken', 'seats', v_taken);
+  end if;
+
+  select coalesce(array_agg(seat_id order by seat_id), '{}') into v_prev
+    from show_seat_locks where show_id = h.show_id and holder_id = h.id;
+
+  delete from show_seat_locks where show_id = h.show_id and holder_id = h.id;
+  if coalesce(array_length(v_ids, 1), 0) > 0 then
+    insert into show_seat_locks (show_id, seat_id, kind, note, holder_id)
+    select h.show_id, sid, 'invite', h.name, h.id from unnest(v_ids) sid;
+  end if;
+
+  insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                             prev_seat_ids, seat_ids, prev_count, seat_count, note)
+  values (h.id, h.show_id, h.name, 'restore',
+          v_prev, v_ids,
+          coalesce(array_length(v_prev, 1), 0), coalesce(array_length(v_ids, 1), 0),
+          '이력 #' || p_log_id || ' 의 ' || p_which || ' 상태로 되돌림');
+
+  return json_build_object('ok', true, 'restored', coalesce(array_length(v_ids, 1), 0));
+end $fn$;
+
+-- ---- 확보 현황 한 장으로 내려받기 (스태프 전용) ----
+--  좌석 하나가 한 줄. 엑셀로 열어 보관하거나 좌석 라벨 인쇄에 쓴다.
+create or replace function public.hold_export()
+returns table (
+  show_id text, title_ko text, show_date text, start_time text,
+  holder_name text, kind text, seat_id text, zone_code text, seat_num int,
+  contact_name text, contact_phone text, saved_at timestamptz
+) language sql stable security definer set search_path = public as $fn$
+  select s.id, s.title_ko, s.date, s.start_time,
+         coalesce(h.name, '(스태프 지정)'), coalesce(h.kind, 'staff'),
+         l.seat_id, se.zone_code, se.num,
+         h.contact_name, h.contact_phone, h.saved_at
+    from show_seat_locks l
+    join shows s  on s.id = l.show_id
+    join seats se on se.id = l.seat_id
+    left join seat_holders h on h.id = l.holder_id
+   order by s.sort, coalesce(h.name, ''), se.zone_code, se.num
+$fn$;
+
+-- ---- 누가 몇 석 확보했는지 (스태프 전용) ----
+create or replace function public.holder_list()
+returns table (
+  show_id text, title_ko text, name text, kind text,
+  max_seats int, zones text[], close_at timestamptz,
+  token text, held int, contact_name text, contact_phone text, saved_at timestamptz
+) language sql stable security definer set search_path = public as $fn$
+  select h.show_id, s.title_ko, h.name, h.kind,
+         h.max_seats, h.zones, h.close_at,
+         h.token,
+         (select count(*)::int from show_seat_locks l where l.holder_id = h.id),
+         h.contact_name, h.contact_phone, h.saved_at
+    from seat_holders h
+    join shows s on s.id = h.show_id
+   order by s.sort, h.name
+$fn$;
+
 revoke all on function
   public.reserve_seat(text,text,text,text,text,boolean),
   public.seat_map(text,text),
@@ -942,7 +1300,14 @@ revoke all on function
   public.press_set_status(uuid,text),
   public.press_find(text),
   public.press_check_in(text),
-  public.press_undo_check_in(uuid)
+  public.press_undo_check_in(uuid),
+  public.holder_view(text),
+  public.holder_set(text,text[],text,text),
+  public.holder_upsert(text,text,text,int,text[],timestamptz),
+  public.holder_list(),
+  public.hold_log(text,int),
+  public.hold_restore(bigint,text),
+  public.hold_export()
   from public, anon, authenticated;
 
 -- 관람객(비로그인)도 쓸 수 있는 것
@@ -955,6 +1320,9 @@ grant execute on function public.member_sign_up(text,text,text,text)            
 grant execute on function public.member_sign_in(text,text)                      to anon, authenticated;
 grant execute on function public.press_apply(text,text,text,text,text,text,text) to anon, authenticated;
 grant execute on function public.press_lookup(text,text)                        to anon, authenticated;
+-- 사전 좌석 확보 : 링크의 토큰이 열쇠라 비로그인도 쓸 수 있어야 한다
+grant execute on function public.holder_view(text)                              to anon, authenticated;
+grant execute on function public.holder_set(text,text[],text,text)              to anon, authenticated;
 
 -- 로그인한 스태프만 쓸 수 있는 것
 grant execute on function public.set_seating_mode(text,text)                      to authenticated;
@@ -966,6 +1334,11 @@ grant execute on function public.staff_search(text)            to authenticated;
 grant execute on function public.check_in(text)                to authenticated;
 grant execute on function public.undo_check_in(uuid)           to authenticated;
 grant execute on function public.admin_clear_reservations()    to authenticated;
+grant execute on function public.holder_upsert(text,text,text,int,text[],timestamptz) to authenticated;
+grant execute on function public.holder_list()                 to authenticated;
+grant execute on function public.hold_log(text,int)            to authenticated;
+grant execute on function public.hold_restore(bigint,text)     to authenticated;
+grant execute on function public.hold_export()                 to authenticated;
 grant execute on function public.press_set_status(uuid,text)   to authenticated;
 grant execute on function public.press_find(text)              to authenticated;
 grant execute on function public.press_check_in(text)          to authenticated;
