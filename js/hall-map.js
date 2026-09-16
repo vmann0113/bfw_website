@@ -205,8 +205,14 @@
       if (els[id]) els[id].classList.toggle("sel", !!sel[id]);
     }
 
+    /* 같은 자리에 지도를 다시 그리면 이전 지도의 전역 처리기를 치운다.
+       치우지 않으면 다시 그릴 때마다 window 에 쌓인다. */
+    if (container.__hmCleanup) { try { container.__hmCleanup(); } catch (x) {} }
+    var cleanups = [];
+
+    var dragging = false;
     if (opt.drag) {
-      var dragging = false, paintOn = true, touched = {};
+      var paintOn = true, touched = {};
       grid.addEventListener("pointerdown", function (e) {
         var el = e.target.closest ? e.target.closest(".hm-seat") : null;
         if (!el) return;
@@ -237,6 +243,7 @@
       grid.addEventListener("pointerup", end);
       grid.addEventListener("pointercancel", end);
       window.addEventListener("pointerup", end);
+      cleanups.push(function () { window.removeEventListener("pointerup", end); });
     } else {
       grid.addEventListener("click", function (e) {
         var el = e.target.closest ? e.target.closest(".hm-seat") : null;
@@ -248,9 +255,12 @@
 
     container.innerHTML = "";
     container.appendChild(root);
+    container.__hmCleanup = function () { cleanups.forEach(function (f) { f(); }); };
 
     var api = {
       el: root,
+      /* 끄는 중이면 다시 그리지 말 것 — 선택이 사라진다 */
+      isDragging: function () { return dragging; },
       getSelection: function () { return Object.keys(sel).sort(); },
       setSelection: function (ids) {
         Object.keys(sel).forEach(function (id) { setSel(id, false); });

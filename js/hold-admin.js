@@ -127,6 +127,7 @@
       $("loginView").hidden = true;
       $("mainView").hidden = false;
       $("whoAmI").textContent = session.email;
+      syncTopHeight();
       var h = (location.hash || "").replace("#", "");
       return loadBoard().then(function () {
         var first = (board.shows || []).filter(function (s) { return NO_RESERVATION.indexOf(s.id) < 0; })[0];
@@ -185,8 +186,11 @@
         if (h.zones && h.zones.length) out.push(esc(s.id) + " " + esc(h.name) + " 에 이전 방식의 구역 제한(" + esc(h.zones.join(",")) + ")이 남아 있습니다. '수정'에서 저장하면 해제됩니다.");
       });
     });
+    // 조작 영역을 밀어내지 않게 접어둔다. 건수는 제목에 보인다.
+    var wasOpen = !!document.querySelector("#alerts details[open]");
     $("alerts").innerHTML = out.length
-      ? '<div class="note warn"><h4>확인이 필요한 항목 ' + out.length + "건</h4>" + out.map(function (t) { return "· " + t; }).join("<br>") + "</div>"
+      ? '<details class="warnbox"' + (wasOpen ? " open" : "") + "><summary>확인이 필요한 항목 " + out.length + "건</summary>" +
+        '<div class="body">' + out.map(function (t) { return "· " + t; }).join("<br>") + "</div></details>"
       : "";
   }
 
@@ -331,15 +335,34 @@
     $("staffOff").disabled = !n;
   }
 
+  /* 홀 전체가 한 화면에 들어오도록 좌석 칸 크기를 정한다.
+     세로는 50열이라 높이가 기준이고, 가로는 남으니 넓혀서 누르기 쉽게 한다. */
+  function fitSize(d) {
+    var box = $("map");
+    var bands = {}, rows = 0;
+    d.zones.forEach(function (z) { bands[z.sort] = Math.max(bands[z.sort] || 0, z.rows); });
+    Object.keys(bands).forEach(function (k) { rows += bands[k]; });
+    var seps = Math.max(0, Object.keys(bands).length - 1);
+    var gap = 1, sep = 8, lab = 34, run = 64, ends = 68;
+    var availH = box.clientHeight || 700;
+    var h = Math.floor((availH - ends - seps * sep - (rows + seps - 1) * gap) / rows);
+    h = Math.max(9, Math.min(20, h));
+    var availW = box.clientWidth || 600;
+    var w = Math.floor((availW - 16 - run - 2 * lab - 8 * gap) / 6);
+    w = Math.max(16, Math.min(44, w));
+    return { w: w, h: h, gap: gap, sep: sep, lab: lab, run: run };
+  }
+
   function renderMap() {
     var d = mapData, ai = allotIndex();
     $("mapTitle").textContent = d.show.id + " · " + d.show.titleKo;
     $("mapSub").textContent = d.show.date + " " + d.show.startTime;
+    renderLegend();
 
     map = window.HallMap.create($("map"), {
       zones: d.zones,
       seats: d.seats,
-      size: { w: 24, h: 14, gap: 2, sep: 10, lab: 28, run: 52 },
+      size: fitSize(d),
       drag: true,
       decorate: function (x, el) {
         var who = null, how = "";
@@ -366,6 +389,10 @@
     });
     if (selection.length) map.setSelection(selection);
 
+  }
+
+  function renderLegend() {
+    var d = mapData;
     $("legend").innerHTML = '<div class="hm-legend">' +
       '<span><i style="background:#fff"></i>빈 좌석</span>' +
       '<span><i style="background:' + tint(PALETTE[0], 0.2) + ";border-color:" + tint(PALETTE[0], 0.6) + '"></i>배정(연한 색)</span>' +
@@ -383,7 +410,23 @@
     var sel = keepSel ? selection.slice() : [];
     return Promise.all([loadBoard(), rpc("holds_show_map", { p_show_id: showId })]).then(function (r) {
       var d = r[1];
-      if (d && d.ok) { mapData = d; selection = sel; renderShow(); }
+      if (!(d && d.ok)) return;
+      mapData = d;
+      // 사용자가 지도에서 끄는 중이면 끝날 때까지 기다렸다가 그린다
+      return whenIdle().then(function () {
+        // keepSel 이면 불러오기 전 선택을 되살리고, 아니면 지금 선택을 그대로 둔다.
+        // (불러오는 사이 사용자가 새로 끌어 고른 좌석을 지우지 않기 위해)
+        if (keepSel) selection = sel;
+        renderShow();
+      });
+    });
+  }
+  function whenIdle() {
+    return new Promise(function (resolve) {
+      (function wait() {
+        if (map && map.isDragging && map.isDragging()) return setTimeout(wait, 80);
+        resolve();
+      })();
     });
   }
 
@@ -518,9 +561,11 @@
         if (d.released) t += " · 확보 " + d.released + "석 해제";
         toast(t);
         if (d.outOfAllot > 0) toast(h.name + " 가 이미 확보한 " + d.outOfAllot + "석이 배정 밖에 남았습니다. 참여사가 다음에 저장하면 풀립니다.", true);
+        // 강조할 참여사를 먼저 정해두면 새로 불러와 그릴 때 한 번에 반영된다.
+        // (예전에는 불러온 뒤 또 그려서, 그 틈에 좌석을 끌면 선택이 사라졌다)
         focusId = hid;
         map.clearSelection();
-        reloadAll(false).then(function () { focusId = hid; renderHolders(); renderTool(); renderMap(); });
+        reloadAll(false);
       }).catch(function () { toast("통신 오류", true); });
     }
   }
@@ -614,6 +659,7 @@
       if (!d || !d.ok) {
         var why = d && d.reason === "taken" ? "그 사이 다른 참여사가 가져간 좌석이 있어 되돌릴 수 없습니다: " + (d.seats || []).join(", ")
           : d && d.reason === "noholder" ? "삭제된 참여사라 되돌릴 수 없습니다. 이력의 좌석 목록을 참고하세요."
+          : d && d.reason === "notallowed" ? "지금은 이 참여사 배정 범위 밖인 좌석이 있어 되돌릴 수 없습니다: " + (d.seats || []).join(", ") + " — 먼저 그 좌석을 다시 배정해 주세요"
           : "되돌리지 못했습니다" + (d && d.reason ? " (" + d.reason + ")" : "");
         return toast(why, true);
       }
@@ -621,6 +667,20 @@
       reloadAll(false).then(function () { $("logBtn").click(); });
     }).catch(function () { toast("통신 오류", true); });
   }
+
+  function syncTopHeight() {
+    var t = document.querySelector(".top");
+    if (t) document.documentElement.style.setProperty("--top-h", (t.offsetHeight + 8) + "px");
+  }
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    syncTopHeight();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (!mapData || $("mainView").hidden) return;
+      whenIdle().then(function () { var keep = selection.slice(); renderMap(); if (keep.length) map.setSelection(keep); });
+    }, 180);
+  });
 
   $("reloadBtn").addEventListener("click", function () { reloadAll(true); });
   $("logoutBtn").addEventListener("click", logout);

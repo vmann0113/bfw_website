@@ -75,10 +75,11 @@
   /* 좌우 분할 */
   .split{display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:16px;padding:16px;align-items:start}
   .left{min-width:0}
-  .right{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto;
-         background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .right{position:sticky;top:var(--top-h,72px);height:calc(100vh - var(--top-h,72px) - 16px);overflow:auto;
+         background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+         display:flex;flex-direction:column}
   .right .rh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-  .mapwrap{display:flex;justify-content:center}
+  .mapwrap{display:flex;justify-content:center;flex:1;min-height:0}
 
   /* 스위치 */
   .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -89,13 +90,13 @@
   .pill.off{background:var(--paper-2);border-color:var(--line);color:var(--ink-mute)} .pill.off i{background:#aab1c4}
 
   /* 쇼 목록 */
-  .shows{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
-  .shw{text-align:left;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+  .shows{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:8px}
+  .shw{text-align:left;padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--paper);
        cursor:pointer;min-width:0}
   .shw:hover{border-color:var(--navy)}
   .shw.on{border-color:var(--navy);background:var(--navy-soft);box-shadow:inset 3px 0 0 var(--navy)}
-  .shw b{display:block;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .shw span{display:block;font-size:.7rem;color:var(--ink-mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shw b{display:block;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shw span{display:block;font-size:.68rem;color:var(--ink-mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* 요약 수치 */
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
@@ -125,8 +126,8 @@
   .form .row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px}
   .form .foot{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap}
 
-  /* 선택 도구 */
-  .tool{position:sticky;bottom:0;z-index:5}
+  /* 선택 도구 — 참여사 목록 바로 위, 제자리에 둔다(떠 있으면 목록을 가린다) */
+  .tool{margin-top:12px;padding:12px;border-radius:10px;border:1px solid #d7e0ff;background:var(--navy-soft)}
   .tool .cnt{font-family:var(--mono);font-size:1.3rem;font-weight:700}
   .tool .line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
   .tool .line select{width:auto;flex:1;min-width:140px}
@@ -144,9 +145,17 @@
          max-width:calc(100% - 32px)}
   .toast.err{background:var(--bad)}
 
+  /* 접는 경고 */
+  details.warnbox{background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:10px;color:var(--warn)}
+  details.warnbox summary{cursor:pointer;padding:9px 12px;font-weight:700;font-size:.84rem;list-style:none}
+  details.warnbox summary::-webkit-details-marker{display:none}
+  details.warnbox summary::before{content:"▸ ";}
+  details.warnbox[open] summary::before{content:"▾ ";}
+  details.warnbox .body{padding:0 12px 10px;font-size:.8rem;line-height:1.55}
+
   @media (max-width:980px){
     .split{grid-template-columns:1fr}
-    .right{position:static;max-height:none}
+    .right{position:static;height:auto;max-height:none}
     .kpis{grid-template-columns:repeat(3,1fr)}
   }
 </style>
@@ -192,8 +201,6 @@
         <div class="sub" id="holdDesc" style="margin-top:6px"></div>
       </div>
 
-      <div id="alerts" class="stack"></div>
-
       <div class="box">
         <h2>패션쇼</h2>
         <div class="shows" id="showList"></div>
@@ -204,6 +211,27 @@
         <h2 id="showTitle">—</h2>
         <div class="sub" id="showSub"></div>
         <div class="kpis" id="kpis"></div>
+        <div class="tool" id="toolBox" hidden>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span class="sub">지도에서 선택</span>
+            <span class="cnt" id="selCnt">0</span><span class="sub">석</span>
+            <span style="margin-left:auto"></span>
+            <button class="btn sm" id="clearSel" type="button">선택 해제</button>
+          </div>
+          <div class="line">
+            <select id="allotTo"></select>
+            <button class="btn sm pri" id="allotAdd" type="button">배정에 추가</button>
+            <button class="btn sm" id="allotRemove" type="button">배정에서 빼기</button>
+          </div>
+          <div class="line">
+            <button class="btn sm dark" id="staffOn" type="button">주최측이 직접 확보</button>
+            <button class="btn sm" id="staffOff" type="button">주최측 확보 해제</button>
+          </div>
+          <div class="hint">
+            좌석을 누르거나 <b>끌어서</b> 여러 석을 고르세요. 지도의 <b>구역 글자(A~H)</b>를 누르면 구역 전체가 선택됩니다.<br>
+            <b>배정</b> = 그 참여사가 링크로 고를 수 있는 범위. <b>확보</b> = 실제로 잡혀 일반 예약에서 빠진 좌석.
+          </div>
+        </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
           <h2>참여사</h2>
@@ -213,27 +241,8 @@
         <div class="hl" id="holderList"></div>
       </div>
 
-      <div class="box tool" id="toolBox" hidden>
-        <div style="display:flex;align-items:baseline;gap:8px">
-          <span class="sub">지도에서 선택</span>
-          <span class="cnt" id="selCnt">0</span><span class="sub">석</span>
-          <span style="margin-left:auto"></span>
-          <button class="btn sm" id="clearSel" type="button">선택 해제</button>
-        </div>
-        <div class="line">
-          <select id="allotTo"></select>
-          <button class="btn sm pri" id="allotAdd" type="button">배정에 추가</button>
-          <button class="btn sm" id="allotRemove" type="button">배정에서 빼기</button>
-        </div>
-        <div class="line">
-          <button class="btn sm dark" id="staffOn" type="button">주최측이 직접 확보</button>
-          <button class="btn sm" id="staffOff" type="button">주최측 확보 해제</button>
-        </div>
-        <div class="hint">
-          좌석을 누르거나 <b>끌어서</b> 여러 석을 고르세요. 지도의 <b>구역 글자(A~H)</b>를 누르면 구역 전체가 선택됩니다.<br>
-          <b>배정</b> = 그 참여사가 링크로 고를 수 있는 범위. <b>확보</b> = 실제로 잡혀 일반 예약에서 빠진 좌석.
-        </div>
-      </div>
+
+      <div id="alerts"></div>
 
       <div class="box">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -257,7 +266,7 @@
   </div>
 </div>
 
-<script src="js/hall-map.js?v=20260917a"></script>
-<script src="js/hold-admin.js?v=20260917b"></script>
+<script src="js/hall-map.js?v=20260917c"></script>
+<script src="js/hold-admin.js?v=20260917d"></script>
 </body>
 </html>

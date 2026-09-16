@@ -1269,6 +1269,16 @@ begin
   v_ids := case when p_which = 'after' then g.seat_ids else g.prev_seat_ids end;
   perform 1 from shows where id = h.show_id for update;
 
+  -- 그 사이 배정이 바뀌어 지금은 이 참여사 범위 밖인 좌석이 있으면 되돌리지 않는다.
+  -- 그대로 되돌리면 남에게 배정된 좌석을 쥐게 되어 상태가 꼬인다.
+  if h.allowed_seats is not null then
+    select array_agg(sid order by sid) into v_taken
+      from unnest(v_ids) sid where not (sid = any(h.allowed_seats));
+    if v_taken is not null then
+      return json_build_object('ok', false, 'reason', 'notallowed', 'seats', v_taken);
+    end if;
+  end if;
+
   -- 그 사이 남이 차지한 자리가 있으면 그대로는 되돌릴 수 없다
   select array_agg(seat_id) into v_taken
     from show_seat_locks
@@ -1534,14 +1544,28 @@ begin
     end loop;
   end if;
 
-  -- 다른 참여사 배정에서 옮겨올 좌석을 뺀다
+  -- 다른 참여사 배정에서 옮겨올 좌석을 뺀다.
+  -- 빼앗긴 쪽 이력에도 남긴다 — 그래야 '왜 줄었는지'를 그 참여사 기준으로 추적할 수 있다.
   select count(distinct x) into v_moved
     from seat_holders oo, unnest(oo.allowed_seats) x
    where oo.show_id = h.show_id and oo.id <> h.id and x = any(v_in);
-  update seat_holders oo
-     set allowed_seats = (select coalesce(array_agg(x order by x), '{}')
-                            from unnest(oo.allowed_seats) x where not (x = any(v_in)))
-   where oo.show_id = h.show_id and oo.id <> h.id and oo.allowed_seats && v_in;
+  for o in select oo.id as hid from seat_holders oo
+            where oo.show_id = h.show_id and oo.id <> h.id and oo.allowed_seats && v_in
+  loop
+    select * into oh from seat_holders where id = o.hid;
+    v_oprev := oh.allowed_seats;
+    select coalesce(array_agg(x order by x), '{}') into v_oafter
+      from unnest(oh.allowed_seats) x where not (x = any(v_in));
+    update seat_holders set allowed_seats = v_oafter where id = oh.id;
+    insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                               prev_seat_ids, seat_ids, prev_count, seat_count, note)
+    values (oh.id, oh.show_id, oh.name, 'allot',
+            v_oprev, v_oafter,
+            coalesce(array_length(v_oprev, 1), 0), coalesce(array_length(v_oafter, 1), 0),
+            '주최측이 배정 좌석 ' ||
+            (coalesce(array_length(v_oprev, 1), 0) - coalesce(array_length(v_oafter, 1), 0)) ||
+            '석을 ' || h.name || ' 에게 옮김');
+  end loop;
 
   update seat_holders set allowed_seats = v_new where id = h.id;
 
