@@ -991,6 +991,11 @@ create table if not exists public.seat_holders (
 create index if not exists idx_holders_show on public.seat_holders(show_id);
 alter table public.seat_holders enable row level security;  -- 정책 없음 = 직접 접근 차단
 
+-- 좌석 단위 배정. 한 쇼에 여러 참여사가 있으면 주최측이 협의 결과대로
+-- 좌석을 나눠준다(구역 통째로도, 몇 석씩도). 참여사는 이 안에서만 확보한다.
+--   null = 제한 없음(전 좌석) / '{}' = 아무 좌석도 고를 수 없음
+alter table public.seat_holders add column if not exists allowed_seats text[];
+
 -- ---- 저장 이력 (덧붙이기만 한다. 지우거나 고치지 않는다) ----
 --  저장할 때마다 '바꾸기 전'과 '바꾼 후'의 좌석 목록을 통째로 남긴다.
 --  브랜드가 실수로 전부 지웠거나, 누가 언제 무엇을 바꿨는지 따져야 할 때
@@ -1001,7 +1006,7 @@ create table if not exists public.seat_hold_log (
   holder_id     uuid,                      -- 참여사가 지워져도 이력은 남는다
   show_id       text not null,
   holder_name   text not null,             -- 그 시점의 이름을 박아둔다
-  action        text not null,             -- 'save' | 'restore' | 'delete'
+  action        text not null,             -- 'save' | 'restore' | 'delete' | 'allot' | 'reallot' | 'staff'
   prev_seat_ids text[] not null default '{}',   -- 바꾸기 전
   seat_ids      text[] not null default '{}',   -- 바꾼 후
   prev_count    int not null default 0,
@@ -1057,7 +1062,7 @@ begin
     'ok', true,
     'holder', json_build_object(
       'name', h.name, 'kind', h.kind,
-      'maxSeats', h.max_seats, 'zones', h.zones,
+      'maxSeats', h.max_seats, 'zones', h.zones, 'allowedSeats', h.allowed_seats,
       'closeAt', v_close,
       'closed', (not public.holds_open()) or (v_close is not null and now() >= v_close),
       'contactName', h.contact_name, 'contactPhone', h.contact_phone,
@@ -1121,6 +1126,15 @@ begin
       from seats s where s.id = any(v_ids) and not (s.zone_code = any(h.zones));
     if v_bad is not null then
       return json_build_object('ok', false, 'reason', 'badzone', 'seats', v_bad);
+    end if;
+  end if;
+
+  -- 주최측이 좌석 단위로 나눠준 범위 밖
+  if h.allowed_seats is not null then
+    select array_agg(sid) into v_bad
+      from unnest(v_ids) sid where not (sid = any(h.allowed_seats));
+    if v_bad is not null then
+      return json_build_object('ok', false, 'reason', 'notallowed', 'seats', v_bad);
     end if;
   end if;
 
@@ -1242,6 +1256,11 @@ begin
   if not found then
     return json_build_object('ok', false, 'reason', 'nolog');
   end if;
+  -- 'allot'(배정 변경)·'staff'(주최측 확보)는 좌석 확보 상태가 아니라
+  -- 되돌리면 엉뚱한 좌석이 확보된다. 참여사의 확보 이력만 되돌린다.
+  if g.action not in ('save', 'restore', 'reallot') then
+    return json_build_object('ok', false, 'reason', 'notrestorable');
+  end if;
   select * into h from seat_holders where id = g.holder_id;
   if not found then
     return json_build_object('ok', false, 'reason', 'noholder');
@@ -1331,7 +1350,7 @@ begin
                 where l.show_id = s.id and l.holder_id is null)                        as staff_locked
          from shows s) x),
     'holders', (select coalesce(json_agg(y order by y.show_id, y.name), '[]'::json) from (
-       select h.id, h.show_id, h.name, h.kind, h.max_seats, h.zones, h.token,
+       select h.id, h.show_id, h.name, h.kind, h.max_seats, h.zones, h.token, h.allowed_seats,
               (select count(*) from show_seat_locks l where l.holder_id = h.id) as held,
               h.contact_name, h.contact_phone, h.saved_at, h.created_at
          from seat_holders h) y)
@@ -1371,6 +1390,245 @@ begin
 
   delete from seat_holders where id = h.id;
   return json_build_object('ok', true, 'released', coalesce(array_length(v_prev, 1), 0));
+end $fn$;
+
+-- ---- 쇼 하나의 좌석 지도 (스태프 전용) ----
+--  주최측 화면 오른쪽 지도가 쓴다. 좌석마다 누가 확보했는지(lock),
+--  일반 예약이 있는지(res). 배정 범위는 holders[].allowedSeats 로 판단한다.
+create or replace function public.holds_show_map(p_show_id text)
+returns json language plpgsql security definer set search_path = public as $fn$
+declare v_show public.shows;
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  select * into v_show from shows where id = p_show_id;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'noshow');
+  end if;
+  return json_build_object(
+    'ok', true,
+    'holdsOpen', public.holds_open(),
+    'show', json_build_object(
+      'id', v_show.id, 'titleKo', v_show.title_ko, 'lineup', v_show.lineup,
+      'date', v_show.date, 'startTime', v_show.start_time,
+      'capacity', v_show.capacity, 'seatingMode', v_show.seating_mode),
+    'zones', (select json_agg(json_build_object(
+                'code', z.code, 'label', z.label, 'side', z.side, 'rows', z.rows_count,
+                'tiers', z.tiers, 'seatCount', z.seat_count, 'sort', z.sort)
+                order by z.side, z.sort) from zones z),
+    'holders', (select coalesce(json_agg(json_build_object(
+                'id', h.id, 'name', h.name, 'kind', h.kind, 'maxSeats', h.max_seats,
+                'token', h.token, 'allowedSeats', h.allowed_seats,
+                'held', (select count(*) from show_seat_locks l where l.holder_id = h.id),
+                'contactName', h.contact_name, 'contactPhone', h.contact_phone,
+                'savedAt', h.saved_at, 'createdAt', h.created_at)
+                order by h.created_at), '[]'::json)
+                from seat_holders h where h.show_id = p_show_id),
+    'seats', (select json_agg(json_build_object(
+                'id', se.id, 'z', se.zone_code, 'n', se.num, 't', se.tier, 'r', se.row_no,
+                'lock', case when l.seat_id is null then null
+                             when l.holder_id is null then 'staff'
+                             else l.holder_id::text end,
+                'res', exists (select 1 from reservations r
+                                where r.show_id = p_show_id and r.seat_id = se.id
+                                  and r.status = 'reserved'))
+                order by se.zone_code, se.num)
+                from seats se
+                left join show_seat_locks l on l.show_id = p_show_id and l.seat_id = se.id),
+    'reserved', (select count(*) from reservations where show_id = p_show_id and status = 'reserved')
+  );
+end $fn$;
+
+-- ---- 좌석 배정 (스태프 전용) ----
+--  p_mode : 'set' 이 목록으로 교체 / 'add' 더하기 / 'remove' 빼기 / 'clear' 제한 없음으로
+--  한 좌석은 한 참여사에게만 배정된다. 다른 참여사에 배정된 좌석을 넣으면
+--  그쪽 배정에서 빠지고 이쪽으로 옮겨온다.
+--  단, 그 좌석을 다른 참여사가 이미 '확보'했다면 그냥 옮기지 않는다
+--  (heldbyother 로 알려준다). p_force=true 일 때만 그 확보를 풀고 옮기며,
+--  푼 내용은 그 참여사 이력에 통째로 남긴다.
+create or replace function public.holder_allot(
+  p_holder_id uuid, p_seat_ids text[], p_mode text default 'set', p_force boolean default false
+) returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  h        public.seat_holders;
+  oh       public.seat_holders;
+  o        record;
+  v_ids    text[] := coalesce(p_seat_ids, '{}');
+  v_old    text[];
+  v_new    text[];
+  v_in     text[];
+  v_bad    text[];
+  v_held   text[];
+  v_oprev  text[];
+  v_oafter text[];
+  v_moved  int := 0;
+  v_rel    int := 0;
+  v_n      int;
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  if p_mode not in ('set', 'add', 'remove', 'clear') then
+    return json_build_object('ok', false, 'reason', 'badmode');
+  end if;
+  select * into h from seat_holders where id = p_holder_id;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'noholder');
+  end if;
+  perform 1 from shows where id = h.show_id for update;
+
+  select array_agg(sid) into v_bad
+    from unnest(v_ids) sid where not exists (select 1 from seats where id = sid);
+  if v_bad is not null then
+    return json_build_object('ok', false, 'reason', 'badseat', 'seats', v_bad);
+  end if;
+
+  v_old := h.allowed_seats;
+
+  if p_mode = 'clear' then
+    v_new := null; v_in := '{}';
+  elsif p_mode = 'add' then
+    select coalesce(array_agg(distinct x order by x), '{}') into v_new
+      from unnest(coalesce(v_old, '{}') || v_ids) x;
+    v_in := v_ids;
+  elsif p_mode = 'remove' then
+    select coalesce(array_agg(x order by x), '{}') into v_new
+      from unnest(coalesce(v_old, '{}')) x where not (x = any(v_ids));
+    v_in := '{}';
+  else
+    select coalesce(array_agg(distinct x order by x), '{}') into v_new from unnest(v_ids) x;
+    v_in := v_new;
+  end if;
+
+  -- 옮겨오려는 좌석을 다른 참여사가 이미 확보했는가
+  select array_agg(l.seat_id order by l.seat_id) into v_held
+    from show_seat_locks l
+   where l.show_id = h.show_id and l.seat_id = any(v_in)
+     and l.holder_id is not null and l.holder_id <> h.id;
+  if v_held is not null and not p_force then
+    return json_build_object('ok', false, 'reason', 'heldbyother', 'seats', v_held);
+  end if;
+
+  -- 강제로 옮기는 경우 : 다른 참여사의 확보를 풀고, 그 전 상태를 이력에 남긴다
+  if v_held is not null then
+    for o in select distinct l.holder_id as hid from show_seat_locks l
+              where l.show_id = h.show_id and l.seat_id = any(v_held) and l.holder_id <> h.id
+    loop
+      select * into oh from seat_holders where id = o.hid;
+      select coalesce(array_agg(seat_id order by seat_id), '{}') into v_oprev
+        from show_seat_locks where holder_id = oh.id;
+      delete from show_seat_locks where holder_id = oh.id and seat_id = any(v_held);
+      get diagnostics v_n = row_count;
+      v_rel := v_rel + v_n;
+      select coalesce(array_agg(seat_id order by seat_id), '{}') into v_oafter
+        from show_seat_locks where holder_id = oh.id;
+      insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                                 prev_seat_ids, seat_ids, prev_count, seat_count,
+                                 contact_name, contact_phone, note)
+      values (oh.id, oh.show_id, oh.name, 'reallot',
+              v_oprev, v_oafter,
+              coalesce(array_length(v_oprev, 1), 0), coalesce(array_length(v_oafter, 1), 0),
+              oh.contact_name, oh.contact_phone,
+              '주최측이 좌석 배정을 ' || h.name || ' 에게 옮기면서 확보 해제');
+    end loop;
+  end if;
+
+  -- 다른 참여사 배정에서 옮겨올 좌석을 뺀다
+  select count(distinct x) into v_moved
+    from seat_holders oo, unnest(oo.allowed_seats) x
+   where oo.show_id = h.show_id and oo.id <> h.id and x = any(v_in);
+  update seat_holders oo
+     set allowed_seats = (select coalesce(array_agg(x order by x), '{}')
+                            from unnest(oo.allowed_seats) x where not (x = any(v_in)))
+   where oo.show_id = h.show_id and oo.id <> h.id and oo.allowed_seats && v_in;
+
+  update seat_holders set allowed_seats = v_new where id = h.id;
+
+  -- 배정 변경도 기록한다 (누가 언제 어떤 범위를 받았는지)
+  insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                             prev_seat_ids, seat_ids, prev_count, seat_count, note)
+  values (h.id, h.show_id, h.name, 'allot',
+          coalesce(v_old, '{}'), coalesce(v_new, '{}'),
+          coalesce(array_length(v_old, 1), 0), coalesce(array_length(v_new, 1), 0),
+          '좌석 배정 ' || p_mode ||
+          case when v_new is null then ' — 제한 없음(전 좌석)' else '' end ||
+          case when v_moved > 0 then ' / 다른 참여사에서 ' || v_moved || '석 옮겨옴' else '' end);
+
+  return json_build_object(
+    'ok', true,
+    'allotted', coalesce(array_length(v_new, 1), 0),
+    'unlimited', v_new is null,
+    'moved', v_moved,
+    'released', v_rel,
+    -- 이 참여사가 이미 확보한 좌석 중 새 배정 밖에 남은 것 (다음 저장 때 풀린다)
+    'outOfAllot', case when v_new is null then 0 else (
+       select count(*) from show_seat_locks l
+        where l.holder_id = h.id and not (l.seat_id = any(v_new))) end
+  );
+end $fn$;
+
+-- ---- 주최측 직접 확보 / 해제 (스태프 전용) ----
+--  개막식 내빈석처럼 참여사 링크 없이 주최측이 잡는 좌석.
+--  참여사가 이미 확보했거나 일반 예약이 있는 좌석은 건너뛰고 알려준다.
+create or replace function public.staff_hold_set(p_show_id text, p_seat_ids text[], p_on boolean)
+returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  v_ids   text[] := coalesce(p_seat_ids, '{}');
+  v_bad   text[];
+  v_skip  text[];
+  v_prev  text[];
+  v_after text[];
+  v_n     int := 0;
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  perform 1 from shows where id = p_show_id for update;
+  if not found then
+    return json_build_object('ok', false, 'reason', 'noshow');
+  end if;
+  select array_agg(sid) into v_bad
+    from unnest(v_ids) sid where not exists (select 1 from seats where id = sid);
+  if v_bad is not null then
+    return json_build_object('ok', false, 'reason', 'badseat', 'seats', v_bad);
+  end if;
+
+  select coalesce(array_agg(seat_id order by seat_id), '{}') into v_prev
+    from show_seat_locks where show_id = p_show_id and holder_id is null;
+
+  if p_on then
+    select array_agg(sid order by sid) into v_skip
+      from unnest(v_ids) sid
+     where exists (select 1 from show_seat_locks l
+                    where l.show_id = p_show_id and l.seat_id = sid and l.holder_id is not null)
+        or exists (select 1 from reservations r
+                    where r.show_id = p_show_id and r.seat_id = sid and r.status = 'reserved');
+    insert into show_seat_locks (show_id, seat_id, kind, note, holder_id)
+    select p_show_id, sid, 'invite', '주최측', null from unnest(v_ids) sid
+     where not exists (select 1 from show_seat_locks l where l.show_id = p_show_id and l.seat_id = sid)
+       and not exists (select 1 from reservations r
+                        where r.show_id = p_show_id and r.seat_id = sid and r.status = 'reserved');
+    get diagnostics v_n = row_count;
+  else
+    delete from show_seat_locks
+     where show_id = p_show_id and holder_id is null and seat_id = any(v_ids);
+    get diagnostics v_n = row_count;
+  end if;
+
+  select coalesce(array_agg(seat_id order by seat_id), '{}') into v_after
+    from show_seat_locks where show_id = p_show_id and holder_id is null;
+
+  if v_n > 0 then
+    insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                               prev_seat_ids, seat_ids, prev_count, seat_count, note)
+    values (null, p_show_id, '주최측', 'staff',
+            v_prev, v_after,
+            coalesce(array_length(v_prev, 1), 0), coalesce(array_length(v_after, 1), 0),
+            case when p_on then '주최측 직접 확보 ' else '주최측 확보 해제 ' end || v_n || '석');
+  end if;
+
+  return json_build_object('ok', true, 'changed', v_n, 'skipped', coalesce(v_skip, '{}'));
 end $fn$;
 
 -- ---- 누가 몇 석 확보했는지 (스태프 전용) ----
@@ -1424,7 +1682,10 @@ revoke all on function
   public.holds_set_open(boolean),
   public.holds_board(),
   public.holder_delete(uuid),
-  public.is_staff()
+  public.is_staff(),
+  public.holds_show_map(text),
+  public.holder_allot(uuid,text[],text,boolean),
+  public.staff_hold_set(text,text[],boolean)
   from public, anon, authenticated;
 
 -- 관람객(비로그인)도 쓸 수 있는 것
@@ -1461,6 +1722,9 @@ grant execute on function public.hold_export()                 to authenticated;
 grant execute on function public.holds_set_open(boolean)       to authenticated;
 grant execute on function public.holds_board()                 to authenticated;
 grant execute on function public.holder_delete(uuid)           to authenticated;
+grant execute on function public.holds_show_map(text)          to authenticated;
+grant execute on function public.holder_allot(uuid,text[],text,boolean) to authenticated;
+grant execute on function public.staff_hold_set(text,text[],boolean)    to authenticated;
 grant execute on function public.press_set_status(uuid,text)   to authenticated;
 grant execute on function public.press_find(text)              to authenticated;
 grant execute on function public.press_check_in(text)          to authenticated;

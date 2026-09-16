@@ -24,184 +24,240 @@
     --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);
-       -webkit-text-size-adjust:100%;font-size:15px}
+  html,body{height:100%}
+  body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);font-size:14px;
+       -webkit-text-size-adjust:100%}
   button,input,select{font-family:var(--kr)}
-  .wrap{max-width:1180px;margin:0 auto;padding:24px 16px 80px}
 
-  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
-  h1{margin:6px 0 0;font-size:1.4rem;font-weight:800}
-  h2{margin:0;font-size:1.06rem;font-weight:800}
-  .sub{color:var(--ink-mute);font-size:.86rem}
+  .eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
+  h1{margin:4px 0 0;font-size:1.22rem;font-weight:800}
+  h2{margin:0;font-size:.98rem;font-weight:800}
+  .sub{color:var(--ink-mute);font-size:.82rem}
+  .mono{font-family:var(--mono)}
 
-  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;
-        box-shadow:0 1px 3px rgba(20,35,90,.04)}
-  .stack>*+*{margin-top:14px}
-
-  .btn{padding:9px 14px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
-       color:var(--ink);font-size:.86rem;cursor:pointer;white-space:nowrap}
+  .btn{padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+       color:var(--ink);font-size:.84rem;cursor:pointer;white-space:nowrap}
   .btn:hover:not(:disabled){border-color:var(--navy);color:var(--navy)}
-  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
   .btn.pri{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
   .btn.pri:hover:not(:disabled){background:#0a2887;color:#fff}
   .btn.bad{color:var(--bad);border-color:var(--bad-line)}
   .btn.bad:hover:not(:disabled){background:var(--bad-soft);color:var(--bad)}
-  .btn.sm{padding:5px 9px;font-size:.78rem;border-radius:7px}
+  .btn.dark{background:#3b3f4a;border-color:#3b3f4a;color:#fff}
+  .btn.dark:hover:not(:disabled){background:#23262e;color:#fff}
+  .btn.sm{padding:4px 8px;font-size:.76rem;border-radius:7px}
 
   input[type=text],input[type=email],input[type=password],input[type=number],select{
-    width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:.92rem;background:var(--paper)}
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.88rem;background:var(--paper)}
   input:focus,select:focus{outline:none;border-color:var(--navy)}
-  label{display:block;font-size:.78rem;color:var(--ink-mute);margin-bottom:5px}
+  label{display:block;font-size:.74rem;color:var(--ink-mute);margin-bottom:4px}
 
-  .note{border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.6}
-  .note h4{margin:0 0 4px;font-size:.92rem}
+  .note{border-radius:10px;padding:10px 12px;font-size:.82rem;line-height:1.55}
+  .note h4{margin:0 0 3px;font-size:.86rem}
   .note.info{background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
   .note.warn{background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn)}
   .note.bad{background:var(--bad-soft);border:1px solid var(--bad-line);color:var(--bad)}
-  .note.ok{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok)}
+
+  .box{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .stack>*+*{margin-top:12px}
 
   /* 로그인 */
-  .login{max-width:380px;margin:60px auto 0}
-  .login .card>*+*{margin-top:12px}
+  .login{max-width:380px;margin:70px auto 0;padding:0 16px}
+  .login .box>*+*{margin-top:12px}
 
   /* 상단 */
-  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .who{font-size:.8rem;color:var(--ink-mute)}
-  .switch{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
-        font-size:.84rem;font-weight:700;border:1px solid}
-  .pill i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .top{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+       border-bottom:1px solid var(--line)}
+  .top .in{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+  .top .who{font-size:.76rem;color:var(--ink-mute)}
+  .top .tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+
+  /* 좌우 분할 */
+  .split{display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:16px;padding:16px;align-items:start}
+  .left{min-width:0}
+  .right{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto;
+         background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .right .rh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .mapwrap{display:flex;justify-content:center}
+
+  /* 스위치 */
+  .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+        font-size:.8rem;font-weight:700;border:1px solid}
+  .pill i{width:7px;height:7px;border-radius:50%;display:inline-block}
   .pill.on{background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok)} .pill.on i{background:var(--ok)}
   .pill.off{background:var(--paper-2);border-color:var(--line);color:var(--ink-mute)} .pill.off i{background:#aab1c4}
-  .tools{display:flex;gap:8px;flex-wrap:wrap}
 
-  /* 쇼 카드 */
-  .show-h{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
-  .show-h .t{font-weight:800;font-size:1.02rem}
-  .show-h .l{color:var(--ink-mute);font-size:.86rem;margin-top:2px}
-  .stats{display:flex;gap:6px;flex-wrap:wrap}
-  .stat{font-size:.78rem;padding:4px 9px;border-radius:999px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-mute)}
-  .stat b{color:var(--ink);font-family:var(--mono)}
-  .stat.hi{background:var(--navy-soft);border-color:#d7e0ff}
-  .stat.hi b{color:var(--navy)}
+  /* 쇼 목록 */
+  .shows{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+  .shw{text-align:left;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+       cursor:pointer;min-width:0}
+  .shw:hover{border-color:var(--navy)}
+  .shw.on{border-color:var(--navy);background:var(--navy-soft);box-shadow:inset 3px 0 0 var(--navy)}
+  .shw b{display:block;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shw span{display:block;font-size:.7rem;color:var(--ink-mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  /* 구역 배정 현황 */
-  .zmap{display:grid;grid-template-columns:1fr 18px 1fr;gap:6px;margin-top:14px}
-  .zcol{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-  .zrun{background:linear-gradient(180deg,#dfe6f7,#eef2ff);border-radius:6px}
-  .zc{border:1px dashed var(--line);border-radius:8px;padding:7px 6px;text-align:center;min-height:52px;background:var(--paper-2)}
-  .zc b{display:block;font-size:.86rem}
-  .zc span{display:block;font-size:.68rem;color:var(--ink-mute);margin-top:2px;line-height:1.25;word-break:keep-all}
-  .zc.taken{border-style:solid;background:var(--paper)}
-  .zc.clash{border-color:var(--bad)!important;background:var(--bad-soft)!important}
+  /* 요약 수치 */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+  .kpi{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:6px 4px;text-align:center}
+  .kpi b{display:block;font-family:var(--mono);font-size:1.02rem}
+  .kpi span{display:block;font-size:.66rem;color:var(--ink-mute);margin-top:1px}
+  .kpi.hi{background:var(--navy-soft);border-color:#d7e0ff}
+  .kpi.hi b{color:var(--navy)}
 
-  /* 참여사 표 */
-  .tbl-wrap{overflow-x:auto;margin-top:14px}
-  table{width:100%;border-collapse:collapse;font-size:.86rem;min-width:760px}
-  th{text-align:left;font-weight:600;font-size:.74rem;color:var(--ink-mute);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
-  td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
-  tr:last-child td{border-bottom:0}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:6px}
-  .kind{font-size:.72rem;padding:2px 7px;border-radius:5px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-mute)}
-  .mono{font-family:var(--mono);font-size:.82rem}
-  .acts{display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap}
-  .empty{color:var(--ink-mute);font-size:.86rem;padding:10px 0}
+  /* 참여사 */
+  .hl{margin-top:10px}
+  .hr{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;padding:9px 8px;
+      border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+  .hr+.hr{margin-top:6px}
+  .hr.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy-soft)}
+  .hr .sw8{width:14px;height:14px;border-radius:4px}
+  .hr .nm{font-weight:700;font-size:.88rem}
+  .hr .nm .kind{font-weight:500;font-size:.68rem;padding:1px 6px;border-radius:4px;background:var(--paper-2);
+                border:1px solid var(--line);color:var(--ink-mute);margin-left:4px}
+  .hr .meta{font-size:.74rem;color:var(--ink-mute);margin-top:2px}
+  .hr .meta b{color:var(--ink);font-family:var(--mono)}
+  .hr .acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  .empty{color:var(--ink-mute);font-size:.82rem;padding:8px 2px}
 
-  /* 구역 고르기 */
-  .zpick{display:flex;gap:5px;flex-wrap:wrap}
-  .zpick button{width:34px;height:32px;border-radius:7px;border:1px solid var(--line);background:var(--paper);
-                font-weight:700;font-size:.84rem;cursor:pointer;position:relative}
-  .zpick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
-  .zpick button.used:not(.on){border-color:#c9a86a;background:var(--warn-soft);color:var(--warn)}
-  .zpick .gap{width:8px}
+  /* 폼 */
+  .form{margin-top:10px;padding:12px;border-radius:10px;background:var(--paper-2);border:1px solid var(--line)}
+  .form .row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px}
+  .form .foot{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap}
 
-  /* 편집 폼 */
-  .form{margin-top:14px;padding:14px;border-radius:12px;background:var(--paper-2);border:1px solid var(--line)}
-  .form .row{display:grid;grid-template-columns:1.4fr .9fr .8fr;gap:10px}
-  .form .row2{margin-top:10px}
-  .form .foot{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;align-items:center}
-  .form .hint{font-size:.76rem;color:var(--ink-mute);margin-top:6px}
+  /* 선택 도구 */
+  .tool{position:sticky;bottom:0;z-index:5}
+  .tool .cnt{font-family:var(--mono);font-size:1.3rem;font-weight:700}
+  .tool .line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .tool .line select{width:auto;flex:1;min-width:140px}
+  .tool .hint{font-size:.74rem;color:var(--ink-mute);margin-top:6px;line-height:1.5}
 
   /* 이력 */
-  .log td{font-size:.8rem}
-  .log .seats{max-width:340px;color:var(--ink-mute);font-family:var(--mono);font-size:.72rem;word-break:break-all}
+  .tbl-wrap{overflow-x:auto;margin-top:8px}
+  table{width:100%;border-collapse:collapse;font-size:.76rem;min-width:520px}
+  th{text-align:left;font-weight:600;color:var(--ink-mute);padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .seats{font-family:var(--mono);font-size:.66rem;color:var(--ink-mute);word-break:break-all;max-width:220px}
 
-  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1b2340;color:#fff;
-         padding:11px 18px;border-radius:10px;font-size:.88rem;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.18);
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1b2340;color:#fff;
+         padding:10px 16px;border-radius:10px;font-size:.86rem;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2);
          max-width:calc(100% - 32px)}
   .toast.err{background:var(--bad)}
 
-  @media (max-width:760px){
-    .form .row{grid-template-columns:1fr}
-    .zcol{grid-template-columns:repeat(2,1fr)}
+  @media (max-width:980px){
+    .split{grid-template-columns:1fr}
+    .right{position:static;max-height:none}
+    .kpis{grid-template-columns:repeat(3,1fr)}
   }
 </style>
 </head>
 <body>
 
-<div class="wrap">
-
-  <!-- 로그인 -->
-  <div class="login" id="loginView" hidden>
-    <div class="card">
-      <div class="eyebrow">2026 부산패션위크 · 주최측</div>
-      <h1>사전 좌석 확보 관리</h1>
-      <p class="sub">스태프 명단에 등록된 계정으로 로그인하세요.</p>
-      <div>
-        <label for="lEmail">이메일</label>
-        <input type="email" id="lEmail" autocomplete="username" />
-      </div>
-      <div>
-        <label for="lPw">비밀번호</label>
-        <input type="password" id="lPw" autocomplete="current-password" />
-      </div>
-      <button class="btn pri" id="lBtn" type="button" style="width:100%;padding:11px">로그인</button>
-      <div id="lMsg"></div>
-    </div>
+<div class="login" id="loginView" hidden>
+  <div class="box">
+    <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+    <h1>사전 좌석 확보 관리</h1>
+    <p class="sub">스태프 명단에 등록된 계정으로 로그인하세요.</p>
+    <div><label for="lEmail">이메일</label><input type="email" id="lEmail" autocomplete="username" /></div>
+    <div><label for="lPw">비밀번호</label><input type="password" id="lPw" autocomplete="current-password" /></div>
+    <button class="btn pri" id="lBtn" type="button" style="width:100%;padding:11px">로그인</button>
+    <div id="lMsg"></div>
   </div>
-
-  <!-- 본 화면 -->
-  <div id="mainView" hidden class="stack">
-    <div class="head">
-      <div>
-        <div class="eyebrow">2026 부산패션위크 · 주최측</div>
-        <h1>사전 좌석 확보 관리</h1>
-        <div class="who" id="whoAmI"></div>
-      </div>
-      <div class="tools">
-        <button class="btn" id="reloadBtn" type="button">새로고침</button>
-        <button class="btn" id="exportBtn" type="button">확보 현황 엑셀</button>
-        <button class="btn" id="logoutBtn" type="button">로그아웃</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="switch">
-        <h2>확보 창구</h2>
-        <span class="pill off" id="holdPill"><i></i><span>—</span></span>
-        <span class="sub" id="holdDesc"></span>
-        <span style="margin-left:auto"></span>
-        <button class="btn pri" id="holdToggle" type="button">—</button>
-      </div>
-    </div>
-
-    <div id="alerts" class="stack"></div>
-    <div id="shows" class="stack"></div>
-
-    <div class="card">
-      <div class="show-h">
-        <div>
-          <h2>변경 이력</h2>
-          <div class="sub">저장·삭제·되돌리기가 모두 남습니다. 실수로 지웠다면 여기서 되돌리세요.</div>
-        </div>
-        <button class="btn sm" id="logBtn" type="button">이력 불러오기</button>
-      </div>
-      <div id="logBox"></div>
-    </div>
-  </div>
-
 </div>
 
-<script src="js/hold-admin.js?v=20260917a"></script>
+<div id="mainView" hidden>
+  <div class="top"><div class="in">
+    <div>
+      <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+      <h1>사전 좌석 확보 관리</h1>
+    </div>
+    <div class="who" id="whoAmI"></div>
+    <div class="tools">
+      <button class="btn" id="reloadBtn" type="button">새로고침</button>
+      <button class="btn" id="exportBtn" type="button">확보 현황 엑셀</button>
+      <button class="btn" id="logoutBtn" type="button">로그아웃</button>
+    </div>
+  </div></div>
+
+  <div class="split">
+    <!-- 왼쪽 : 조작 -->
+    <div class="left stack">
+      <div class="box">
+        <div class="sw">
+          <h2>확보 창구</h2>
+          <span class="pill off" id="holdPill"><i></i><span>—</span></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn pri" id="holdToggle" type="button">—</button>
+        </div>
+        <div class="sub" id="holdDesc" style="margin-top:6px"></div>
+      </div>
+
+      <div id="alerts" class="stack"></div>
+
+      <div class="box">
+        <h2>패션쇼</h2>
+        <div class="shows" id="showList"></div>
+        <div class="sub" style="margin-top:8px">경진대회 & 부산컬렉션(S07)은 예약을 받지 않아 목록에 없습니다.</div>
+      </div>
+
+      <div class="box" id="showBox" hidden>
+        <h2 id="showTitle">—</h2>
+        <div class="sub" id="showSub"></div>
+        <div class="kpis" id="kpis"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+          <h2>참여사</h2>
+          <button class="btn sm" id="addBtn" type="button">+ 참여사 추가</button>
+        </div>
+        <div id="formBox"></div>
+        <div class="hl" id="holderList"></div>
+      </div>
+
+      <div class="box tool" id="toolBox" hidden>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span class="sub">지도에서 선택</span>
+          <span class="cnt" id="selCnt">0</span><span class="sub">석</span>
+          <span style="margin-left:auto"></span>
+          <button class="btn sm" id="clearSel" type="button">선택 해제</button>
+        </div>
+        <div class="line">
+          <select id="allotTo"></select>
+          <button class="btn sm pri" id="allotAdd" type="button">배정에 추가</button>
+          <button class="btn sm" id="allotRemove" type="button">배정에서 빼기</button>
+        </div>
+        <div class="line">
+          <button class="btn sm dark" id="staffOn" type="button">주최측이 직접 확보</button>
+          <button class="btn sm" id="staffOff" type="button">주최측 확보 해제</button>
+        </div>
+        <div class="hint">
+          좌석을 누르거나 <b>끌어서</b> 여러 석을 고르세요. 지도의 <b>구역 글자(A~H)</b>를 누르면 구역 전체가 선택됩니다.<br>
+          <b>배정</b> = 그 참여사가 링크로 고를 수 있는 범위. <b>확보</b> = 실제로 잡혀 일반 예약에서 빠진 좌석.
+        </div>
+      </div>
+
+      <div class="box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <h2>변경 이력</h2>
+          <button class="btn sm" id="logBtn" type="button">이 쇼 이력 보기</button>
+        </div>
+        <div class="sub" style="margin-top:4px">배정·확보·삭제가 모두 남습니다. 실수로 지운 확보는 되돌릴 수 있습니다.</div>
+        <div id="logBox"></div>
+      </div>
+    </div>
+
+    <!-- 오른쪽 : 세로 지도 -->
+    <div class="right" id="mapPanel">
+      <div class="rh">
+        <h2 id="mapTitle">패션쇼를 고르세요</h2>
+        <span class="sub" id="mapSub"></span>
+      </div>
+      <div class="mapwrap" id="map"></div>
+      <div id="legend"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/hall-map.js?v=20260917a"></script>
+<script src="js/hold-admin.js?v=20260917b"></script>
 </body>
 </html>
