@@ -89,6 +89,22 @@
     return (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + " " +
       String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
   }
+  /* 쇼 이름은 홈페이지 스케줄표와 똑같이 쓴다.
+     연합쇼는 참여 브랜드·학교 이름이 곧 쇼 이름이다("오교 · 리온베 · 이영희 프리젠트").
+     '연합쇼 ④' 같은 번호는 내부용이라 보여주지 않는다.
+     참여 칸이 비었거나 '오프닝'인 개막식·경진대회만 행사명을 쓴다. */
+  function showName(title, lineup) {
+    var lu = String(lineup || "").trim();
+    return (!lu || lu === "오프닝") ? String(title || "") : lu;
+  }
+  var DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  /* '2026.10.30' + '10:30' → '10.30(금) 10:30' */
+  function showWhen(date, time) {
+    var p = String(date || "").split(".");
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (+p[1]) + "." + (+p[2]) + (isNaN(d) ? "" : "(" + DOW[d.getDay()] + ")") + " " + (time || "");
+  }
+
   function tint(hex, a) {
     var n = parseInt(hex.slice(1), 16);
     return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
@@ -213,20 +229,21 @@
     }
     (board.shows || []).forEach(function (s) {
       var hs = holdersOfBoard(s.id);
+      var nm = esc(showWhen(s.date, s.start_time) + " " + showName(s.title_ko, s.lineup));
       if (NO_RESERVATION.indexOf(s.id) >= 0) {
-        if (s.locked > 0 || hs.length) out.push(esc(s.id) + " 은 예약을 받지 않는 쇼인데 잠긴 좌석이나 참여사가 있습니다.");
+        if (s.locked > 0 || hs.length) out.push(nm + " 은 예약을 받지 않는 쇼인데 잠긴 좌석이나 참여사가 있습니다.");
         return;
       }
-      if (s.seating_mode !== "free") out.push(esc(s.id) + " 예약 방식이 '" + esc(s.seating_mode) + "' 입니다 (다른 쇼는 자유석).");
+      if (s.seating_mode !== "free") out.push(nm + " 예약 방식이 '" + esc(s.seating_mode) + "' 입니다 (다른 쇼는 자유석).");
       if (hs.length > 1) {
         hs.forEach(function (h) {
           if (h.allowed_seats == null) {
-            out.push(esc(s.id) + " <b>" + esc(h.name) + "</b> 는 배정 범위가 없어 <b>전 좌석</b>을 고를 수 있습니다. 여러 참여사 쇼라면 좌석을 나눠 배정하세요.");
+            out.push(nm + " <b>" + esc(h.name) + "</b> 는 배정 범위가 없어 <b>전 좌석</b>을 고를 수 있습니다. 여러 참여사 쇼라면 좌석을 나눠 배정하세요.");
           }
         });
       }
       hs.forEach(function (h) {
-        if (h.zones && h.zones.length) out.push(esc(s.id) + " " + esc(h.name) + " 에 이전 방식의 구역 제한(" + esc(h.zones.join(",")) + ")이 남아 있습니다. '수정'에서 저장하면 해제됩니다.");
+        if (h.zones && h.zones.length) out.push(nm + " " + esc(h.name) + " 에 이전 방식의 구역 제한(" + esc(h.zones.join(",")) + ")이 남아 있습니다. '수정'에서 저장하면 해제됩니다.");
       });
     });
     // 조작 영역을 밀어내지 않게 접어둔다. 건수는 제목에 보인다.
@@ -244,8 +261,8 @@
       var hs = holdersOfBoard(s.id);
       var left = Math.max(0, s.capacity - s.locked - s.reserved);
       h.push('<button type="button" class="shw' + (s.id === showId ? " on" : "") + '" data-show="' + esc(s.id) + '">' +
-        "<b>" + esc(s.id) + " · " + esc(s.title_ko) + "</b>" +
-        "<span>" + esc(s.date.slice(5)) + " " + esc(s.start_time) + " · 참여사 " + hs.length + " · 일반 " + left + "</span></button>");
+        "<b>" + esc(showName(s.title_ko, s.lineup)) + "</b>" +
+        "<span>" + esc(showWhen(s.date, s.start_time)) + " · 참여사 " + hs.length + " · 일반 " + left + "</span></button>");
     });
     $("showList").innerHTML = h.join("");
   }
@@ -290,8 +307,8 @@
     var d = mapData, s = d.show;
     $("showBox").hidden = false;
     $("toolBox").hidden = false;
-    $("showTitle").textContent = s.id + " · " + s.titleKo;
-    $("showSub").textContent = s.date + " " + s.startTime + (s.lineup ? " · " + s.lineup : "");
+    $("showTitle").textContent = showName(s.titleKo, s.lineup);
+    $("showSub").textContent = showWhen(s.date, s.startTime);
 
     var lock = { holder: 0, staff: 0 }, allotted = 0;
     var ai = allotIndex();
@@ -423,8 +440,8 @@
 
   function renderMap() {
     var d = mapData, ai = allotIndex();
-    $("mapTitle").textContent = d.show.id + " · " + d.show.titleKo;
-    $("mapSub").textContent = d.show.date + " " + d.show.startTime;
+    $("mapTitle").textContent = showName(d.show.titleKo, d.show.lineup);
+    $("mapSub").textContent = showWhen(d.show.date, d.show.startTime);
     renderLegend();
 
     map = window.HallMap.create($("map"), {
@@ -682,7 +699,8 @@
       rows = rows || [];
       var lines = [["쇼", "패션쇼", "날짜", "시각", "참여사", "구분", "좌석", "구역", "번호", "담당자", "연락처", "마지막 저장"]];
       rows.forEach(function (r) {
-        lines.push([r.show_id, r.title_ko, r.show_date, r.start_time, r.holder_name,
+        var sh = (board.shows || []).filter(function (x) { return x.id === r.show_id; })[0];
+        lines.push([r.show_id, sh ? showName(sh.title_ko, sh.lineup) : r.title_ko, r.show_date, r.start_time, r.holder_name,
           r.kind === "univ" ? "대학" : r.kind === "brand" ? "브랜드" : "주최측",
           r.seat_id, r.zone_code, r.seat_num, r.contact_name || "", r.contact_phone || "", when(r.saved_at)]);
       });

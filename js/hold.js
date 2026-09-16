@@ -89,6 +89,22 @@
   }
   function keys(o) { return Object.keys(o).filter(function (k) { return o[k]; }); }
 
+  /* 쇼 이름은 홈페이지 스케줄표와 똑같이 쓴다.
+     연합쇼는 참여 브랜드·학교 이름이 곧 쇼 이름이다("오교 · 리온베 · 이영희 프리젠트").
+     '연합쇼 ④' 같은 번호는 내부용이라 보여주지 않는다.
+     참여 칸이 비었거나 '오프닝'인 개막식·경진대회만 행사명을 쓴다. */
+  function showName(title, lineup) {
+    var lu = String(lineup || "").trim();
+    return (!lu || lu === "오프닝") ? String(title || "") : lu;
+  }
+  var DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  /* '2026.10.30' + '10:30' → '10.30(금) 10:30' */
+  function showWhen(date, time) {
+    var p = String(date || "").split(".");
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (+p[1]) + "." + (+p[2]) + (isNaN(d) ? "" : "(" + DOW[d.getDay()] + ")") + " " + (time || "");
+  }
+
   /* 연락처 : 숫자만 받고 하이픈을 자동으로 넣는다 */
   function formatPhone(v) {
     var d = String(v || "").replace(/[^0-9]/g, "").slice(0, 11);
@@ -250,11 +266,11 @@
     computeRange();
     hasRange = !!(h.allowedSeats || h.zones);
 
-    $("showTitle").textContent = show.titleKo + (show.lineup ? " — " + show.lineup : "");
+    $("showTitle").textContent = showName(show.titleKo, show.lineup);
     $("holderName").textContent = h.name + (h.kind === "univ" ? " (대학)" : " (브랜드)");
 
     var m = [];
-    m.push('<span class="chip">일시 <b>' + esc(show.date) + " " + esc(show.startTime) + "</b></span>");
+    m.push('<span class="chip">일시 <b>' + esc(showWhen(show.date, show.startTime)) + "</b></span>");
     m.push('<span class="chip">장소 <b>' + esc(show.venue) + "</b></span>");
     m.push('<span class="chip">전체 정원 <b>' + show.capacity + "석</b></span>");
     if (hasRange) m.push('<span class="chip">고를 수 있는 좌석 <b>' + keys(inRange).length + "석</b></span>");
