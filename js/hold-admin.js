@@ -789,6 +789,19 @@
     }).catch(function () { toast("내려받지 못했습니다", true); });
   });
 
+  /* ---- 전체 백업 : 참여사·확보 좌석·이력 전부를 JSON 파일로 ---- */
+  $("backupBtn").addEventListener("click", function () {
+    rpc("hold_backup", {}).then(function (d) {
+      if (!d || !d.ok) return toast("백업하지 못했습니다", true);
+      var a = document.createElement("a");
+      var t = new Date(Date.now() + 9 * 3600 * 1000);
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: "application/json" }));
+      a.download = "BFW_사전좌석확보_백업_" + t.toISOString().slice(0, 16).replace(/[-:T]/g, "") + ".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      toast("백업 저장 — 참여사 " + d.holders.length + "곳 · 잠긴 좌석 " + d.locks.length + "석 · 이력 " + d.log.length + "건");
+    }).catch(function () { toast("백업하지 못했습니다", true); });
+  });
+
   /* ---- 이력 ---- */
   var ACT = { save: "확보 저장", restore: "되돌림", "delete": "참여사 삭제", allot: "배정 변경", reallot: "배정 이동으로 확보 해제", staff: "주최측",
               open: "창구 열림", close: "창구 닫힘" };
@@ -905,7 +918,8 @@
         title: "변경 이력과 엑셀",
         html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. <span class='k'>이 쇼 이력 보기</span>를 누르면 목록이 열리고, " +
               "참여사가 실수로 지웠다면 그 줄의 <b>직전으로</b> 버튼으로 되돌릴 수 있어요.<br><br>" +
-              "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 보관하거나 의자 라벨 인쇄에 쓰세요." },
+              "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 의자 라벨 인쇄 등에 쓰세요.<br>" +
+              "<span class='k'>전체 백업</span>은 참여사·링크·확보 좌석·이력을 모두 담은 파일입니다. <b>하루 한 번</b> 받아 두세요." },
       { el: null,
         title: "진행 순서",
         html: "<ol><li>쇼마다 <b>참여사 추가</b> → 링크 전달</li>" +
