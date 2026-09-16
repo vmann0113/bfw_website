@@ -342,6 +342,53 @@
     paintCounts();
   }
 
+  /* ---------- 사용법 안내 ---------- */
+  function tourSteps() {
+    var h = data.holder;
+    var nm = esc(h.name);
+    return [
+      { el: null,
+        title: "좌석을 미리 확보하는 화면입니다",
+        html: "<b>" + nm + "</b> 몫으로 이번 패션쇼 좌석을 미리 잡아두는 곳입니다.<br>" +
+              "여기서 확보한 좌석은 <b>일반 관람객 예약에서 빠지므로</b> 초대하신 분들이 앉으실 수 있습니다.<br><br>" +
+              "짧게 한 단계씩 안내해 드릴게요." },
+      { el: ".top",
+        title: "어떤 패션쇼인지 확인하세요",
+        html: "일시와 함께 <b>고를 수 있는 좌석 수</b>가 나옵니다." +
+              (hasRange ? " 여러 참여사가 함께하는 쇼라 <b>주최측과 협의한 범위</b>에서만 고를 수 있습니다." : "") +
+              (h.maxSeats != null ? "<br>확보 한도는 <b>" + h.maxSeats + "석</b>입니다." : "") },
+      { el: function () { return document.getElementById("tools"); },
+        title: "선택 방식은 두 가지입니다",
+        html: "<ul><li><span class='k'>구역 단위</span> 좌석 하나만 눌러도 <b>그 구역 전체</b>가 선택/해제</li>" +
+              "<li><span class='k'>좌석 단위</span> <b>누른 좌석만</b> 선택/해제</li></ul>" +
+              "예) A구역에서 뒤쪽 3자리만 일반에 공개하려면<br>→ 구역 단위로 A구역을 한 번 누르고<br>→ 좌석 단위로 바꿔 그 3자리를 누르세요.<br><br>" +
+              "고르면 <span class='k'>A 33/36</span> 처럼 구역마다 몇 석 골랐는지 보이고, 일부만 고른 구역은 노랗게 표시됩니다." },
+      { el: function () { return document.querySelector("#map .hm"); }, maxH: 360, offsetTop: 36,
+        title: "좌석 지도 보는 법",
+        html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>입니다. 칸 안 숫자가 <b>좌석번호</b>예요.<ul>" +
+              "<li><span class='sw' style='background:" + (hasRange ? "#f1f4ff;border-color:#b9c6f5" : "#fff") + "'></span>고를 수 있는 좌석</li>" +
+              "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 좌석</li>" +
+              "<li><span class='sw' style='background:#e8ebf1;border-color:#e8ebf1'></span>다른 참여사가 확보</li>" +
+              "<li><span class='sw' style='background:#efe9dc;border-color:#e6dcc6'></span>주최측 지정(내빈석 등)</li>" +
+              (hasRange ? "<li><span class='sw' style='background:#f6f7fa;border-color:#eef0f4'></span>고를 수 없는 좌석</li>" : "") +
+              "</ul>옆의 구역 글자(A~H)를 누르면 구역을 통째로 고를 수 있습니다." },
+      { el: "#formBox",
+        title: "담당자를 적어주세요",
+        html: "확보 내용을 확인할 때 연락드릴 분입니다. 좌석과 함께 저장됩니다." },
+      { el: "#bar", pad: 0,
+        title: "꼭 ‘저장’을 눌러주세요",
+        html: "<b>저장</b>을 눌러야 좌석이 실제로 확보됩니다. 확보한 좌석 수와 <b>일반 공개로 남는 좌석 수</b>가 함께 보입니다.<br><br>" +
+              "<span class='k'>되돌리기</span>는 마지막으로 저장한 상태로 돌아갑니다. 기간 안에는 몇 번이든 다시 고칠 수 있어요." },
+      { el: null,
+        title: "준비됐습니다",
+        html: "궁금하신 점은 사무국으로 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
+    ];
+  }
+  var TOUR_KEY = "bfw_tour_hold_v1";
+  $("helpBtn").addEventListener("click", function () {
+    if (data && window.HoldTour) window.HoldTour.start({ key: TOUR_KEY, steps: tourSteps() });
+  });
+
   function paintCounts() {
     var n = keys(picked).length;
     var max = data.holder.maxSeats;
@@ -446,9 +493,14 @@
         return fatal("화면을 열 수 없습니다", "잠시 후 다시 시도해 주세요.");
       }
       var msg = keepMsg ? { t: $("msg").textContent, c: $("msg").className } : null;
+      var first = !data;
       data = d;
       render();
       if (msg) { $("msg").textContent = msg.t; $("msg").className = msg.c; }
+      // 처음 들어왔을 때 한 번 자동으로 안내한다. 수정할 수 없는 기간엔 띄우지 않는다.
+      if (first && !d.holder.closed && window.HoldTour) {
+        setTimeout(function () { window.HoldTour.autoStart({ key: TOUR_KEY, steps: tourSteps() }); }, 350);
+      }
     }).catch(function () {
       fatal("연결할 수 없습니다", "통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
     });

@@ -191,7 +191,10 @@
       return loadBoard().then(function () {
         var first = (board.shows || []).filter(function (s) { return NO_RESERVATION.indexOf(s.id) < 0; })[0];
         var pick = (board.shows || []).some(function (s) { return s.id === h; }) && NO_RESERVATION.indexOf(h) < 0 ? h : (first && first.id);
-        if (pick) selectShow(pick);
+        if (pick) selectShow(pick).then(function () {
+          // 처음 들어왔을 때 한 번 자동으로 안내한다
+          if (window.HoldTour) setTimeout(function () { window.HoldTour.autoStart({ key: TOUR_KEY, steps: tourSteps() }); }, 400);
+        });
       });
     }).catch(function () { saveSession(null); showLogin("로그인이 만료되었습니다. 다시 로그인해 주세요."); });
   }
@@ -766,6 +769,75 @@
       if (!mapData || $("mainView").hidden) return;
       whenIdle().then(function () { var keep = selection.slice(); renderMap(); if (keep.length) map.setSelection(keep); });
     }, 180);
+  });
+
+  /* ================= 사용법 안내 ================= */
+  function boxOf(id) { var e = $(id); return e ? (e.closest(".box") || e) : null; }
+  function lineOf(id) { var e = $(id); return e ? (e.closest(".line") || e) : null; }
+  function tourSteps() {
+    return [
+      { el: null,
+        title: "사전 좌석 확보 관리",
+        html: "브랜드·대학이 좌석을 미리 잡도록 <b>링크를 만들어 보내고</b>, 여러 참여사가 함께하는 쇼는 <b>좌석을 나눠 주는</b> 화면입니다.<br><br>" +
+              "두 가지만 구분하시면 됩니다.<ul>" +
+              "<li><b>배정</b> — 그 참여사가 <b>고를 수 있는 범위</b> (주최측이 정함)</li>" +
+              "<li><b>확보</b> — 실제로 잡혀 <b>일반 예약에서 빠진 좌석</b> (참여사가 링크로, 또는 주최측이 직접)</li></ul>" },
+      { el: function () { return boxOf("holdPill"); },
+        title: "확보 창구 열기 · 닫기",
+        html: "창구가 <b>열려 있을 때만</b> 참여사가 링크로 좌석을 고치고 저장할 수 있습니다.<br>" +
+              "닫으면 참여사는 확보 내용을 <b>볼 수만</b> 있고, 확보된 좌석은 그대로 유지됩니다.<br><br>" +
+              "링크를 다 보낸 뒤 열고, 기간이 끝나면 닫으세요." },
+      { el: function () { return boxOf("showList"); },
+        title: "패션쇼 고르기",
+        html: "홈페이지 스케줄표와 같은 이름으로 나옵니다. 쇼마다 <b>참여사 수</b>와 <b>일반 공개 좌석 수</b>가 함께 보입니다." },
+      { el: "#kpis",
+        title: "이 쇼의 현황",
+        html: "<b>배정 · 참여사 확보 · 주최측 확보 · 일반 공개</b> 좌석 수입니다.<br><b>일반 공개</b>가 관람객이 예약할 수 있는 좌석입니다." },
+      { el: function () { var b = $("addBtn"); return b ? b.parentNode : null; },
+        title: "① 참여사를 추가하고 링크 보내기",
+        html: "<span class='k'>+ 참여사 추가</span> → 이름과 브랜드/대학을 넣으면 <b>링크가 자동으로 복사</b>됩니다.<br>" +
+              "카카오톡이나 메일로 그 참여사에게 보내시면 됩니다.<br><br>" +
+              "참여사마다 링크가 다르고, 받은 곳은 <b>자기 몫만</b> 고칠 수 있습니다. " +
+              "협업 쇼(예: 카마모에X소티에)는 <b>참여사 하나</b>로 등록하세요." },
+      { el: function () { return $("modeSeg") ? $("modeSeg").closest(".modes") : null; },
+        title: "② 지도에서 좌석 고르기",
+        html: "<ul><li><span class='k'>구역 단위</span> 좌석 하나만 눌러도 그 구역 전체</li>" +
+              "<li><span class='k'>좌석 단위</span> 누른 좌석만. <b>끌면</b> 여러 석</li></ul>" +
+              "예) A구역에서 뒤 3자리만 빼려면 → 구역 단위로 A를 한 번 → 좌석 단위로 바꿔 3자리.<br>" +
+              "구역별로 <span class='k'>A 33/36</span> 처럼 몇 석 골랐는지 보입니다." },
+      { el: "#mapPanel", maxH: 420,
+        title: "좌석 지도",
+        html: "벡스코 3B홀 모양 그대로입니다. 위가 <b>무대</b>, 가운데가 <b>런웨이</b>, 칸 안 숫자가 <b>좌석번호</b>예요(2025 배치도와 같은 번호).<ul>" +
+              "<li>연한 색 — 참여사 <b>배정</b></li><li>진한 색 — 참여사 <b>확보</b></li><li>짙은 회색 — <b>주최측 확보</b></li></ul>" +
+              "좌석에 마우스를 올리면 누구 좌석인지 나옵니다. 구역 글자(A~H)를 누르면 구역 전체가 선택됩니다." },
+      { el: function () { return lineOf("allotTo"); },
+        title: "③ 고른 좌석을 참여사에게 배정",
+        html: "참여사를 고르고 <span class='k'>배정에 추가</span>. 브랜드끼리 협의해 나눈 구역·좌석을 이렇게 나눠 줍니다.<br><br>" +
+              "다른 참여사에 이미 배정된 좌석이면 <b>옮길지 먼저 묻고</b>, 그 참여사가 이미 확보했으면 <b>한 번 더</b> 묻습니다." },
+      { el: function () { return lineOf("staffOn"); },
+        title: "주최측이 직접 확보",
+        html: "개막식 내빈석처럼 <b>링크 없이 주최측이 잡을 좌석</b>은 여기서 바로 확보합니다.<br>참여사가 이미 확보한 좌석은 건드리지 않고 건너뜁니다." },
+      { el: "#holderList",
+        title: "참여사 관리",
+        html: "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
+              "줄을 누르면 지도에서 <b>그 참여사 좌석만 강조</b>됩니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다." },
+      { el: function () { return boxOf("logBtn"); },
+        title: "변경 이력과 엑셀",
+        html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. 참여사가 실수로 지웠다면 <span class='k'>직전으로</span> 되돌릴 수 있어요.<br><br>" +
+              "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 보관하거나 의자 라벨 인쇄에 쓰세요." },
+      { el: null,
+        title: "진행 순서",
+        html: "<ol><li>쇼마다 <b>참여사 추가</b> → 링크 전달</li>" +
+              "<li>여러 참여사 쇼는 <b>좌석 배정</b></li>" +
+              "<li><b>확보 창구 열기</b></li>" +
+              "<li>기간이 끝나면 <b>창구 닫기</b></li>" +
+              "<li><b>엑셀</b> 내려받아 보관</li></ol><br>" +
+              "이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
+    ];
+  }
+  var TOUR_KEY = "bfw_tour_holdadmin_v1";
+  $("helpBtn").addEventListener("click", function () {
+    if (mapData && window.HoldTour) window.HoldTour.start({ key: TOUR_KEY, steps: tourSteps() });
   });
 
   $("reloadBtn").addEventListener("click", function () { reloadAll(true); });
