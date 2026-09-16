@@ -147,6 +147,10 @@
     });
   }
 
+  /* 연락처 — 안내문마다 누구에게 연락할지 같은 표현을 쓴다. */
+  var OFFICE = "링크를 보내드린 부산패션위크 사무국 담당자";  // 대표 번호가 정해지면 여기에 덧붙인다
+  function officeLine() { return "<b>" + OFFICE + "</b>"; }
+
   function fatal(title, body) {
     $("loading").hidden = true;
     $("main").hidden = true;
@@ -273,10 +277,6 @@
     m.push('<span class="chip">일시 <b>' + esc(showWhen(show.date, show.startTime)) + "</b></span>");
     m.push('<span class="chip">장소 <b>' + esc(show.venue) + "</b></span>");
     m.push('<span class="chip">전체 정원 <b>' + show.capacity + "석</b></span>");
-    if (hasRange) m.push('<span class="chip">고를 수 있는 좌석 <b>' + keys(inRange).length + "석</b></span>");
-    if (h.maxSeats != null) m.push('<span class="chip">확보 한도 <b>' + h.maxSeats + "석</b></span>");
-    if (h.savedAt) m.push('<span class="chip">마지막 저장 <b>' + esc(when(h.savedAt)) + "</b></span>");
-    $("meta").innerHTML = m.join("");
 
     /* 이미 확보한 좌석으로 시작. 단, 주최측이 범위를 바꿔 지금은 범위 밖인 좌석은 빼고 알린다
        (그대로 두면 저장할 때 전체가 거부되어 아무것도 저장할 수 없다). */
@@ -291,11 +291,16 @@
     // 확보한 좌석은 '고를 수 있는' 좌석이기도 하다(해제할 수 있어야 하므로)
     keys(picked).forEach(function (id) { inRange[id] = true; });
 
+    if (!h.closed) m.push('<span class="chip">고를 수 있는 좌석 <b>' + keys(inRange).length + "석</b></span>");
+    if (h.maxSeats != null) m.push('<span class="chip">확보 한도 <b>' + h.maxSeats + "석</b></span>");
+    if (h.savedAt) m.push('<span class="chip">마지막 저장 <b>' + esc(when(h.savedAt)) + "</b></span>");
+    $("meta").innerHTML = m.join("");
+
     var nt = [];
     if (h.closed) {
       nt.push('<div class="note bad"><h4>지금은 수정할 수 없습니다</h4>' +
         "사전 좌석 확보 기간이 아닙니다. 확보하신 내용은 그대로 보존되어 있으며, 아래에서 확인만 하실 수 있습니다. " +
-        "변경이 필요하시면 사무국으로 연락해 주세요.</div>");
+        "변경이 필요하시면 " + officeLine() + "에게 연락해 주세요.</div>");
     } else {
       nt.push('<div class="note info"><h4>확보하실 좌석을 골라 주세요</h4>' +
         "여기서 확보한 자리는 <b>일반 관람객 예약에서 즉시 제외</b>됩니다. 기간 안에는 몇 번이든 다시 고치실 수 있습니다." +
@@ -334,6 +339,9 @@
       $("formBox").hidden = true;
       $("saveBtn").disabled = true;
       $("resetBtn").disabled = true;
+      $("saveBtn").hidden = true;
+      $("resetBtn").hidden = true;
+      say("지금은 확인만 하실 수 있습니다", "");
     } else {
       $("cName").value = h.contactName || "";
       $("cPhone").value = h.contactPhone || "";
@@ -346,6 +354,31 @@
   function tourSteps() {
     var h = data.holder;
     var nm = esc(h.name);
+    var legend = "<ul>" +
+      "<li><span class='sw' style='background:" + (hasRange ? "#f1f4ff;border-color:#b9c6f5" : "#fff") + "'></span>고를 수 있는 좌석</li>" +
+      "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 좌석</li>" +
+      "<li><span class='sw' style='background:#e8ebf1;border-color:#e8ebf1'></span>다른 참여사가 확보</li>" +
+      "<li><span class='sw' style='background:#efe9dc;border-color:#e6dcc6'></span>주최측 지정(내빈석 등)</li>" +
+      (hasRange ? "<li><span class='sw' style='background:#f6f7fa;border-color:#eef0f4'></span>고를 수 없는 좌석</li>" : "") +
+      "</ul>";
+
+    // 창구가 닫힌 기간 : 고치는 기능은 화면에 없으므로 그 설명은 하지 않는다
+    if (h.closed) {
+      return [
+        { el: null,
+          title: "지금은 확인만 하실 수 있습니다",
+          html: "<b>" + nm + "</b> 몫으로 확보된 좌석을 보여드리는 화면입니다.<br>" +
+                "지금은 <b>좌석 확보 기간이 아니라</b> 고치거나 저장할 수 없습니다. 변경이 필요하시면 " + officeLine() + "에게 연락해 주세요." },
+        { el: ".top", title: "어떤 패션쇼인지 확인하세요",
+          html: "일시와 마지막으로 저장한 시각이 나옵니다." },
+        { el: function () { return document.querySelector("#map .hm"); }, maxH: 360, offsetTop: 36,
+          title: "좌석 지도 보는 법",
+          html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>, 칸 안 숫자가 <b>좌석번호</b>입니다." + legend },
+        { el: null, title: "안내를 마칩니다",
+          html: "이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 다시 볼 수 있습니다." }
+      ];
+    }
+
     return [
       { el: null,
         title: "좌석을 미리 확보하는 화면입니다",
@@ -357,6 +390,10 @@
         html: "일시와 함께 <b>고를 수 있는 좌석 수</b>가 나옵니다." +
               (hasRange ? " 여러 참여사가 함께하는 쇼라 <b>주최측과 협의한 범위</b>에서만 고를 수 있습니다." : "") +
               (h.maxSeats != null ? "<br>확보 한도는 <b>" + h.maxSeats + "석</b>입니다." : "") },
+      { el: "#formBox",
+        title: "먼저 담당자를 적어주세요",
+        html: "확보 내용을 확인할 때 연락드릴 분입니다. <b>이름과 연락처가 없으면 저장되지 않습니다.</b><br>" +
+              "연락처는 숫자만 누르시면 하이픈이 자동으로 들어갑니다." },
       { el: function () { return document.getElementById("tools"); },
         title: "선택 방식은 두 가지입니다",
         html: "<ul><li><span class='k'>구역 단위</span> 좌석 하나만 눌러도 <b>그 구역 전체</b>가 선택/해제</li>" +
@@ -365,23 +402,15 @@
               "고르면 <span class='k'>A 33/36</span> 처럼 구역마다 몇 석 골랐는지 보이고, 일부만 고른 구역은 노랗게 표시됩니다." },
       { el: function () { return document.querySelector("#map .hm"); }, maxH: 360, offsetTop: 36,
         title: "좌석 지도 보는 법",
-        html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>입니다. 칸 안 숫자가 <b>좌석번호</b>예요.<ul>" +
-              "<li><span class='sw' style='background:" + (hasRange ? "#f1f4ff;border-color:#b9c6f5" : "#fff") + "'></span>고를 수 있는 좌석</li>" +
-              "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 좌석</li>" +
-              "<li><span class='sw' style='background:#e8ebf1;border-color:#e8ebf1'></span>다른 참여사가 확보</li>" +
-              "<li><span class='sw' style='background:#efe9dc;border-color:#e6dcc6'></span>주최측 지정(내빈석 등)</li>" +
-              (hasRange ? "<li><span class='sw' style='background:#f6f7fa;border-color:#eef0f4'></span>고를 수 없는 좌석</li>" : "") +
-              "</ul>옆의 구역 글자(A~H)를 누르면 구역을 통째로 고를 수 있습니다." },
-      { el: "#formBox",
-        title: "담당자를 적어주세요",
-        html: "확보 내용을 확인할 때 연락드릴 분입니다. 좌석과 함께 저장됩니다." },
+        html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>입니다. 칸 안 숫자가 <b>좌석번호</b>예요." + legend +
+              "옆의 구역 글자(A~H)를 누르면 구역을 통째로 고를 수 있습니다." },
       { el: "#bar", pad: 0,
         title: "꼭 ‘저장’을 눌러주세요",
         html: "<b>저장</b>을 눌러야 좌석이 실제로 확보됩니다. 확보한 좌석 수와 <b>일반 공개로 남는 좌석 수</b>가 함께 보입니다.<br><br>" +
               "<span class='k'>되돌리기</span>는 마지막으로 저장한 상태로 돌아갑니다. 기간 안에는 몇 번이든 다시 고칠 수 있어요." },
       { el: null,
         title: "준비됐습니다",
-        html: "궁금하신 점은 사무국으로 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
+        html: "궁금하신 점은 " + officeLine() + "에게 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
     ];
   }
   var TOUR_KEY = "bfw_tour_hold_v1";
@@ -421,7 +450,7 @@
 
   var REASON = {
     badtoken:   "링크가 올바르지 않습니다. 사무국에서 받은 주소를 다시 확인해 주세요.",
-    closed:     "사전 좌석 확보 기간이 아닙니다. 사무국으로 연락해 주세요.",
+    closed:     "사전 좌석 확보 기간이 아닙니다. " + OFFICE + "에게 연락해 주세요.",
     overmax:    "확보 한도를 넘었습니다.",
     badzone:    "선택할 수 없는 구역이 포함되어 있습니다. 화면을 새로 불러왔습니다.",
     notallowed: "배정 범위 밖 좌석이 포함되어 있습니다. 주최측이 범위를 바꿨을 수 있어 화면을 새로 불러왔습니다.",
@@ -430,8 +459,28 @@
     occupied:   "고르신 자리 중 일부는 이미 관람객이 예약했습니다. 화면을 새로 불러왔습니다."
   };
 
+  /* 담당자 이름·연락처가 없으면 저장하지 않는다. 주최측이 확보 내용을 두고
+     연락할 사람이 있어야 한다. 비어 있는 칸으로 데려가 알려준다. */
+  function checkContact() {
+    var nEl = $("cName"), pEl = $("cPhone");
+    var nOk = nEl.value.trim().length > 0;
+    var pOk = pEl.value.replace(/[^0-9]/g, "").length >= 9;
+    nEl.classList.toggle("bad", !nOk);
+    pEl.classList.toggle("bad", !pOk);
+    if (nOk && pOk) return true;
+    var first = !nOk ? nEl : pEl;
+    $("formBox").scrollIntoView({ block: "center", behavior: "smooth" });
+    setTimeout(function () { first.focus({ preventScroll: true }); }, 250);
+    say(!nOk ? "담당자 이름을 적어주세요" : "담당자 연락처를 정확히 적어주세요", "err");
+    return false;
+  }
+  ["cName", "cPhone"].forEach(function (id) {
+    $(id).addEventListener("input", function () { $(id).classList.remove("bad"); });
+  });
+
   $("saveBtn").addEventListener("click", function () {
     if (busy) return;
+    if (!checkContact()) return;
     busy = true;
     $("saveBtn").disabled = true;
     say("저장 중…", "");
