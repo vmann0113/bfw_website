@@ -148,8 +148,11 @@
   }
 
   /* 연락처 — 안내문마다 누구에게 연락할지 같은 표현을 쓴다. */
-  var OFFICE = "링크를 보내드린 부산패션위크 사무국 담당자";  // 대표 번호가 정해지면 여기에 덧붙인다
-  function officeLine() { return "<b>" + OFFICE + "</b>"; }
+  var OFFICE_MAIL = "btfa@fashioncity.or.kr";  // 홈페이지 하단 사무국 메일과 같게
+  var OFFICE = "부산패션위크 사무국(" + OFFICE_MAIL + ")";
+  function officeLine() {
+    return "<b>부산패션위크 사무국</b>(<a href=\"mailto:" + OFFICE_MAIL + "\">" + OFFICE_MAIL + "</a>)";
+  }
 
   function fatal(title, body) {
     $("loading").hidden = true;
@@ -300,7 +303,7 @@
     if (h.closed) {
       nt.push('<div class="note bad"><h4>지금은 수정할 수 없습니다</h4>' +
         "사전 좌석 확보 기간이 아닙니다. 확보하신 내용은 그대로 보존되어 있으며, 아래에서 확인만 하실 수 있습니다. " +
-        "변경이 필요하시면 " + officeLine() + "에게 연락해 주세요.</div>");
+        "변경이 필요하시면 " + officeLine() + "으로 연락해 주세요.</div>");
     } else {
       nt.push('<div class="note info"><h4>확보하실 좌석을 골라 주세요</h4>' +
         "여기서 확보한 자리는 <b>일반 관람객 예약에서 즉시 제외</b>됩니다. 기간 안에는 몇 번이든 다시 고치실 수 있습니다." +
@@ -368,7 +371,7 @@
         { el: null,
           title: "지금은 확인만 하실 수 있습니다",
           html: "<b>" + nm + "</b> 몫으로 확보된 좌석을 보여드리는 화면입니다.<br>" +
-                "지금은 <b>좌석 확보 기간이 아니라</b> 고치거나 저장할 수 없습니다. 변경이 필요하시면 " + officeLine() + "에게 연락해 주세요." },
+                "지금은 <b>좌석 확보 기간이 아니라</b> 고치거나 저장할 수 없습니다. 변경이 필요하시면 " + officeLine() + "으로 연락해 주세요." },
         { el: ".top", title: "어떤 패션쇼인지 확인하세요",
           html: "일시와 마지막으로 저장한 시각이 나옵니다." },
         { el: function () { return document.querySelector("#map .hm"); }, maxH: 360, offsetTop: 36,
@@ -410,7 +413,7 @@
               "<span class='k'>되돌리기</span>는 마지막으로 저장한 상태로 돌아갑니다. 기간 안에는 몇 번이든 다시 고칠 수 있어요." },
       { el: null,
         title: "준비됐습니다",
-        html: "궁금하신 점은 " + officeLine() + "에게 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
+        html: "궁금하신 점은 " + officeLine() + "으로 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
     ];
   }
   var TOUR_KEY = "bfw_tour_hold_v1";
@@ -450,7 +453,7 @@
 
   var REASON = {
     badtoken:   "링크가 올바르지 않습니다. 사무국에서 받은 주소를 다시 확인해 주세요.",
-    closed:     "사전 좌석 확보 기간이 아닙니다. " + OFFICE + "에게 연락해 주세요.",
+    closed:     "사전 좌석 확보 기간이 아닙니다. " + OFFICE + "으로 연락해 주세요.",
     overmax:    "확보 한도를 넘었습니다.",
     badzone:    "선택할 수 없는 구역이 포함되어 있습니다. 화면을 새로 불러왔습니다.",
     notallowed: "배정 범위 밖 좌석이 포함되어 있습니다. 주최측이 범위를 바꿨을 수 있어 화면을 새로 불러왔습니다.",
