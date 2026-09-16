@@ -92,6 +92,11 @@
   .pill i{width:7px;height:7px;border-radius:50%;display:inline-block}
   .pill.on{background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok)} .pill.on i{background:var(--ok)}
   .pill.off{background:var(--paper-2);border-color:var(--line);color:var(--ink-mute)} .pill.off i{background:#aab1c4}
+  .pill.sm{padding:1px 7px;font-size:.66rem;gap:4px;vertical-align:1px;margin-left:6px}
+  .pill.sm i{width:6px;height:6px}
+  .bulk{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .btn.go{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700}
+  .btn.go:hover:not(:disabled){background:#17613c;color:#fff}
 
   /* 쇼 목록 */
   .shows{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:8px}
@@ -212,10 +217,13 @@
         <div class="sw">
           <h2>확보 창구</h2>
           <span class="pill off" id="holdPill"><i></i><span>—</span></span>
-          <span style="margin-left:auto"></span>
-          <button class="btn pri" id="holdToggle" type="button">—</button>
         </div>
         <div class="sub" id="holdDesc" style="margin-top:6px"></div>
+        <div class="bulk">
+          <button class="btn sm go" id="openBrand" type="button">브랜드 모두 열기</button>
+          <button class="btn sm go" id="openUniv" type="button">대학 모두 열기</button>
+          <button class="btn sm bad" id="closeAll" type="button">모두 닫기</button>
+        </div>
       </div>
 
       <div class="box">
@@ -295,6 +303,6 @@
 
 <script src="js/hall-map.js?v=20260917e"></script>
 <script src="js/hold-tour.js?v=20260918b"></script>
-<script src="js/hold-admin.js?v=20260918b"></script>
+<script src="js/hold-admin.js?v=20260918c"></script>
 </body>
 </html>

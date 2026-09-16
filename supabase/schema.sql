@@ -320,9 +320,8 @@ language sql stable security definer set search_path = public as $fn$
   select coalesce((select press_open from public.app_settings where id), false);
 $fn$;
 
--- 사전 좌석 확보 창구를 열어둘지. 브랜드·학교에게 링크를 뿌리는 기간에만 켠다.
---   열 때  :  update public.app_settings set holds_open = true;
---   닫을 때:  update public.app_settings set holds_open = false;
+-- (예전) 사전 좌석 확보 창구 전체 스위치. 지금은 창구를 참여사마다 따로 연다
+-- (seat_holders.is_open, holder_open_set). 이 값은 더 이상 열고 닫는 데 쓰지 않는다.
 create or replace function public.holds_open() returns boolean
 language sql stable security definer set search_path = public as $fn$
   select coalesce((select holds_open from public.app_settings where id), false);
@@ -996,6 +995,12 @@ alter table public.seat_holders enable row level security;  -- 정책 없음 = �
 --   null = 제한 없음(전 좌석) / '{}' = 아무 좌석도 고를 수 없음
 alter table public.seat_holders add column if not exists allowed_seats text[];
 
+-- 창구는 참여사마다 따로 연다. 브랜드와 대학의 확보 기간이 다르기 때문.
+--   false(기본) = 링크로 볼 수만 있음 / true = 고르고 저장할 수 있음
+-- 새로 추가한 참여사는 닫힌 채로 시작한다. 주최측이 '열기'를 눌러야 열린다.
+alter table public.seat_holders add column if not exists is_open   boolean not null default false;
+alter table public.seat_holders add column if not exists opened_at timestamptz;  -- 마지막으로 열거나 닫은 시각
+
 -- ---- 저장 이력 (덧붙이기만 한다. 지우거나 고치지 않는다) ----
 --  저장할 때마다 '바꾸기 전'과 '바꾼 후'의 좌석 목록을 통째로 남긴다.
 --  브랜드가 실수로 전부 지웠거나, 누가 언제 무엇을 바꿨는지 따져야 할 때
@@ -1064,7 +1069,7 @@ begin
       'name', h.name, 'kind', h.kind,
       'maxSeats', h.max_seats, 'zones', h.zones, 'allowedSeats', h.allowed_seats,
       'closeAt', v_close,
-      'closed', (not public.holds_open()) or (v_close is not null and now() >= v_close),
+      'closed', (not h.is_open) or (v_close is not null and now() >= v_close),
       'contactName', h.contact_name, 'contactPhone', h.contact_phone,
       'savedAt', h.saved_at),
     'show', json_build_object(
@@ -1102,7 +1107,9 @@ begin
 
   -- 같은 쇼에 여러 참여사가 동시에 저장할 수 있다. 쇼 행을 잠가 순서를 만든다.
   select * into v_show from shows where id = h.show_id for update;
-  if not public.holds_open() then
+  -- 창구 상태는 쇼를 잠근 '뒤에' 다시 읽는다. 화면을 연 사이 주최측이 닫았을 수 있다.
+  select * into h from seat_holders where id = h.id;
+  if not found or not h.is_open then
     return json_build_object('ok', false, 'reason', 'closed');
   end if;
   v_close := h.close_at;
@@ -1327,15 +1334,68 @@ returns table (
    order by s.sort, coalesce(h.name, ''), se.zone_code, se.num
 $fn$;
 
--- ---- 확보 창구 켜기/끄기 (스태프 전용) ----
+-- ---- 창구 열기/닫기 : 참여사별 (스태프 전용) ----
+--  p_ids  : 이 참여사들만. null 이면 아래 조건에 맞는 참여사 전부
+--  p_kind : 'brand' | 'univ' | null(전부)   — p_ids 가 null 일 때만 쓴다
+--  바뀐 참여사마다 이력에 'open' / 'close' 로 남긴다.
+--  돌려주는 holders 는 저장된 뒤 데이터베이스에서 다시 읽은 실제 상태다.
+create or replace function public.holder_open_set(p_ids uuid[], p_open boolean, p_kind text default null)
+returns json language plpgsql security definer set search_path = public as $fn$
+declare
+  v_open boolean := coalesce(p_open, false);
+  v_ids  uuid[];
+begin
+  if not public.is_staff() then
+    return json_build_object('ok', false, 'reason', 'forbidden');
+  end if;
+  if p_kind is not null and p_kind not in ('brand', 'univ') then
+    return json_build_object('ok', false, 'reason', 'badkind');
+  end if;
+
+  with t as (
+    update seat_holders h
+       set is_open = v_open, opened_at = now()
+     where h.is_open is distinct from v_open
+       and (case when p_ids is not null then h.id = any(p_ids)
+                 else (p_kind is null or h.kind = p_kind) end)
+    returning h.id, h.show_id, h.name, h.contact_name, h.contact_phone
+  ), l as (
+    insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                               prev_seat_ids, seat_ids, prev_count, seat_count,
+                               contact_name, contact_phone, note)
+    select t.id, t.show_id, t.name, case when v_open then 'open' else 'close' end,
+           cur.ids, cur.ids, cardinality(cur.ids), cardinality(cur.ids),
+           t.contact_name, t.contact_phone,
+           case when v_open then '창구 열림' else '창구 닫힘' end
+      from t
+      cross join lateral (
+        select coalesce(array_agg(seat_id order by seat_id), '{}') as ids
+          from show_seat_locks where holder_id = t.id) cur
+    returning holder_id
+  )
+  select coalesce(array_agg(holder_id), '{}') into v_ids from l;
+
+  return json_build_object(
+    'ok', true,
+    'changed', cardinality(v_ids),
+    'holders', (select coalesce(json_agg(json_build_object('id', h.id, 'name', h.name, 'isOpen', h.is_open)), '[]'::json)
+                  from seat_holders h
+                 where (case when p_ids is not null then h.id = any(p_ids)
+                             else (p_kind is null or h.kind = p_kind) end))
+  );
+end $fn$;
+
+-- (예전) 전체 스위치. 호환을 위해 남기되, 이제는 '참여사 전부 열기/닫기'와 같다.
 create or replace function public.holds_set_open(p_open boolean)
 returns json language plpgsql security definer set search_path = public as $fn$
+declare r json;
 begin
   if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   update app_settings set holds_open = coalesce(p_open, false), updated_at = now() where id;
-  return json_build_object('ok', true, 'holdsOpen', public.holds_open());
+  r := public.holder_open_set(null, p_open, null);
+  return json_build_object('ok', true, 'changed', r->'changed');
 end $fn$;
 
 -- ---- 주최측 현황판 (스태프 전용) ----
@@ -1361,6 +1421,7 @@ begin
          from shows s) x),
     'holders', (select coalesce(json_agg(y order by y.show_id, y.name), '[]'::json) from (
        select h.id, h.show_id, h.name, h.kind, h.max_seats, h.zones, h.token, h.allowed_seats,
+              h.is_open, h.opened_at,
               (select count(*) from show_seat_locks l where l.holder_id = h.id) as held,
               h.contact_name, h.contact_phone, h.saved_at, h.created_at
          from seat_holders h) y)
@@ -1430,6 +1491,7 @@ begin
     'holders', (select coalesce(json_agg(json_build_object(
                 'id', h.id, 'name', h.name, 'kind', h.kind, 'maxSeats', h.max_seats,
                 'token', h.token, 'allowedSeats', h.allowed_seats,
+                'isOpen', h.is_open, 'openedAt', h.opened_at,
                 'held', (select count(*) from show_seat_locks l where l.holder_id = h.id),
                 'contactName', h.contact_name, 'contactPhone', h.contact_phone,
                 'savedAt', h.saved_at, 'createdAt', h.created_at)
@@ -1704,6 +1766,7 @@ revoke all on function
   public.hold_restore(bigint,text),
   public.hold_export(),
   public.holds_set_open(boolean),
+  public.holder_open_set(uuid[],boolean,text),
   public.holds_board(),
   public.holder_delete(uuid),
   public.is_staff(),
@@ -1744,6 +1807,7 @@ grant execute on function public.hold_log(text,int)            to authenticated;
 grant execute on function public.hold_restore(bigint,text)     to authenticated;
 grant execute on function public.hold_export()                 to authenticated;
 grant execute on function public.holds_set_open(boolean)       to authenticated;
+grant execute on function public.holder_open_set(uuid[],boolean,text) to authenticated;
 grant execute on function public.holds_board()                 to authenticated;
 grant execute on function public.holder_delete(uuid)           to authenticated;
 grant execute on function public.holds_show_map(text)          to authenticated;
