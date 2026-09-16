@@ -371,22 +371,62 @@
     $("holderList").innerHTML = h.join("");
   }
 
+  /* 참여사 후보 = 스케줄표의 참여 칸(lineup)을 ' · ' 로 나눈 이름.
+     협업(카마모에X소티에)은 이미 한 덩어리라 그대로 한 참여사가 된다.
+     해외브랜드는 주최측이 잡으므로 뺀다. 이미 추가한 이름도 뺀다. */
+  var CUSTOM = "__custom";
+  function guessKind(name) { return /대학교|대학|국립대|대$/.test(name) ? "univ" : "brand"; }
+  function lineupCandidates() {
+    var s = mapData.show, taken = {};
+    mapData.holders.forEach(function (h) { taken[h.name] = true; });
+    var lu = String(s.lineup || "").trim();
+    if (!lu || lu === "오프닝") return [];
+    return lu.split("·").map(function (x) { return x.trim(); }).filter(function (x) {
+      return x && !/해외브랜드/.test(x) && !taken[x];
+    });
+  }
+
   function renderForm() {
     if (!editing) { $("formBox").innerHTML = ""; return; }
     var e = editing;
+    var nameCell;
+    if (e.holderId) {
+      nameCell = '<div><label>참여사 이름</label><input type="text" id="fName" value="' + esc(e.name) + '" disabled /></div>';
+    } else {
+      var cands = lineupCandidates();
+      nameCell = '<div><label>참여사</label><select id="fPick">' +
+        cands.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("") +
+        '<option value="' + CUSTOM + '">직접 입력…</option></select>' +
+        '<input type="text" id="fName" style="margin-top:6px" placeholder="스케줄표에 없는 이름"' + (cands.length ? " hidden" : "") + " /></div>";
+      if (cands.length) e.kind = guessKind(cands[0]);
+    }
     $("formBox").innerHTML = '<div class="form">' +
       '<div class="row">' +
-        '<div><label>참여사 이름</label><input type="text" id="fName" value="' + esc(e.name) + '"' + (e.holderId ? " disabled" : "") + ' placeholder="메르최 / 카마모에X소티에" /></div>' +
+        nameCell +
         '<div><label>구분</label><select id="fKind"><option value="brand"' + (e.kind === "brand" ? " selected" : "") + '>브랜드</option><option value="univ"' + (e.kind === "univ" ? " selected" : "") + '>대학</option></select></div>' +
         '<div><label>확보 한도(선택)</label><input type="number" id="fMax" min="1" max="300" value="' + (e.max != null ? e.max : "") + '" placeholder="없음" /></div>' +
       "</div>" +
-      (e.holderId ? "" : '<div class="sub" style="margin-top:6px">협업 쇼(예: 카마모에X소티에)는 참여사 하나로 등록하세요. 추가한 뒤 지도에서 좌석을 골라 배정합니다.</div>') +
+      (e.holderId ? "" : '<div class="sub" style="margin-top:6px">' +
+        (lineupCandidates().length
+          ? "홈페이지 스케줄표에 적힌 이 쇼의 참여사 중 아직 추가하지 않은 곳만 나옵니다. 구분(브랜드/대학)은 자동으로 골라지니 확인만 하세요."
+          : "이 쇼의 스케줄표 참여사는 모두 추가했습니다. 다른 이름이 필요하면 직접 입력하세요.") + "</div>") +
       '<div class="foot"><span id="fMsg" class="sub"></span>' +
         '<button class="btn sm" data-act="cancel" type="button">취소</button>' +
         '<button class="btn sm pri" data-act="save" type="button">' + (e.holderId ? "저장" : "추가하고 링크 만들기") + "</button>" +
       "</div></div>";
-    var n = $("fName"); if (n && !e.holderId) n.focus();
+    var pk = $("fPick");
+    if (pk) {
+      if (pk.value === CUSTOM) $("fName").focus(); else pk.focus();
+    }
   }
+  // 고른 참여사에 맞춰 구분을 바꾸고, '직접 입력'일 때만 이름 칸을 보여준다
+  document.addEventListener("change", function (ev) {
+    if (!ev.target || ev.target.id !== "fPick") return;
+    var v = ev.target.value, n = $("fName");
+    n.hidden = v !== CUSTOM;
+    if (v === CUSTOM) { n.value = ""; n.focus(); }
+    else $("fKind").value = guessKind(v);
+  });
 
   function renderTool() {
     var d = mapData, cur = $("allotTo").value;
@@ -587,12 +627,14 @@
 
   function saveHolder() {
     var e = editing;
-    var name = e.holderId ? e.name : ($("fName").value || "").trim();
+    var pick = $("fPick");
+    var name = e.holderId ? e.name
+      : (pick && pick.value !== CUSTOM ? pick.value : ($("fName").value || "")).trim();
     var kind = $("fKind").value;
     var mx = $("fMax").value === "" ? null : parseInt($("fMax").value, 10);
     var msg = $("fMsg");
     function err(t) { msg.textContent = t; msg.style.color = "var(--bad)"; }
-    if (!name) return err("이름을 입력하세요");
+    if (!name) return err("참여사 이름을 입력하세요");
     if (mx != null && (isNaN(mx) || mx < 1 || mx > 300)) return err("한도는 1~300");
     if (!e.holderId && mapData.holders.some(function (h) { return h.name === name; })) return err("같은 이름이 이미 있습니다");
     msg.textContent = "저장 중…"; msg.style.color = "";
@@ -826,7 +868,8 @@
         html: "<b>배정 · 참여사 확보 · 주최측 확보 · 일반 공개</b> 좌석 수입니다.<br><b>일반 공개</b>가 관람객이 예약할 수 있는 좌석입니다." },
       { el: function () { var b = $("addBtn"); return b ? b.parentNode : null; },
         title: "① 참여사를 추가하고 링크 보내기",
-        html: "<span class='k'>+ 참여사 추가</span> → 이름과 브랜드/대학을 넣으면 <b>링크가 자동으로 복사</b>됩니다.<br>" +
+        html: "<span class='k'>+ 참여사 추가</span> → 목록에서 참여사를 고르면 <b>링크가 자동으로 복사</b>됩니다. " +
+              "목록은 홈페이지 스케줄표에 적힌 이 쇼의 참여사라 이름을 칠 필요가 없습니다.<br>" +
               "카카오톡이나 메일로 그 참여사에게 보내시면 됩니다.<br><br>" +
               "참여사마다 링크가 다르고, 받은 곳은 <b>자기 몫만</b> 고칠 수 있습니다. " +
               "협업 쇼(예: 카마모에X소티에)는 <b>참여사 하나</b>로 등록하세요." },
