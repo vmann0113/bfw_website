@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사전 좌석 확보 | 부산패션위크 2026</title>
+<!-- 참여사에게만 보내는 링크다. 검색에 걸리면 안 된다. -->
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#0a1a4a" />
+<link rel="icon" href="images/favicon.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  /* 이 화면 전용 스타일. css/styles.css 를 건드리지 않아 다른 페이지에 영향이 없다. */
+  :root{
+    --ink:#1b2340; --ink-mute:#6b7490; --line:#e3e7ef;
+    --paper:#fff; --paper-2:#f6f8fc;
+    --navy:#0b2e9e; --navy-soft:#eef2ff;
+    --warn:#8a5300; --warn-soft:#fff7e8;
+    --bad:#b3261e; --bad-soft:#fdeceb;
+    --ok:#1f7a4d; --ok-soft:#e9f7f0;
+    --mono:"Space Mono",ui-monospace,monospace;
+    --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);-webkit-text-size-adjust:100%}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 16px 200px}
+
+  .top{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 18px;
+       box-shadow:0 1px 3px rgba(20,35,90,.05)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
+  .top h1{margin:8px 0 2px;font-size:1.3rem;line-height:1.35;font-weight:800}
+  .top .who{font-size:1.02rem;color:var(--ink-mute);margin-top:6px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{font-size:.8rem;padding:5px 10px;border-radius:999px;background:var(--paper-2);border:1px solid var(--line);color:var(--ink-mute)}
+  .chip b{color:var(--ink);font-weight:700}
+
+  .note{border-radius:12px;padding:14px 16px;margin-top:14px;font-size:.9rem;line-height:1.65}
+  .note.info{background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
+  .note.warn{background:var(--warn-soft);border:1px solid #f2e0bb;color:#7a4b00}
+  .note.bad{background:var(--bad-soft);border:1px solid #f6cfcb;color:#8f261c}
+  .note h4{margin:0 0 6px;font-size:.94rem}
+
+  .board{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 12px}
+  .tools{max-width:420px;margin:0 auto 14px}
+  .modes{display:flex;align-items:center;justify-content:center;gap:10px}
+  .modes .lab{font-size:.84rem;color:var(--ink-mute)}
+  .seg{display:inline-flex;border:1px solid #c9d3f3;border-radius:10px;overflow:hidden;background:#fff}
+  .seg button{padding:9px 16px;border:0;background:transparent;font-size:.9rem;color:var(--ink-mute);cursor:pointer;font-weight:600;font-family:var(--kr)}
+  .seg button+button{border-left:1px solid #c9d3f3}
+  .seg button.on{background:var(--navy);color:#fff}
+  .modehint{font-size:.82rem;color:#3a4a86;text-align:center;margin-top:8px;line-height:1.55}
+  .zsum{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin-top:10px}
+  .zsum span{font-size:.76rem;font-family:var(--mono);padding:3px 8px;border-radius:6px;background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
+  .zsum span.part{border-color:#f2c48a;background:#fff7e8;color:#8a5300}
+  .mapbox{display:flex;justify-content:center}
+  .legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 14px;margin-top:16px;font-size:.78rem;color:var(--ink-mute)}
+  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid #d5dae5;vertical-align:-3px;margin-right:5px}
+
+  .form{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .form h3{margin:0 0 4px;font-size:1rem}
+  .form p.sub{margin:0 0 14px;font-size:.85rem;color:var(--ink-mute)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label{display:block;font-size:.8rem;color:var(--ink-mute);margin-bottom:5px}
+  input[type=text],input[type=tel]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:var(--kr);font-size:.95rem;background:var(--paper)}
+  input:focus{outline:none;border-color:var(--navy)}
+
+  .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);backdrop-filter:blur(8px);z-index:20}
+  .bar .in{max-width:880px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bar .n{font-size:.92rem}
+  .bar .n b{font-family:var(--mono);font-size:1.16rem}
+  .bar .n .sep{color:var(--line);margin:0 8px}
+  .bar .acts{margin-left:auto;display:flex;gap:8px}
+  .save{padding:12px 22px;border-radius:10px;border:0;background:var(--navy);color:#fff;font-family:var(--kr);font-size:.96rem;font-weight:700;cursor:pointer}
+  .save:disabled{background:#aeb6c9;cursor:not-allowed}
+  .ghost{padding:12px 16px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink-mute);font-family:var(--kr);font-size:.9rem;cursor:pointer}
+  .ghost:disabled{opacity:.45;cursor:not-allowed}
+
+  .msg{font-size:.86rem}
+  .msg.err{color:var(--bad);font-weight:600}
+  .msg.ok{color:var(--ok);font-weight:600}
+  .loading{text-align:center;padding:70px 20px;color:var(--ink-mute)}
+
+  @media (max-width:640px){
+    .wrap{padding:16px 12px 220px}
+    .board{padding:14px 4px}
+    .row{grid-template-columns:1fr}
+    .bar .in{gap:8px}
+    .bar .n{width:100%}
+    .bar .msg{width:100%}
+    .bar .acts{width:100%;margin-left:0}
+    .bar .acts button{flex:1}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="wrap">
+  <div class="loading" id="loading">불러오는 중…</div>
+  <div id="main" hidden>
+
+    <div class="top">
+      <div class="eyebrow">2026 부산패션위크 · 사전 좌석 확보</div>
+      <h1 id="showTitle">—</h1>
+      <div class="who" id="holderName">—</div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div id="notices"></div>
+
+    <div class="board">
+      <div class="tools" id="tools">
+        <div class="modes">
+          <span class="lab">선택 방식</span>
+          <div class="seg" id="modeSeg">
+            <button type="button" data-mode="zone">구역 단위</button>
+            <button type="button" data-mode="seat">좌석 단위</button>
+          </div>
+        </div>
+        <div class="modehint" id="modeHint"></div>
+        <div class="zsum" id="zoneSum"></div>
+      </div>
+      <div class="mapbox" id="map"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="form" id="formBox">
+      <h3>담당자</h3>
+      <p class="sub">확보 내용을 확인할 때 연락드릴 분입니다. 좌석과 함께 저장됩니다.</p>
+      <div class="row">
+        <div>
+          <label for="cName">담당자 이름</label>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" />
+        </div>
+        <div>
+          <label for="cPhone">연락처</label>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" autocomplete="tel" />
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="bar" id="bar" hidden>
+  <div class="in">
+    <div class="n">
+      확보 <b id="nMine">0</b><span id="nMax"></span>
+      <span class="sep">·</span>
+      일반 공개 <b id="nPublic">—</b>석
+    </div>
+    <span class="msg" id="msg"></span>
+    <div class="acts">
+      <button class="ghost" id="resetBtn" type="button">되돌리기</button>
+      <button class="save" id="saveBtn" type="button">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 버전 표시 : vercel.json 이 js 를 1시간 캐시한다. 확보 기간 중 수정하면
+     참여사가 옛 화면을 쓰게 되므로, 고칠 때마다 v= 값을 올린다. -->
+<script src="js/hall-map.js?v=20260917e"></script>
+<script src="js/hold.js?v=20260917f"></script>
+</body>
+</html>

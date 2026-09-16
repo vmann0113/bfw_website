@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>사전 좌석 확보 관리 | 부산패션위크 2026</title>
+<meta name="robots" content="noindex, nofollow" />
+<meta name="theme-color" content="#0a1a4a" />
+<link rel="icon" href="images/favicon.png" type="image/png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  /* 이 화면 전용. css/styles.css 와 admin.html 을 건드리지 않는다. */
+  :root{
+    --ink:#1b2340; --ink-mute:#6b7490; --line:#e3e7ef;
+    --paper:#fff; --paper-2:#f6f8fc;
+    --navy:#0b2e9e; --navy-soft:#eef2ff;
+    --warn:#8a5300; --warn-soft:#fff7e8; --warn-line:#f2e0bb;
+    --bad:#b3261e; --bad-soft:#fdeceb; --bad-line:#f6cfcb;
+    --ok:#1f7a4d; --ok-soft:#e9f7f0; --ok-line:#c9e8d8;
+    --mono:"Space Mono",ui-monospace,monospace;
+    --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);font-size:14px;
+       -webkit-text-size-adjust:100%}
+  button,input,select{font-family:var(--kr)}
+
+  .eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--navy)}
+  h1{margin:4px 0 0;font-size:1.22rem;font-weight:800}
+  h2{margin:0;font-size:.98rem;font-weight:800}
+  .sub{color:var(--ink-mute);font-size:.82rem}
+  .mono{font-family:var(--mono)}
+
+  .btn{padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--paper);
+       color:var(--ink);font-size:.84rem;cursor:pointer;white-space:nowrap}
+  .btn:hover:not(:disabled){border-color:var(--navy);color:var(--navy)}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+  .btn.pri{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:700}
+  .btn.pri:hover:not(:disabled){background:#0a2887;color:#fff}
+  .btn.bad{color:var(--bad);border-color:var(--bad-line)}
+  .btn.bad:hover:not(:disabled){background:var(--bad-soft);color:var(--bad)}
+  .btn.dark{background:#3b3f4a;border-color:#3b3f4a;color:#fff}
+  .btn.dark:hover:not(:disabled){background:#23262e;color:#fff}
+  .btn.sm{padding:4px 8px;font-size:.76rem;border-radius:7px}
+
+  input[type=text],input[type=email],input[type=password],input[type=number],select{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.88rem;background:var(--paper)}
+  input:focus,select:focus{outline:none;border-color:var(--navy)}
+  label{display:block;font-size:.74rem;color:var(--ink-mute);margin-bottom:4px}
+
+  .note{border-radius:10px;padding:10px 12px;font-size:.82rem;line-height:1.55}
+  .note h4{margin:0 0 3px;font-size:.86rem}
+  .note.info{background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
+  .note.warn{background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--warn)}
+  .note.bad{background:var(--bad-soft);border:1px solid var(--bad-line);color:var(--bad)}
+
+  .box{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .stack>*+*{margin-top:12px}
+
+  /* 로그인 */
+  .login{max-width:380px;margin:70px auto 0;padding:0 16px}
+  .login .box>*+*{margin-top:12px}
+
+  /* 상단 */
+  .top{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+       border-bottom:1px solid var(--line)}
+  .top .in{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+  .top .who{font-size:.76rem;color:var(--ink-mute)}
+  .top .tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+
+  /* 좌우 분할 */
+  .split{display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:16px;padding:16px;align-items:start}
+  .left{min-width:0}
+  .right{position:sticky;top:var(--top-h,72px);height:calc(100vh - var(--top-h,72px) - 16px);overflow:auto;
+         background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+         display:flex;flex-direction:column}
+  .right .rh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .mapbody{display:flex;gap:28px;justify-content:center;align-items:flex-start}
+  .mapwrap{display:flex;justify-content:center}
+  .mapside{width:190px;flex:none;padding-top:30px}
+  .mapside .hm-legend{flex-direction:column;gap:8px;margin-top:0}
+  .mapside .hm-legend+.hm-legend{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+
+  /* 스위치 */
+  .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+        font-size:.8rem;font-weight:700;border:1px solid}
+  .pill i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .pill.on{background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok)} .pill.on i{background:var(--ok)}
+  .pill.off{background:var(--paper-2);border-color:var(--line);color:var(--ink-mute)} .pill.off i{background:#aab1c4}
+
+  /* 쇼 목록 */
+  .shows{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-top:8px}
+  .shw{text-align:left;padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--paper);
+       cursor:pointer;min-width:0}
+  .shw:hover{border-color:var(--navy)}
+  .shw.on{border-color:var(--navy);background:var(--navy-soft);box-shadow:inset 3px 0 0 var(--navy)}
+  .shw b{display:block;font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shw span{display:block;font-size:.68rem;color:var(--ink-mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* 요약 수치 */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+  .kpi{background:var(--paper-2);border:1px solid var(--line);border-radius:8px;padding:6px 4px;text-align:center}
+  .kpi b{display:block;font-family:var(--mono);font-size:1.02rem}
+  .kpi span{display:block;font-size:.66rem;color:var(--ink-mute);margin-top:1px}
+  .kpi.hi{background:var(--navy-soft);border-color:#d7e0ff}
+  .kpi.hi b{color:var(--navy)}
+
+  /* 참여사 */
+  .hl{margin-top:10px}
+  .hr{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center;padding:9px 8px;
+      border:1px solid var(--line);border-radius:9px;background:var(--paper)}
+  .hr+.hr{margin-top:6px}
+  .hr.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy-soft)}
+  .hr .sw8{width:14px;height:14px;border-radius:4px}
+  .hr .nm{font-weight:700;font-size:.88rem}
+  .hr .nm .kind{font-weight:500;font-size:.68rem;padding:1px 6px;border-radius:4px;background:var(--paper-2);
+                border:1px solid var(--line);color:var(--ink-mute);margin-left:4px}
+  .hr .meta{font-size:.74rem;color:var(--ink-mute);margin-top:2px}
+  .hr .meta b{color:var(--ink);font-family:var(--mono)}
+  .hr .acts{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+  .empty{color:var(--ink-mute);font-size:.82rem;padding:8px 2px}
+
+  /* 폼 */
+  .form{margin-top:10px;padding:12px;border-radius:10px;background:var(--paper-2);border:1px solid var(--line)}
+  .form .row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px}
+  .form .foot{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap}
+
+  /* 선택 도구 — 참여사 목록 바로 위, 제자리에 둔다(떠 있으면 목록을 가린다) */
+  .tool{margin-top:12px;padding:12px;border-radius:10px;border:1px solid #d7e0ff;background:var(--navy-soft)}
+  .tool .cnt{font-family:var(--mono);font-size:1.3rem;font-weight:700}
+  .tool .line{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .tool .line select{width:auto;flex:1;min-width:140px}
+  .tool .hint{font-size:.74rem;color:var(--ink-mute);margin-top:6px;line-height:1.5}
+  .tool .modes{display:flex;align-items:center;gap:10px}
+  .seg{display:inline-flex;border:1px solid #c9d3f3;border-radius:9px;overflow:hidden;background:#fff}
+  .seg button{padding:7px 14px;border:0;background:transparent;font-size:.84rem;color:var(--ink-mute);cursor:pointer;font-weight:600}
+  .seg button+button{border-left:1px solid #c9d3f3}
+  .seg button.on{background:var(--navy);color:#fff}
+  .tool .modehint{font-size:.76rem;color:#3a4a86;margin-top:6px;line-height:1.5}
+  .zsum{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:0}
+  .zsum span{font-size:.72rem;font-family:var(--mono);padding:2px 7px;border-radius:6px;background:#fff;border:1px solid #d7e0ff;color:#26356e}
+  .zsum span.part{border-color:#f2c48a;background:#fff7e8;color:#8a5300}
+
+  /* 이력 */
+  .tbl-wrap{overflow-x:auto;margin-top:8px}
+  table{width:100%;border-collapse:collapse;font-size:.76rem;min-width:520px}
+  th{text-align:left;font-weight:600;color:var(--ink-mute);padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .seats{font-family:var(--mono);font-size:.66rem;color:var(--ink-mute);word-break:break-all;max-width:220px}
+
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1b2340;color:#fff;
+         padding:10px 16px;border-radius:10px;font-size:.86rem;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2);
+         max-width:calc(100% - 32px)}
+  .toast.err{background:var(--bad)}
+
+  /* 접는 경고 */
+  details.warnbox{background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:10px;color:var(--warn)}
+  details.warnbox summary{cursor:pointer;padding:9px 12px;font-weight:700;font-size:.84rem;list-style:none}
+  details.warnbox summary::-webkit-details-marker{display:none}
+  details.warnbox summary::before{content:"▸ ";}
+  details.warnbox[open] summary::before{content:"▾ ";}
+  details.warnbox .body{padding:0 12px 10px;font-size:.8rem;line-height:1.55}
+
+  @media (max-width:980px){
+    .split{grid-template-columns:1fr}
+    .right{position:static;height:auto;max-height:none}
+    .mapbody{flex-direction:column;align-items:center}
+    .mapside{width:auto;padding-top:0}
+    .mapside .hm-legend{flex-direction:row}
+    .kpis{grid-template-columns:repeat(3,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="login" id="loginView" hidden>
+  <div class="box">
+    <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+    <h1>사전 좌석 확보 관리</h1>
+    <p class="sub">스태프 명단에 등록된 계정으로 로그인하세요.</p>
+    <div><label for="lEmail">이메일</label><input type="email" id="lEmail" autocomplete="username" /></div>
+    <div><label for="lPw">비밀번호</label><input type="password" id="lPw" autocomplete="current-password" /></div>
+    <button class="btn pri" id="lBtn" type="button" style="width:100%;padding:11px">로그인</button>
+    <div id="lMsg"></div>
+  </div>
+</div>
+
+<div id="mainView" hidden>
+  <div class="top"><div class="in">
+    <div>
+      <div class="eyebrow">2026 부산패션위크 · 주최측</div>
+      <h1>사전 좌석 확보 관리</h1>
+    </div>
+    <div class="who" id="whoAmI"></div>
+    <div class="tools">
+      <button class="btn" id="reloadBtn" type="button">새로고침</button>
+      <button class="btn" id="exportBtn" type="button">확보 현황 엑셀</button>
+      <button class="btn" id="logoutBtn" type="button">로그아웃</button>
+    </div>
+  </div></div>
+
+  <div class="split">
+    <!-- 왼쪽 : 조작 -->
+    <div class="left stack">
+      <div class="box">
+        <div class="sw">
+          <h2>확보 창구</h2>
+          <span class="pill off" id="holdPill"><i></i><span>—</span></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn pri" id="holdToggle" type="button">—</button>
+        </div>
+        <div class="sub" id="holdDesc" style="margin-top:6px"></div>
+      </div>
+
+      <div class="box">
+        <h2>패션쇼</h2>
+        <div class="shows" id="showList"></div>
+        <div class="sub" style="margin-top:8px">경진대회 & 부산컬렉션(S07)은 예약을 받지 않아 목록에 없습니다.</div>
+      </div>
+
+      <div class="box" id="showBox" hidden>
+        <h2 id="showTitle">—</h2>
+        <div class="sub" id="showSub"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="tool" id="toolBox" hidden>
+          <div class="modes">
+            <span class="sub">선택 방식</span>
+            <div class="seg" id="modeSeg">
+              <button type="button" data-mode="zone">구역 단위</button>
+              <button type="button" data-mode="seat">좌석 단위</button>
+            </div>
+          </div>
+          <div class="modehint" id="modeHint"></div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:10px">
+            <span class="sub">선택</span>
+            <span class="cnt" id="selCnt">0</span><span class="sub">석</span>
+            <span style="margin-left:auto"></span>
+            <button class="btn sm" id="clearSel" type="button">선택 해제</button>
+          </div>
+          <div class="zsum" id="zoneSum"></div>
+          <div class="line">
+            <select id="allotTo"></select>
+            <button class="btn sm pri" id="allotAdd" type="button">배정에 추가</button>
+            <button class="btn sm" id="allotRemove" type="button">배정에서 빼기</button>
+          </div>
+          <div class="line">
+            <button class="btn sm dark" id="staffOn" type="button">주최측이 직접 확보</button>
+            <button class="btn sm" id="staffOff" type="button">주최측 확보 해제</button>
+          </div>
+          <div class="hint">
+            <b>배정</b> = 그 참여사가 링크로 고를 수 있는 범위. <b>확보</b> = 실제로 잡혀 일반 예약에서 빠진 좌석.
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+          <h2>참여사</h2>
+          <button class="btn sm" id="addBtn" type="button">+ 참여사 추가</button>
+        </div>
+        <div id="formBox"></div>
+        <div class="hl" id="holderList"></div>
+      </div>
+
+
+      <div id="alerts"></div>
+
+      <div class="box">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <h2>변경 이력</h2>
+          <button class="btn sm" id="logBtn" type="button">이 쇼 이력 보기</button>
+        </div>
+        <div class="sub" style="margin-top:4px">배정·확보·삭제가 모두 남습니다. 실수로 지운 확보는 되돌릴 수 있습니다.</div>
+        <div id="logBox"></div>
+      </div>
+    </div>
+
+    <!-- 오른쪽 : 세로 지도 -->
+    <div class="right" id="mapPanel">
+      <div class="rh">
+        <h2 id="mapTitle">패션쇼를 고르세요</h2>
+        <span class="sub" id="mapSub"></span>
+      </div>
+      <div class="mapbody">
+        <div class="mapwrap" id="map"></div>
+        <div class="mapside" id="legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/hall-map.js?v=20260917e"></script>
+<script src="js/hold-admin.js?v=20260917h"></script>
+</body>
+</html>
