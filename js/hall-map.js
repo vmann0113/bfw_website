@@ -23,12 +23,12 @@
   "use strict";
 
   var CSS = [
-    ".hm{--hm-w:26px;--hm-h:14px;--hm-gap:2px;--hm-sep:9px;--hm-lab:30px;--hm-run:54px;",
+    ".hm{--hm-w:22px;--hm-h:22px;--hm-gap:2px;--hm-sep:9px;--hm-lab:30px;--hm-run:54px;--hm-fs:10px;--hm-rad:6px;",
     "  font-family:inherit;user-select:none;-webkit-user-select:none;display:inline-block}",
     ".hm-end{display:flex;align-items:center;justify-content:center;border-radius:8px;",
-    "  font-size:.7rem;letter-spacing:.14em;font-weight:700;color:#55639b;height:26px}",
-    ".hm-stage{background:linear-gradient(180deg,#c9d4f2,#dfe6f7);margin-bottom:8px}",
-    ".hm-booth{background:#eef1f7;color:#8a93ad;margin-top:8px;width:40%;margin-left:auto;margin-right:auto}",
+    "  font-size:.68rem;letter-spacing:.14em;font-weight:700;color:#55639b;height:22px}",
+    ".hm-stage{background:linear-gradient(180deg,#c9d4f2,#dfe6f7);margin-bottom:6px}",
+    ".hm-booth{background:#eef1f7;color:#8a93ad;margin-top:6px;width:40%;margin-left:auto;margin-right:auto}",
     ".hm-grid{display:grid;column-gap:var(--hm-gap);row-gap:var(--hm-gap);",
     "  grid-template-columns:var(--hm-lab) repeat(3,var(--hm-w)) var(--hm-run) repeat(3,var(--hm-w)) var(--hm-lab)}",
     ".hm-run{grid-column:5;grid-row:1/-1;border-radius:6px;display:flex;align-items:center;justify-content:center;",
@@ -38,9 +38,10 @@
     "  font-size:.8rem;color:#44506f;background:#f1f3f8;border:1px solid transparent}",
     ".hm-lab.click{cursor:pointer}",
     ".hm-lab.click:hover{border-color:#0b2e9e;color:#0b2e9e;background:#eef2ff}",
-    ".hm-seat{padding:0;margin:0;border:1px solid #dfe3ec;background:#fff;border-radius:3px;",
-    "  font-size:.56rem;line-height:1;color:#8a93ad;cursor:pointer;font-family:ui-monospace,monospace;",
-    "  display:flex;align-items:center;justify-content:center;touch-action:none}",
+    ".hm-seat{padding:0;margin:0;border:1px solid #d5dae5;background:#fff;border-radius:var(--hm-rad);",
+    "  font-size:var(--hm-fs);font-weight:600;line-height:1;color:#5b6582;cursor:pointer;",
+    "  font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif;font-variant-numeric:tabular-nums;",
+    "  display:flex;align-items:center;justify-content:center;touch-action:none;overflow:hidden}",
     ".hm-seat:disabled{cursor:not-allowed}",
     ".hm-seat.sel{outline:2px solid #ff4d6d;outline-offset:0;z-index:1;position:relative}",
     ".hm-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:12px;font-size:.74rem;color:#6b7490}",
@@ -97,6 +98,8 @@
     if (sz.sep) root.style.setProperty("--hm-sep", sz.sep + "px");
     if (sz.lab) root.style.setProperty("--hm-lab", sz.lab + "px");
     if (sz.run) root.style.setProperty("--hm-run", sz.run + "px");
+    if (sz.fs) root.style.setProperty("--hm-fs", sz.fs + "px");
+    if (sz.rad != null) root.style.setProperty("--hm-rad", sz.rad + "px");
 
     var stage = document.createElement("div");
     stage.className = "hm-end hm-stage";

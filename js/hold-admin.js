@@ -343,14 +343,15 @@
     d.zones.forEach(function (z) { bands[z.sort] = Math.max(bands[z.sort] || 0, z.rows); });
     Object.keys(bands).forEach(function (k) { rows += bands[k]; });
     var seps = Math.max(0, Object.keys(bands).length - 1);
-    var gap = 1, sep = 8, lab = 34, run = 64, ends = 68;
-    var availH = box.clientHeight || 700;
-    var h = Math.floor((availH - ends - seps * sep - (rows + seps - 1) * gap) / rows);
-    h = Math.max(9, Math.min(20, h));
-    var availW = box.clientWidth || 600;
-    var w = Math.floor((availW - 16 - run - 2 * lab - 8 * gap) / 6);
-    w = Math.max(16, Math.min(44, w));
-    return { w: w, h: h, gap: gap, sep: sep, lab: lab, run: run };
+    var gap = 2, sep = 8, lab = 34, run = 64, ends = 56;
+    // 오른쪽 패널에서 제목 줄을 뺀 높이. (지도 상자 높이는 지도를 그린 뒤 내용에 따라 늘어나므로 쓰지 않는다)
+    var panel = $("mapPanel"), rh = panel.querySelector(".rh");
+    var availH = panel.clientHeight - (rh ? rh.offsetHeight : 30) - 34;
+    // 좌석은 둥근 정사각형. 번호가 읽히도록 최소 16px — 화면이 낮으면 지도 쪽만 살짝 스크롤된다.
+    var sq = Math.floor((availH - ends - seps * sep - (rows + seps - 1) * gap) / rows);
+    sq = Math.max(16, Math.min(26, sq));
+    return { w: sq, h: sq, gap: gap, sep: sep, lab: lab, run: run,
+             fs: Math.max(8, Math.round(sq * 0.5)), rad: Math.max(3, Math.round(sq * 0.28)) };
   }
 
   function renderMap() {
@@ -363,22 +364,24 @@
       zones: d.zones,
       seats: d.seats,
       size: fitSize(d),
+      numbers: true,
       drag: true,
       decorate: function (x, el) {
         var who = null, how = "";
+        // 진하게 칠한 칸(확보)은 흰 글자, 연한 칸(배정)은 참여사 색 글자로 번호가 읽히게 한다
         if (x.lock === "staff") {
-          el.style.background = STAFF_COLOR; el.style.borderColor = STAFF_COLOR; how = "주최측 확보";
+          el.style.background = STAFF_COLOR; el.style.borderColor = STAFF_COLOR; el.style.color = "#fff"; how = "주최측 확보";
         } else if (x.lock) {
-          var c = colorOf(x.lock); el.style.background = c; el.style.borderColor = c;
+          var c = colorOf(x.lock); el.style.background = c; el.style.borderColor = c; el.style.color = "#fff";
           who = holderById(x.lock); how = (who ? who.name : "참여사") + " 확보";
         } else if (x.res) {
-          el.style.background = RESERVED_COLOR; el.style.borderColor = RESERVED_COLOR; how = "일반 예약";
+          el.style.background = RESERVED_COLOR; el.style.borderColor = RESERVED_COLOR; el.style.color = "#fff"; how = "일반 예약";
         } else if (ai[x.id]) {
-          var c2 = colorOf(ai[x.id]); el.style.background = tint(c2, 0.2); el.style.borderColor = tint(c2, 0.6);
+          var c2 = colorOf(ai[x.id]); el.style.background = tint(c2, 0.16); el.style.borderColor = tint(c2, 0.55); el.style.color = c2;
           who = holderById(ai[x.id]); how = (who ? who.name : "참여사") + " 배정";
         }
         if (focusId && x.lock !== focusId && ai[x.id] !== focusId) el.style.opacity = ".28";
-        el.title = x.id + " (" + x.t + "단 " + x.r + "열)" + (how ? " — " + how : "");
+        el.title = x.z + "구역 " + x.n + "번 (" + x.t + "단 " + x.r + "열)" + (how ? " — " + how : "");
       },
       onZone: function (code, seats) {
         var ids = seats.map(function (s) { return s.id; });

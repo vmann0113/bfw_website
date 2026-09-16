@@ -79,7 +79,11 @@
          background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
          display:flex;flex-direction:column}
   .right .rh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-  .mapwrap{display:flex;justify-content:center;flex:1;min-height:0}
+  .mapbody{display:flex;gap:28px;justify-content:center;align-items:flex-start}
+  .mapwrap{display:flex;justify-content:center}
+  .mapside{width:190px;flex:none;padding-top:30px}
+  .mapside .hm-legend{flex-direction:column;gap:8px;margin-top:0}
+  .mapside .hm-legend+.hm-legend{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
 
   /* 스위치 */
   .sw{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -156,6 +160,9 @@
   @media (max-width:980px){
     .split{grid-template-columns:1fr}
     .right{position:static;height:auto;max-height:none}
+    .mapbody{flex-direction:column;align-items:center}
+    .mapside{width:auto;padding-top:0}
+    .mapside .hm-legend{flex-direction:row}
     .kpis{grid-template-columns:repeat(3,1fr)}
   }
 </style>
@@ -260,13 +267,15 @@
         <h2 id="mapTitle">패션쇼를 고르세요</h2>
         <span class="sub" id="mapSub"></span>
       </div>
-      <div class="mapwrap" id="map"></div>
-      <div id="legend"></div>
+      <div class="mapbody">
+        <div class="mapwrap" id="map"></div>
+        <div class="mapside" id="legend"></div>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="js/hall-map.js?v=20260917c"></script>
-<script src="js/hold-admin.js?v=20260917d"></script>
+<script src="js/hall-map.js?v=20260917d"></script>
+<script src="js/hold-admin.js?v=20260917e"></script>
 </body>
 </html>
