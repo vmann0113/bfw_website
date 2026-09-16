@@ -348,7 +348,20 @@ async function sendAlimtalk(kind, to, name, msg, tmode) {
 /* 알림톡이 준비돼 있으면 알림톡, 아니면 문자. 둘 다 없으면 미리보기(발송 안 함) */
 async function deliver(kind, to, name, msg, opts) {
   const tmode = resolveTest(opts);
-  if (hasAlimtalk(kind)) return sendAlimtalk(kind, to, name, msg, tmode);
+  if (hasAlimtalk(kind)) {
+    const r = await sendAlimtalk(kind, to, name, msg, tmode);
+    if (r.ok) return r;
+    // 알림톡 자체가 거부되면(예: 호출 IP 제한) 알리고의 자동 대체문자도
+    // 작동하지 않는다. 안내가 아예 안 나가는 것보다는 문자로라도 보낸다.
+    if (hasSms()) {
+      const f = await sendSms(to, msg, tmode);
+      return {
+        ok: f.ok, channel: f.ok ? "sms(대체)" : "alimtalk", test: f.test,
+        detail: "알림톡 실패(" + r.detail + ") → 문자 " + (f.ok ? "성공" : "실패(" + f.detail + ")")
+      };
+    }
+    return r;
+  }
   if (hasSms()) return sendSms(to, msg, tmode);
   return { ok: true, channel: "dryrun", test: true, detail: "발송 설정이 없어 미리보기만 했습니다" };
 }
