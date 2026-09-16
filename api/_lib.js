@@ -350,7 +350,7 @@ async function deliver(kind, to, name, msg, opts) {
   const tmode = resolveTest(opts);
   if (hasAlimtalk(kind)) return sendAlimtalk(kind, to, name, msg, tmode);
   if (hasSms()) return sendSms(to, msg, tmode);
-  return { ok: true, channel: "dryrun", detail: "발송 설정이 없어 미리보기만 했습니다" };
+  return { ok: true, channel: "dryrun", test: true, detail: "발송 설정이 없어 미리보기만 했습니다" };
 }
 
 /* 다건 발송. 500명씩 끊어서 보낸다. 반환값은 묶음별 결과 배열. */
@@ -370,7 +370,7 @@ async function deliverBulk(kind, items, opts) {
         channel: "sms", test: tmode === "Y",
         detail: `성공${each.filter(function (x) { return x.ok; }).length}/${each.length}`
       };
-    } else r = { ok: true, channel: "dryrun", detail: "발송 설정이 없어 미리보기만 했습니다" };
+    } else r = { ok: true, channel: "dryrun", test: true, detail: "발송 설정이 없어 미리보기만 했습니다" };
     out.push({ result: r, items: chunk });
   }
   return out;
