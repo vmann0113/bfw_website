@@ -210,15 +210,20 @@
     }).catch(function () { toast("현황을 불러오지 못했습니다", true); });
   }
 
+  /* 창구는 참여사마다 따로 연다. 여기는 전체 현황과 한꺼번에 여닫는 버튼. */
   function renderSwitch() {
-    var open = !!board.holdsOpen;
-    $("holdPill").className = "pill " + (open ? "on" : "off");
-    $("holdPill").querySelector("span").textContent = open ? "열림" : "닫힘";
-    $("holdDesc").textContent = open
-      ? "참여사가 링크로 좌석을 고르고 저장할 수 있습니다."
-      : "참여사는 링크로 확보 내용을 볼 수만 있고 고칠 수 없습니다.";
-    $("holdToggle").textContent = open ? "창구 닫기" : "창구 열기";
-    $("holdToggle").className = "btn " + (open ? "bad" : "pri");
+    var hs = board.holders || [];
+    var open = hs.filter(function (h) { return h.is_open; });
+    var closedOf = function (k) { return hs.filter(function (h) { return h.kind === k && !h.is_open; }).length; };
+    $("holdPill").className = "pill " + (open.length ? "on" : "off");
+    $("holdPill").querySelector("span").textContent = hs.length
+      ? "열림 " + open.length + "곳 / 전체 " + hs.length + "곳"
+      : "참여사 없음";
+    $("holdDesc").innerHTML = "창구는 <b>참여사마다 따로</b> 엽니다. 열린 참여사만 링크로 좌석을 고르고 저장할 수 있고, " +
+      "닫힌 참여사는 볼 수만 있습니다. 참여사 줄의 <b>열기·닫기</b>로 하나씩, 아래 버튼으로 한꺼번에 바꿉니다.";
+    $("openBrand").disabled = !closedOf("brand");
+    $("openUniv").disabled = !closedOf("univ");
+    $("closeAll").disabled = !open.length;
   }
 
   function holdersOfBoard(sid) {
@@ -262,10 +267,11 @@
     (board.shows || []).forEach(function (s) {
       if (NO_RESERVATION.indexOf(s.id) >= 0) return;
       var hs = holdersOfBoard(s.id);
+      var nOpen = hs.filter(function (x) { return x.is_open; }).length;
       var left = Math.max(0, s.capacity - s.locked - s.reserved);
       h.push('<button type="button" class="shw' + (s.id === showId ? " on" : "") + '" data-show="' + esc(s.id) + '">' +
         "<b>" + esc(showName(s.title_ko, s.lineup)) + "</b>" +
-        "<span>" + esc(showWhen(s.date, s.start_time)) + " · 참여사 " + hs.length + " · 일반 " + left + "</span></button>");
+        "<span>" + esc(showWhen(s.date, s.start_time)) + " · 참여사 " + hs.length + (nOpen ? " (열림 " + nOpen + ")" : "") + " · 일반 " + left + "</span></button>");
     });
     $("showList").innerHTML = h.join("");
   }
@@ -345,13 +351,17 @@
       h.push('<div class="hr' + (x.id === focusId ? " on" : "") + '" data-focus="' + esc(x.id) + '">' +
         '<span class="sw8" style="background:' + colorOf(x.id) + '"></span>' +
         "<div>" +
-          '<div class="nm">' + esc(x.name) + '<span class="kind">' + (x.kind === "univ" ? "대학" : "브랜드") + "</span></div>" +
+          '<div class="nm">' + esc(x.name) + '<span class="kind">' + (x.kind === "univ" ? "대학" : "브랜드") + "</span>" +
+            '<span class="pill sm ' + (x.isOpen ? "on" : "off") + '"><i></i>' + (x.isOpen ? "열림" : "닫힘") + "</span></div>" +
           '<div class="meta">배정 <b>' + allot + "</b> · 확보 <b>" + x.held + "</b>석" +
             (x.maxSeats != null ? " · 한도 <b>" + x.maxSeats + "</b>" : "") +
             (x.contactName ? " · " + esc(x.contactName) : "") +
             (x.savedAt ? " · " + when(x.savedAt) : "") + "</div>" +
         "</div>" +
         '<div class="acts">' +
+          (x.isOpen
+            ? '<button class="btn sm bad" data-act="open" data-open="0" data-id="' + esc(x.id) + '" type="button">닫기</button>'
+            : '<button class="btn sm go" data-act="open" data-open="1" data-id="' + esc(x.id) + '" type="button">열기</button>') +
           '<button class="btn sm pri" data-act="copy" data-token="' + esc(x.token) + '" type="button">링크</button>' +
           '<button class="btn sm" data-act="pickAllot" data-id="' + esc(x.id) + '" type="button">배정 보기</button>' +
           '<button class="btn sm" data-act="edit" data-id="' + esc(x.id) + '" type="button">수정</button>' +
@@ -361,22 +371,62 @@
     $("holderList").innerHTML = h.join("");
   }
 
+  /* 참여사 후보 = 스케줄표의 참여 칸(lineup)을 ' · ' 로 나눈 이름.
+     협업(카마모에X소티에)은 이미 한 덩어리라 그대로 한 참여사가 된다.
+     해외브랜드는 주최측이 잡으므로 뺀다. 이미 추가한 이름도 뺀다. */
+  var CUSTOM = "__custom";
+  function guessKind(name) { return /대학교|대학|국립대|대$/.test(name) ? "univ" : "brand"; }
+  function lineupCandidates() {
+    var s = mapData.show, taken = {};
+    mapData.holders.forEach(function (h) { taken[h.name] = true; });
+    var lu = String(s.lineup || "").trim();
+    if (!lu || lu === "오프닝") return [];
+    return lu.split("·").map(function (x) { return x.trim(); }).filter(function (x) {
+      return x && !/해외브랜드/.test(x) && !taken[x];
+    });
+  }
+
   function renderForm() {
     if (!editing) { $("formBox").innerHTML = ""; return; }
     var e = editing;
+    var nameCell;
+    if (e.holderId) {
+      nameCell = '<div><label>참여사 이름</label><input type="text" id="fName" value="' + esc(e.name) + '" disabled /></div>';
+    } else {
+      var cands = lineupCandidates();
+      nameCell = '<div><label>참여사</label><select id="fPick">' +
+        cands.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("") +
+        '<option value="' + CUSTOM + '">직접 입력…</option></select>' +
+        '<input type="text" id="fName" style="margin-top:6px" placeholder="스케줄표에 없는 이름"' + (cands.length ? " hidden" : "") + " /></div>";
+      if (cands.length) e.kind = guessKind(cands[0]);
+    }
     $("formBox").innerHTML = '<div class="form">' +
       '<div class="row">' +
-        '<div><label>참여사 이름</label><input type="text" id="fName" value="' + esc(e.name) + '"' + (e.holderId ? " disabled" : "") + ' placeholder="메르최 / 카마모에X소티에" /></div>' +
+        nameCell +
         '<div><label>구분</label><select id="fKind"><option value="brand"' + (e.kind === "brand" ? " selected" : "") + '>브랜드</option><option value="univ"' + (e.kind === "univ" ? " selected" : "") + '>대학</option></select></div>' +
         '<div><label>확보 한도(선택)</label><input type="number" id="fMax" min="1" max="300" value="' + (e.max != null ? e.max : "") + '" placeholder="없음" /></div>' +
       "</div>" +
-      (e.holderId ? "" : '<div class="sub" style="margin-top:6px">협업 쇼(예: 카마모에X소티에)는 참여사 하나로 등록하세요. 추가한 뒤 지도에서 좌석을 골라 배정합니다.</div>') +
+      (e.holderId ? "" : '<div class="sub" style="margin-top:6px">' +
+        (lineupCandidates().length
+          ? "홈페이지 스케줄표에 적힌 이 쇼의 참여사 중 아직 추가하지 않은 곳만 나옵니다. 구분(브랜드/대학)은 자동으로 골라지니 확인만 하세요."
+          : "이 쇼의 스케줄표 참여사는 모두 추가했습니다. 다른 이름이 필요하면 직접 입력하세요.") + "</div>") +
       '<div class="foot"><span id="fMsg" class="sub"></span>' +
         '<button class="btn sm" data-act="cancel" type="button">취소</button>' +
         '<button class="btn sm pri" data-act="save" type="button">' + (e.holderId ? "저장" : "추가하고 링크 만들기") + "</button>" +
       "</div></div>";
-    var n = $("fName"); if (n && !e.holderId) n.focus();
+    var pk = $("fPick");
+    if (pk) {
+      if (pk.value === CUSTOM) $("fName").focus(); else pk.focus();
+    }
   }
+  // 고른 참여사에 맞춰 구분을 바꾸고, '직접 입력'일 때만 이름 칸을 보여준다
+  document.addEventListener("change", function (ev) {
+    if (!ev.target || ev.target.id !== "fPick") return;
+    var v = ev.target.value, n = $("fName");
+    n.hidden = v !== CUSTOM;
+    if (v === CUSTOM) { n.value = ""; n.focus(); }
+    else $("fKind").value = guessKind(v);
+  });
 
   function renderTool() {
     var d = mapData, cur = $("allotTo").value;
@@ -551,6 +601,9 @@
       if (!y) return;
       editing = { holderId: y.id, name: y.name, kind: y.kind, max: y.maxSeats };
       renderForm();
+    } else if (act === "open") {
+      var z = holderById(b.getAttribute("data-id"));
+      if (z) setOpen([z.id], b.getAttribute("data-open") === "1", null, z.name);
     } else if (act === "del") {
       deleteHolder(b.getAttribute("data-id"));
     } else if (act === "cancel") {
@@ -574,12 +627,14 @@
 
   function saveHolder() {
     var e = editing;
-    var name = e.holderId ? e.name : ($("fName").value || "").trim();
+    var pick = $("fPick");
+    var name = e.holderId ? e.name
+      : (pick && pick.value !== CUSTOM ? pick.value : ($("fName").value || "")).trim();
     var kind = $("fKind").value;
     var mx = $("fMax").value === "" ? null : parseInt($("fMax").value, 10);
     var msg = $("fMsg");
     function err(t) { msg.textContent = t; msg.style.color = "var(--bad)"; }
-    if (!name) return err("이름을 입력하세요");
+    if (!name) return err("참여사 이름을 입력하세요");
     if (mx != null && (isNaN(mx) || mx < 1 || mx > 300)) return err("한도는 1~300");
     if (!e.holderId && mapData.holders.some(function (h) { return h.name === name; })) return err("같은 이름이 이미 있습니다");
     msg.textContent = "저장 중…"; msg.style.color = "";
@@ -599,7 +654,7 @@
             copyText(url).then(function () {
               toast(name + " 추가 — 링크 복사됨. " + (many
                 ? "여러 참여사 쇼이니 지도에서 좌석을 골라 '배정에 추가'로 나눠 주세요"
-                : "카카오톡·메일로 보내시면 됩니다"));
+                : "카카오톡·메일로 보내시면 됩니다") + ". 창구는 닫힌 채로 시작하니 준비되면 '열기'를 누르세요");
             }).catch(function () { toast(name + " 추가했습니다. '링크' 버튼으로 주소를 복사해 보내세요"); });
           } else {
             toast(name + " 저장했습니다");
@@ -684,21 +739,32 @@
   $("staffOff").addEventListener("click", function () { staffHold(false); });
   $("clearSel").addEventListener("click", function () { if (map) map.clearSelection(); });
 
-  /* ---- 창구 ---- */
-  $("holdToggle").addEventListener("click", function () {
-    var next = !board.holdsOpen;
-    if (!window.confirm(next
-        ? "확보 창구를 열까요?\n\n링크를 받은 참여사가 좌석을 고르고 저장할 수 있게 됩니다."
-        : "확보 창구를 닫을까요?\n\n참여사는 확보 내용을 볼 수만 있습니다. 확보된 좌석은 그대로 유지됩니다.")) return;
-    $("holdToggle").disabled = true;
-    rpc("holds_set_open", { p_open: next }).then(function (d) {
-      $("holdToggle").disabled = false;
-      if (!d || !d.ok) return toast("바꾸지 못했습니다", true);
-      if (d.holdsOpen !== next) return toast("스위치가 바뀌지 않았습니다. 새로고침 후 확인해 주세요", true);
-      toast(next ? "확보 창구를 열었습니다" : "확보 창구를 닫았습니다");
-      loadBoard();
-    }).catch(function () { $("holdToggle").disabled = false; toast("통신 오류", true); });
-  });
+  /* ---- 창구 : 참여사별 ----
+     ids 를 주면 그 참여사만, 아니면 kind('brand'|'univ'|null=전부)에 해당하는 참여사 전부.
+     서버가 저장 뒤 다시 읽은 상태를 돌려주므로, 요청한 대로 바뀌었는지 하나하나 확인한다. */
+  var openBusy = false;
+  function setOpen(ids, open, kind, label) {
+    if (openBusy) return;
+    var who = label || (kind === "brand" ? "브랜드 참여사 모두" : kind === "univ" ? "대학 참여사 모두" : "참여사 모두");
+    if (!window.confirm(open
+        ? who + "의 창구를 열까요?\n\n링크로 좌석을 고르고 저장할 수 있게 됩니다."
+        : who + "의 창구를 닫을까요?\n\n링크로 볼 수만 있게 됩니다. 확보된 좌석은 그대로 유지됩니다.")) return;
+    openBusy = true;
+    rpc("holder_open_set", { p_ids: ids, p_open: open, p_kind: kind }).then(function (d) {
+      openBusy = false;
+      if (!d || !d.ok) return toast("바꾸지 못했습니다" + (d && d.reason ? " (" + d.reason + ")" : ""), true);
+      var wrong = (d.holders || []).filter(function (h) { return h.isOpen !== open; });
+      if (wrong.length) {
+        toast(wrong.map(function (h) { return h.name; }).join(", ") + " 의 창구가 바뀌지 않았습니다. 새로고침 후 확인해 주세요", true);
+      } else {
+        toast(who + " — 창구 " + (open ? "열림" : "닫힘") + (ids ? "" : " (" + d.changed + "곳 바뀜)"));
+      }
+      reloadAll(true);
+    }).catch(function () { openBusy = false; toast("통신 오류 — 새로고침 후 상태를 확인해 주세요", true); reloadAll(true); });
+  }
+  $("openBrand").addEventListener("click", function () { setOpen(null, true, "brand"); });
+  $("openUniv").addEventListener("click", function () { setOpen(null, true, "univ"); });
+  $("closeAll").addEventListener("click", function () { setOpen(null, false, null); });
 
   /* ---- 엑셀 ---- */
   $("exportBtn").addEventListener("click", function () {
@@ -724,7 +790,8 @@
   });
 
   /* ---- 이력 ---- */
-  var ACT = { save: "확보 저장", restore: "되돌림", "delete": "참여사 삭제", allot: "배정 변경", reallot: "배정 이동으로 확보 해제", staff: "주최측" };
+  var ACT = { save: "확보 저장", restore: "되돌림", "delete": "참여사 삭제", allot: "배정 변경", reallot: "배정 이동으로 확보 해제", staff: "주최측",
+              open: "창구 열림", close: "창구 닫힘" };
   $("logBtn").addEventListener("click", function () {
     if (!showId) return;
     $("logBox").innerHTML = '<div class="sub" style="margin-top:8px">불러오는 중…</div>';
@@ -788,10 +855,11 @@
               "<li><b>배정</b> — 그 참여사가 <b>고를 수 있는 범위</b> (주최측이 정함)</li>" +
               "<li><b>확보</b> — 실제로 잡혀 <b>일반 예약에서 빠진 좌석</b> (참여사가 링크로, 또는 주최측이 직접)</li></ul>" },
       { el: function () { return boxOf("holdPill"); },
-        title: "확보 창구 열기 · 닫기",
-        html: "창구가 <b>열려 있을 때만</b> 참여사가 링크로 좌석을 고치고 저장할 수 있습니다.<br>" +
-              "닫으면 참여사는 확보 내용을 <b>볼 수만</b> 있고, 확보된 좌석은 그대로 유지됩니다.<br><br>" +
-              "링크를 다 보낸 뒤 열고, 기간이 끝나면 닫으세요." },
+        title: "확보 창구는 참여사마다 따로",
+        html: "창구가 <b>열린 참여사만</b> 링크로 좌석을 고르고 저장할 수 있습니다. 닫힌 참여사는 <b>볼 수만</b> 있고, 확보된 좌석은 그대로 유지됩니다.<br><br>" +
+              "브랜드와 대학의 기간이 다르면 <span class='k'>브랜드 모두 열기</span> <span class='k'>대학 모두 열기</span>로 따로 열고, " +
+              "한 곳만 바꿀 때는 참여사 줄의 <b>열기·닫기</b>를 누르세요.<br>" +
+              "새로 추가한 참여사는 <b>닫힌 채로</b> 시작합니다." },
       { el: function () { return boxOf("showList"); },
         title: "패션쇼 고르기",
         html: "홈페이지 스케줄표와 같은 이름으로 나옵니다. 쇼마다 <b>참여사 수</b>와 <b>일반 공개 좌석 수</b>가 함께 보입니다." },
@@ -800,7 +868,8 @@
         html: "<b>배정 · 참여사 확보 · 주최측 확보 · 일반 공개</b> 좌석 수입니다.<br><b>일반 공개</b>가 관람객이 예약할 수 있는 좌석입니다." },
       { el: function () { var b = $("addBtn"); return b ? b.parentNode : null; },
         title: "① 참여사를 추가하고 링크 보내기",
-        html: "<span class='k'>+ 참여사 추가</span> → 이름과 브랜드/대학을 넣으면 <b>링크가 자동으로 복사</b>됩니다.<br>" +
+        html: "<span class='k'>+ 참여사 추가</span> → 목록에서 참여사를 고르면 <b>링크가 자동으로 복사</b>됩니다. " +
+              "목록은 홈페이지 스케줄표에 적힌 이 쇼의 참여사라 이름을 칠 필요가 없습니다.<br>" +
               "카카오톡이나 메일로 그 참여사에게 보내시면 됩니다.<br><br>" +
               "참여사마다 링크가 다르고, 받은 곳은 <b>자기 몫만</b> 고칠 수 있습니다. " +
               "협업 쇼(예: 카마모에X소티에)는 <b>참여사 하나</b>로 등록하세요." },
@@ -827,9 +896,10 @@
       { el: "#holderList",
         title: "참여사 관리",
         html: nH
-          ? "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
+          ? "<b>열림/닫힘</b> 표시와 <b>열기·닫기</b> 버튼으로 이 참여사 창구만 바꿉니다.<br>" +
+            "<span class='k'>링크</span> 다시 복사 · <span class='k'>배정 보기</span> 그 참여사 범위를 지도에서 선택 · <span class='k'>수정</span> · <span class='k'>삭제</span><br><br>" +
             "줄을 누르면 지도에서 <b>그 참여사 좌석만 강조</b>됩니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다."
-          : "추가한 참여사가 이곳에 한 줄씩 나오고, 줄마다 <b>링크</b>(다시 복사) · <b>배정 보기</b> · <b>수정</b> · <b>삭제</b> 버튼이 붙습니다.<br><br>" +
+          : "추가한 참여사가 이곳에 한 줄씩 나오고, 줄마다 <b>열기·닫기</b> · <b>링크</b>(다시 복사) · <b>배정 보기</b> · <b>수정</b> · <b>삭제</b> 버튼이 붙습니다.<br><br>" +
             "지금 이 쇼에는 아직 참여사가 없습니다. 삭제해도 갖고 있던 좌석 목록은 이력에 남습니다." },
       { el: function () { return boxOf("logBtn"); },
         title: "변경 이력과 엑셀",
@@ -840,13 +910,13 @@
         title: "진행 순서",
         html: "<ol><li>쇼마다 <b>참여사 추가</b> → 링크 전달</li>" +
               "<li>여러 참여사 쇼는 <b>좌석 배정</b></li>" +
-              "<li><b>확보 창구 열기</b></li>" +
-              "<li>기간이 끝나면 <b>창구 닫기</b></li>" +
+              "<li>기간이 된 참여사부터 <b>창구 열기</b> (브랜드·대학 따로 가능)</li>" +
+              "<li>기간이 끝난 참여사는 <b>창구 닫기</b></li>" +
               "<li><b>엑셀</b> 내려받아 보관</li></ol><br>" +
               "이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
     ];
   }
-  var TOUR_KEY = "bfw_tour_holdadmin_v1";
+  var TOUR_KEY = "bfw_tour_holdadmin_v2";
   $("helpBtn").addEventListener("click", function () {
     if (mapData && window.HoldTour) window.HoldTour.start({ key: TOUR_KEY, steps: tourSteps() });
   });
