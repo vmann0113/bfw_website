@@ -328,6 +328,35 @@ language sql stable security definer set search_path = public as $fn$
   select coalesce((select holds_open from public.app_settings where id), false);
 $fn$;
 
+-- ===================================================================
+--  스태프 명단
+--
+--  예전에는 스태프 함수가 "로그인만 했으면" 허락했다. 그런데 Supabase 는
+--  기본으로 누구나 가입할 수 있어서, 자기 이메일로 가입·인증만 하면
+--  예약 전체 삭제·예약자 연락처 조회·좌석 전부 잠그기가 가능했다.
+--
+--  이제는 로그인에 더해 이 명단에 있어야 한다. 가입 설정이 다시 열려도
+--  명단에 없는 사람은 아무것도 못 한다.
+--
+--  스태프 추가 :  insert into public.staff (email) values ('name@example.com');
+--  스태프 제거 :  delete from public.staff where email = 'name@example.com';
+-- ===================================================================
+create table if not exists public.staff (
+  email      text primary key,
+  note       text,
+  created_at timestamptz not null default now()
+);
+alter table public.staff enable row level security;  -- 정책 없음 = 직접 접근 차단
+
+create or replace function public.is_staff() returns boolean
+language sql stable security definer set search_path = public as $fn$
+  select auth.role() = 'authenticated'
+     and exists (
+       select 1 from public.staff s
+        where lower(s.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+     );
+$fn$;
+
 drop function if exists public.reserve_seat(text,text,text,text,boolean);
 drop function if exists public.reserve_seat(text,text,text,text,text,boolean);
 
@@ -466,7 +495,7 @@ create or replace function public.find_reservation(p_code text)
 returns setof reservations
 language sql security definer set search_path = public as $$
   select * from reservations
-  where auth.role() = 'authenticated'
+  where public.is_staff()
     and upper(code) = upper(btrim(p_code))
     and status = 'reserved'
   limit 1;
@@ -508,7 +537,7 @@ create or replace function public.staff_search(p_q text)
 returns setof reservations
 language sql security definer set search_path = public as $$
   select * from reservations
-  where auth.role() = 'authenticated'
+  where public.is_staff()
     and status = 'reserved'
     and (phone ilike '%' || p_q || '%'
       or phone_key ilike '%' || regexp_replace(coalesce(p_q,''), '[^0-9]', '', 'g') || '%'
@@ -522,7 +551,7 @@ create or replace function public.check_in(p_code text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_row reservations;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   select * into v_row from reservations
@@ -542,7 +571,7 @@ create or replace function public.undo_check_in(p_id uuid)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_row reservations;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   update reservations set checked_in = false, checked_in_at = null
@@ -564,7 +593,7 @@ begin
     return json_build_object('ok', false, 'reason', 'notfound');
   end if;
 
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     if v_row.phone_key <> regexp_replace(coalesce(p_phone,''), '[^0-9]', '', 'g')
        or v_row.name_key <> lower(regexp_replace(coalesce(p_name,''), '\s', '', 'g')) then
       return json_build_object('ok', false, 'reason', 'forbidden');
@@ -582,7 +611,7 @@ end $$;
 create or replace function public.admin_clear_reservations()
 returns json language plpgsql security definer set search_path = public as $$
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   update reservations set status = 'cancelled' where status = 'reserved';
@@ -666,7 +695,7 @@ create or replace function public.press_set_status(p_id uuid, p_status text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare a public.press_applications; new_code text; v_try int := 0;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return jsonb_build_object('ok', false, 'reason', 'forbidden');
   end if;
   select * into a from public.press_applications where id = p_id for update;
@@ -698,7 +727,7 @@ create or replace function public.press_find(p_code text)
 returns setof public.press_applications
 language sql security definer set search_path = public as $$
   select * from public.press_applications
-  where auth.role() = 'authenticated'
+  where public.is_staff()
     and code = btrim(p_code)
     and status = 'approved';
 $$;
@@ -707,7 +736,7 @@ create or replace function public.press_check_in(p_code text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare a public.press_applications;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return jsonb_build_object('ok', false, 'reason', 'forbidden');
   end if;
   select * into a from public.press_applications
@@ -727,7 +756,7 @@ create or replace function public.press_undo_check_in(p_id uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare a public.press_applications;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return jsonb_build_object('ok', false, 'reason', 'forbidden');
   end if;
   update public.press_applications set checked_in = false, checked_in_at = null
@@ -742,7 +771,7 @@ create or replace function public.set_seating_mode(p_show_id text, p_mode text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_n int;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   if p_mode not in ('assigned', 'free') then
@@ -783,7 +812,7 @@ create or replace function public.seat_lock_set(
 ) returns json language plpgsql security definer set search_path = public as $$
 declare v_n int := 0;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   if p_seat_ids is null or array_length(p_seat_ids, 1) is null then
@@ -823,7 +852,7 @@ declare
   v_show shows; v_seat seats; v_zone zones; v_row reservations;
   v_code text; v_try int := 0; v_pkey text;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   if coalesce(btrim(p_name), '') = '' then
@@ -892,7 +921,7 @@ returns table (
          on k.show_id = p_show_id and k.seat_id = s.id
   left join reservations r
          on r.show_id = p_show_id and r.seat_id = s.id and r.status = 'reserved'
-  where auth.role() = 'authenticated'
+  where public.is_staff()
   order by z.side desc, z.sort, s.tier, s.row_no;
 $$;
 
@@ -1153,7 +1182,7 @@ create or replace function public.holder_upsert(
 ) returns json language plpgsql security definer set search_path = public as $fn$
 declare h public.seat_holders;
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   select * into h from seat_holders where show_id = p_show_id and name = btrim(p_name);
@@ -1183,7 +1212,8 @@ returns table (
          l.prev_count, l.seat_count, l.seat_ids, l.prev_seat_ids,
          l.contact_name, l.contact_phone, l.created_at
     from seat_hold_log l
-   where p_show_id is null or l.show_id = p_show_id
+   where public.is_staff()
+     and (p_show_id is null or l.show_id = p_show_id)
    order by l.created_at desc
    limit greatest(1, least(coalesce(p_limit, 500), 5000))
 $fn$;
@@ -1199,7 +1229,7 @@ declare
   v_prev  text[];
   v_taken text[];
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   select * into g from seat_hold_log where id = p_log_id;
@@ -1258,6 +1288,7 @@ returns table (
     join shows s  on s.id = l.show_id
     join seats se on se.id = l.seat_id
     left join seat_holders h on h.id = l.holder_id
+   where public.is_staff()
    order by s.sort, coalesce(h.name, ''), se.zone_code, se.num
 $fn$;
 
@@ -1275,6 +1306,7 @@ returns table (
          h.contact_name, h.contact_phone, h.saved_at
     from seat_holders h
     join shows s on s.id = h.show_id
+   where public.is_staff()
    order by s.sort, h.name
 $fn$;
 
@@ -1336,6 +1368,8 @@ grant execute on function public.undo_check_in(uuid)           to authenticated;
 grant execute on function public.admin_clear_reservations()    to authenticated;
 grant execute on function public.holder_upsert(text,text,text,int,text[],timestamptz) to authenticated;
 grant execute on function public.holder_list()                 to authenticated;
+-- 스태프 화면이 로그인 직후 '명단에 있는가' 를 확인할 때 쓴다 (자기 자신에 대한 참/거짓만 돌려준다)
+grant execute on function public.is_staff()                    to authenticated;
 grant execute on function public.hold_log(text,int)            to authenticated;
 grant execute on function public.hold_restore(bigint,text)     to authenticated;
 grant execute on function public.hold_export()                 to authenticated;
@@ -1368,7 +1402,7 @@ create or replace function public.walkin_set(
   p_show_id text, p_count int, p_note text default null
 ) returns json language plpgsql security definer set search_path = public as $$
 begin
-  if auth.role() <> 'authenticated' then
+  if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
   end if;
   if not exists (select 1 from shows where id = p_show_id) then
@@ -1412,7 +1446,7 @@ returns table (
   from shows s
   left join reservations r on r.show_id = s.id
   left join walkins w      on w.show_id = s.id
-  where auth.role() = 'authenticated'
+  where public.is_staff()
   group by s.id, s.title_ko, s.day, s.sort, w.count, w.note
   order by s.sort;
 $$;
