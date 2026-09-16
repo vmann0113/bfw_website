@@ -374,6 +374,7 @@
     });
 
     chain.then(function () {
+      notifySend(done, phone, "reserved");
       selected = [];
       submitBtn.disabled = false;
       submitBtn.innerHTML = origLabel;
@@ -397,7 +398,7 @@
     if (failFull && failFull.length) msgs.push("‘" + failFull.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 방금 좌석이 마감되어 예약되지 않았습니다.");
     if (failDup && failDup.length) msgs.push("‘" + failDup.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 이미 이 연락처로 예약되어 있습니다.");
     if (failTaken && failTaken.length) msgs.push("‘" + failTaken.map(function (it) { return it.seatLabel || (showById(it.showId) || {}).titleKo || ""; }).join(", ") + "’ 은(는) 방금 다른 분이 선택하셨습니다. 다시 들어가 다른 자리를 골라 주세요.");
-    if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 공연 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
+    if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 패션쇼 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
     if (failErr && failErr.length) msgs.push("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     if (msgs.length) {
       failBox.innerHTML = msgs.join("<br>");
@@ -431,12 +432,31 @@
         if (!confirm("‘" + (r.titleKo || r.showTitle) + "’ 예약을 취소할까요?")) return;
         Api.cancel(r.id, $("lookupName").value.trim(), $("lookupPhone").value.trim()).then(function (ok) {
           if (!ok) { alert("예약을 취소하지 못했습니다. 이미 입장 처리되었거나, 입력하신 정보가 예약과 다릅니다."); return; }
+          notifySend([r], $("lookupPhone").value.trim(), "cancelled");
           doLookup();
           refreshAvailability();
         });
       });
     }
     return el;
+  }
+
+  /* ---- 안내 발송 -------------------------------------------------
+     예약/취소가 끝나면 서버에 알려 알림톡(또는 문자)을 보내게 한다.
+     보내는 사람을 화면이 정하지 않는다 — 서버가 예약번호와 연락처가
+     서로 맞는지 확인한 뒤, 그 예약에 적힌 번호로만 보낸다.
+     발송이 실패해도 예약 자체는 이미 끝난 일이라 흐름을 막지 않는다.
+     ----------------------------------------------------------------- */
+  function notifySend(entries, phone, event) {
+    try {
+      if (!entries || !entries.length) return;
+      var codes = entries.map(function (r) { return "BFW-" + r.code; }).slice(0, 10);
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codes: codes, phone: phone, event: event || "reserved" })
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   /* ---- tabs ---- */

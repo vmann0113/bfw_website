@@ -93,6 +93,46 @@ async function logNoti(entry) {
   }
 }
 
+/* 여러 건을 한 번에 기록한다. 1500건을 한 건씩 넣으면 시간이 모자란다. */
+async function logNotiMany(entries) {
+  if (!entries || !entries.length) return;
+  for (let i = 0; i < entries.length; i += 500) {
+    try {
+      await sb("/rest/v1/notifications", { method: "POST", body: entries.slice(i, i + 500) });
+    } catch (e) {
+      /* 같은 예약에 이미 'sent' 가 있으면 고유 인덱스가 막는다 — 정상 동작 */
+    }
+  }
+}
+
+/* 1000건씩 끊어서 전부 가져온다 (PostgREST 기본 상한을 넘기지 않기 위해) */
+async function sbAll(path) {
+  const out = [];
+  const step = 1000;
+  for (let from = 0; ; from += step) {
+    const sep = path.indexOf("?") >= 0 ? "&" : "?";
+    const rows = await sb(path + sep + "limit=" + step + "&offset=" + from);
+    if (!Array.isArray(rows) || !rows.length) break;
+    out.push.apply(out, rows);
+    if (rows.length < step) break;
+  }
+  return out;
+}
+
+/* 전날 안내를 보내야 할 예약. 이미 보낸 건은 뺀다. */
+async function reminderTargets(dateStr) {
+  const rows = await sbAll(
+    "/rest/v1/reservations?select=" + RESV_COLS +
+    "&date=eq." + encodeURIComponent(dateStr) + "&status=eq.reserved&order=created_at"
+  );
+  const done = await sbAll(
+    "/rest/v1/notifications?select=reservation_id&kind=eq.reminder&status=eq.sent"
+  );
+  const skip = {};
+  done.forEach(function (d) { if (d.reservation_id) skip[d.reservation_id] = true; });
+  return rows.filter(function (r) { return !skip[r.id]; });
+}
+
 /* ---------- 문구 만들기 ----------
    알림톡은 "승인된 템플릿과 한 글자라도 다르면" 발송이 거부된다.
    그래서 아래 tmplText() 는 등록한 템플릿의 고정 문구를 그대로 두고
@@ -210,7 +250,14 @@ async function postForm(url, params) {
   }
 }
 
-async function sendSms(to, msg) {
+/* 요청이 테스트/실제를 지정했으면 그걸 따르고, 없으면 환경변수를 따른다.
+   환경변수를 고치려면 재배포가 필요해서, 요청 단위로 고를 수 있게 해 둔다. */
+function resolveTest(opts) {
+  if (opts && typeof opts.test === "boolean") return opts.test ? "Y" : "N";
+  return ALIGO.testmode;
+}
+
+async function sendSms(to, msg, tmode) {
   const d = await postForm("https://apis.aligo.in/send/", {
     key: ALIGO.key,
     user_id: ALIGO.userId,
@@ -219,57 +266,114 @@ async function sendSms(to, msg) {
     msg: msg.sms,
     title: msg.title,
     msg_type: "LMS",
-    testmode_yn: ALIGO.testmode
+    testmode_yn: tmode || "N"
   });
   const ok = String(d.result_code) === "1";
-  return { ok, channel: "sms", detail: ok ? `msgid=${d.msg_id || ""}` : `${d.result_code} ${d.message || ""}` };
+  return {
+    ok, channel: "sms", test: (tmode || "N") === "Y",
+    detail: ok ? `msgid=${d.msg_id || ""}` : `${d.result_code} ${d.message || ""}`
+  };
 }
 
-async function sendAlimtalk(kind, to, name, msg) {
+async function aligoToken() {
   const tok = await postForm("https://kakaoapi.aligo.in/akv10/token/create/30/s/", {
     apikey: ALIGO.key,
     userid: ALIGO.userId
   });
   if (String(tok.code) !== "0" || !tok.token) {
-    return { ok: false, channel: "alimtalk", detail: `token ${tok.code} ${tok.message || ""}` };
+    throw Object.assign(new Error("token"), { detail: `token ${tok.code} ${tok.message || ""}` });
   }
-  const d = await postForm("https://kakaoapi.aligo.in/akv10/alimtalk/send/", {
+  return tok.token;
+}
+
+/* 알림톡 다건 발송. 알리고는 한 번에 최대 500명까지 받는다.
+   items : [{ to, name, msg }]  — msg 는 buildMessage() 결과
+   응답은 건별이 아니라 묶음 단위(성공/실패 건수)로만 온다. */
+const ALIMTALK_BATCH = 500;
+
+async function sendAlimtalkBulk(kind, items, tmode) {
+  let token;
+  try {
+    token = await aligoToken();
+  } catch (e) {
+    return { ok: false, channel: "alimtalk", detail: e.detail || String(e && e.message) };
+  }
+  const p = {
     apikey: ALIGO.key,
     userid: ALIGO.userId,
-    token: tok.token,
+    token: token,
     senderkey: ALIGO.senderKey,
     tpl_code: ALIGO.tpl[kind],
     sender: ALIGO.sender,
-    receiver_1: to,
-    recvname_1: name,
-    subject_1: msg.title,
-    message_1: msg.text,
-    // 버튼 링크에 예약번호가 들어가므로 실제 주소를 함께 넘긴다
-    button_1: JSON.stringify({
+    // 알림톡이 막히면 문자로 대신 보낸다. 문자에는 버튼이 없으므로
+    // 링크가 본문에 들어간 sms 를 쓴다.
+    failover: "Y",
+    testMode: tmode || "N"
+  };
+  items.forEach(function (it, i) {
+    const n = i + 1;
+    p["receiver_" + n] = it.to;
+    p["recvname_" + n] = it.name || "";
+    p["subject_" + n] = it.msg.title;
+    p["message_" + n] = it.msg.text;
+    p["button_" + n] = JSON.stringify({
       button: [{
-        name: msg.button.name,
+        name: it.msg.button.name,
         linkType: "WL",
         linkTypeName: "웹링크",
-        linkMo: msg.button.mo,
-        linkPc: msg.button.pc || msg.button.mo
+        linkMo: it.msg.button.mo,
+        linkPc: it.msg.button.pc || it.msg.button.mo
       }]
-    }),
-    // 알림톡이 실패하면 문자로 대신 보낸다.
-    // 문자에는 버튼이 없으므로 링크가 본문에 들어간 sms 를 쓴다.
-    failover: "Y",
-    fsubject_1: msg.title,
-    fmessage_1: msg.sms,
-    testMode: ALIGO.testmode
+    });
+    p["fsubject_" + n] = it.msg.title;
+    p["fmessage_" + n] = it.msg.sms;
   });
+  const d = await postForm("https://kakaoapi.aligo.in/akv10/alimtalk/send/", p);
   const ok = String(d.code) === "0";
-  return { ok, channel: "alimtalk", detail: ok ? `msgid=${d.info && d.info.mid ? d.info.mid : ""}` : `${d.code} ${d.message || ""}` };
+  const info = d.info || {};
+  return {
+    ok,
+    channel: "alimtalk",
+    test: (tmode || "N") === "Y",
+    detail: ok
+      ? `mid=${info.mid || ""} 성공${info.scnt != null ? info.scnt : items.length}/실패${info.fcnt != null ? info.fcnt : 0}`
+      : `${d.code} ${d.message || ""}`
+  };
+}
+
+async function sendAlimtalk(kind, to, name, msg, tmode) {
+  return sendAlimtalkBulk(kind, [{ to: to, name: name, msg: msg }], tmode);
 }
 
 /* 알림톡이 준비돼 있으면 알림톡, 아니면 문자. 둘 다 없으면 미리보기(발송 안 함) */
-async function deliver(kind, to, name, msg) {
-  if (hasAlimtalk(kind)) return sendAlimtalk(kind, to, name, msg);
-  if (hasSms()) return sendSms(to, msg);
+async function deliver(kind, to, name, msg, opts) {
+  const tmode = resolveTest(opts);
+  if (hasAlimtalk(kind)) return sendAlimtalk(kind, to, name, msg, tmode);
+  if (hasSms()) return sendSms(to, msg, tmode);
   return { ok: true, channel: "dryrun", detail: "발송 설정이 없어 미리보기만 했습니다" };
+}
+
+/* 다건 발송. 500명씩 끊어서 보낸다. 반환값은 묶음별 결과 배열. */
+async function deliverBulk(kind, items, opts) {
+  const tmode = resolveTest(opts);
+  const out = [];
+  for (let i = 0; i < items.length; i += ALIMTALK_BATCH) {
+    const chunk = items.slice(i, i + ALIMTALK_BATCH);
+    let r;
+    if (hasAlimtalk(kind)) r = await sendAlimtalkBulk(kind, chunk, tmode);
+    else if (hasSms()) {
+      // 문자 API 는 다건 형식이 달라, 여기서는 한 건씩 보낸다
+      const each = [];
+      for (const it of chunk) each.push(await sendSms(it.to, it.msg, tmode));
+      r = {
+        ok: each.every(function (x) { return x.ok; }),
+        channel: "sms", test: tmode === "Y",
+        detail: `성공${each.filter(function (x) { return x.ok; }).length}/${each.length}`
+      };
+    } else r = { ok: true, channel: "dryrun", detail: "발송 설정이 없어 미리보기만 했습니다" };
+    out.push({ result: r, items: chunk });
+  }
+  return out;
 }
 
 /* 지금 어떤 경로로 나가는지 알려준다 — 점검용.
@@ -299,6 +403,7 @@ function health() {
 }
 
 module.exports = {
-  json, digits, sb, findByCodes, alreadySent, logNoti,
-  buildMessage, deliver, hasSms, hasAlimtalk, mode, health, ALIGO, SITE
+  json, digits, sb, sbAll, findByCodes, alreadySent, logNoti, logNotiMany,
+  reminderTargets, buildMessage, deliver, deliverBulk,
+  hasSms, hasAlimtalk, mode, health, resolveTest, ALIGO, SITE
 };

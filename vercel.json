@@ -54,5 +54,11 @@
       "destination": "https://www.busanfashionweek.com/:path*",
       "permanent": true
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-remind",
+      "schedule": "0 1 * * *"
+    }
   ]
 }

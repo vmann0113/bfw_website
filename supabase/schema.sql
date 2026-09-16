@@ -130,7 +130,7 @@ create table if not exists public.notifications (
   kind         text not null,              -- 'reserved' | 'reminder' | 'cancelled'
   channel      text not null,              -- 'alimtalk' | 'sms' | 'dryrun'
   to_phone     text,
-  status       text not null,              -- 'sent' | 'failed' | 'skipped'
+  status       text not null,              -- 'sent' | 'failed' | 'skipped' | 'test'(모의발송)
   detail       text,
   created_at   timestamptz default now()
 );

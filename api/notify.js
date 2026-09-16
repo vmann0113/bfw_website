@@ -35,6 +35,8 @@ module.exports = async (req, res) => {
   body = body || {};
 
   const kind = body.event === "cancelled" ? "cancelled" : "reserved";
+  // test:true → 모의 발송, test:false → 실제 발송, 없으면 환경변수를 따른다
+  const opts = typeof body.test === "boolean" ? { test: body.test } : undefined;
   const phoneKey = L.digits(body.phone);
   let codes = body.codes || (body.code ? [body.code] : []);
   if (!Array.isArray(codes)) codes = [codes];
@@ -67,15 +69,18 @@ module.exports = async (req, res) => {
         continue;
       }
       const msg = L.buildMessage(kind, r);
-      const sent = await L.deliver(kind, L.digits(r.phone), r.name || "", msg);
+      const sent = await L.deliver(kind, L.digits(r.phone), r.name || "", msg, opts);
+      // 모의 발송을 'sent' 로 남기면, 같은 예약의 실제 발송이 "이미 보냄"으로
+      // 건너뛰어진다(notifications 고유 인덱스). 그래서 'test' 로 남긴다.
       await L.logNoti({
         reservation_id: r.id, code: r.code, kind,
         channel: sent.channel, to_phone: r.phone,
-        status: sent.ok ? "sent" : "failed", detail: sent.detail || null
+        status: sent.ok ? (sent.test ? "test" : "sent") : "failed",
+        detail: sent.detail || null
       });
       out.push({
         code: r.code,
-        status: sent.ok ? "sent" : "failed",
+        status: sent.ok ? (sent.test ? "test" : "sent") : "failed",
         channel: sent.channel,
         detail: sent.detail,
         // 발송 설정이 없을 때는 어떤 내용이 나갈지 미리 보여준다
