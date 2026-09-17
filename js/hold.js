@@ -442,7 +442,7 @@
     }).length;
   }
   function syncLater() {
-    var n = data && !data.holder.closed ? vipMissing() : 0;
+    var n = data ? vipMissing() : 0;
     $("vipLater").className = "later" + (n ? " miss" : "");
     $("vipLater").innerHTML = n
       ? "정보를 다 적지 않은 VIP석이 <b>" + n + "석</b> 있습니다. 입력하지 않으면 추후 <b>별도 명단을 제출</b>하셔야 합니다."
