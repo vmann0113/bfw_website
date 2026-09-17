@@ -666,7 +666,7 @@
       if (d && d.ok) {
         saved = {}; savedGuest = {};
         keys(picked).forEach(function (k) { saved[k] = picked[k]; });
-        vipIds().forEach(function (k) { var g = guest[k]; savedGuest[k] = { name: g.name, org: g.org, phone: g.phone }; });
+        vipIds().forEach(function (k) { var g = guest[k] || {}; savedGuest[k] = { name: g.name || "", org: g.org || "", phone: g.phone || "" }; });
         say("저장했습니다 · 확보 " + d.saved + "석" + (d.vip ? " (VIP " + d.vip + ")" : "") + " / 일반 공개 " + d.publicRemaining + "석" +
             (d.vipMissing ? " · VIP석 " + d.vipMissing + "석은 추후 별도 명단 제출이 필요합니다" : ""), d.vipMissing ? "" : "ok");
         $("saveBtn").disabled = false;
