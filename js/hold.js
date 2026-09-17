@@ -185,7 +185,12 @@
       inRange[s.id] = true;
     });
   }
-  function canPick(s) { return !data.holder.closed && !!inRange[s.id]; }
+  /* VIP석은 런웨이에 가장 가까운 첫 줄(1단)만. VIP석을 고르는 중에는 첫 줄만 누를 수 있다. */
+  function isFront(s) { return s.tier === 1; }
+  function canPick(s) {
+    if (data.holder.closed || !inRange[s.id]) return false;
+    return grade !== "vip" || isFront(s);
+  }
   var hasRange = false;   // 주최측이 범위를 정해줬는가 (정해줬으면 범위를 눈에 띄게 칠한다)
 
   /* ---------- 좌석 칸 모양 ---------- */
@@ -202,12 +207,18 @@
       el.style.background = "#e8ebf1"; el.style.borderColor = "#e8ebf1"; el.style.color = "#a9b0c2";
     } else if (!inRange[s.id]) {
       el.style.background = "#f6f7fa"; el.style.borderColor = "#eef0f4"; el.style.color = "#c8cdd8";
+    } else if (grade === "vip" && !data.holder.closed && !isFront(s)) {
+      // VIP석을 고르는 중 : 첫 줄이 아닌 좌석은 흐리게
+      el.style.background = "#f6f7fa"; el.style.borderColor = "#eef0f4"; el.style.color = "#c8cdd8";
+    } else if (grade === "vip" && !data.holder.closed) {
+      el.style.background = "#fff6e0"; el.style.borderColor = "#e3b85c"; el.style.color = "#7a4b00";
     } else if (hasRange) {
       el.style.background = "#f1f4ff"; el.style.borderColor = "#b9c6f5"; el.style.color = "#3a4a86";
     }
     if (!canPick(s)) el.disabled = true;
     var why = picked[s.id] === "vip" ? "VIP석 확보" : picked[s.id] ? "일반초청석 확보" : st === "other" ? "다른 참여사 확보" : st === "staff" ? "주최측 지정"
-      : st === "reserved" ? "관람객 예약" : !inRange[s.id] ? "선택할 수 없는 좌석" : "선택 가능";
+      : st === "reserved" ? "관람객 예약" : !inRange[s.id] ? "선택할 수 없는 좌석"
+      : (grade === "vip" && !isFront(s)) ? "VIP석은 런웨이 쪽 첫 줄만 고를 수 있습니다" : "선택 가능";
     el.title = s.zone_code + "구역 " + s.num + "번 — " + why;
   }
 
@@ -269,7 +280,7 @@
   }
   var GRADE_HINT = {
     general: "지금 고르는 좌석은 <b>일반초청석</b>입니다.",
-    vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. 오른쪽에 좌석마다 <b>이름·소속·연락처</b>를 적을 수 있습니다(선택)."
+    vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. VIP석은 <b>런웨이에 가장 가까운 첫 줄</b>만 고를 수 있습니다.<br>오른쪽에 좌석마다 <b>이름·소속·연락처</b>를 적을 수 있습니다(선택)."
   };
   function syncGrade() {
     [].forEach.call($("gradeSeg").querySelectorAll("button"), function (b) {
@@ -282,6 +293,8 @@
     if (!b || !data || data.holder.closed) return;
     grade = b.getAttribute("data-grade");
     syncGrade();
+    if (map) map.repaint();   // 고를 수 있는 좌석이 바뀌므로 전체를 다시 칠한다
+    paintCounts();
   });
   $("modeSeg").addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("button[data-mode]") : null;
@@ -309,10 +322,13 @@
     /* 이미 확보한 좌석으로 시작. 단, 주최측이 범위를 바꿔 지금은 범위 밖인 좌석은 빼고 알린다
        (그대로 두면 저장할 때 전체가 거부되어 아무것도 저장할 수 없다). */
     picked = {}; saved = {}; guest = {}; savedGuest = {};
-    var outside = [];
+    var outside = [], notFront = [];
+    grade = "general";
     data.seats.forEach(function (s) {
       if (s.state !== "mine") return;
       var g = s.grade === "vip" ? "vip" : "general";
+      // 첫 줄 규칙 이전에 다른 줄에 잡힌 VIP석은 일반초청석으로 바꿔 보여주고 알린다
+      if (g === "vip" && !isFront(s)) { g = "general"; notFront.push(s.zone_code + "구역 " + s.num + "번"); }
       saved[s.id] = g;
       if (g === "vip") {
         guest[s.id] = { name: s.guest_name || "", org: s.guest_org || "", phone: s.guest_phone || "" };
@@ -343,6 +359,11 @@
         nt.push('<div class="note warn"><h4>대학 참여사께</h4>' +
           "좌석을 많이 확보하고 일부만 일반에 공개하실 때는 <b>구역 단위</b>로 구역 전체를 고른 뒤, " +
           "<b>좌석 단위</b>로 바꿔 공개할 자리만 누르시면 빠릅니다.</div>");
+      }
+      if (notFront.length) {
+        nt.push('<div class="note warn"><h4>VIP석은 첫 줄만 가능합니다</h4>' +
+          "VIP석은 런웨이에 가장 가까운 첫 줄만 지정할 수 있어, " + esc(notFront.join(", ")) +
+          " 좌석을 <b>일반초청석</b>으로 바꿔 두었습니다. 확인 후 저장해 주세요.</div>");
       }
       if (outside.length) {
         nt.push('<div class="note warn"><h4>배정 범위가 바뀌었습니다</h4>' +
@@ -407,7 +428,7 @@
     if (!ids.length) {
       $("vipList").innerHTML = '<div class="empty">' + (closed
         ? "VIP석으로 확보한 좌석이 없습니다."
-        : "위에서 <b>VIP석</b>을 누른 뒤 지도에서 좌석을 고르면, 여기에 좌석마다 이름·소속·연락처 칸이 생깁니다.") + "</div>";
+        : "위에서 <b>VIP석</b>을 누른 뒤 지도에서 <b>런웨이 쪽 첫 줄</b> 좌석을 고르면, 여기에 좌석마다 이름·소속·연락처 칸이 생깁니다.") + "</div>";
       return;
     }
     $("vipList").innerHTML = ids.map(function (id) {
@@ -527,7 +548,7 @@
         title: "일반초청석과 VIP석",
         html: "좌석은 두 종류로 확보합니다.<ul>" +
               "<li><span class='k'>일반초청석</span> 좌석만 잡아둡니다 (<b>파란색</b>)</li>" +
-              "<li><span class='k'>VIP석</span> 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 적을 수 있습니다 (<b>금색</b>)</li></ul>" +
+              "<li><span class='k'>VIP석</span> <b>런웨이에 가장 가까운 첫 줄</b>만 가능. 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 적을 수 있습니다 (<b>금색</b>)</li></ul>" +
               "종류를 먼저 누르고 지도에서 좌석을 고르세요. 이미 고른 좌석을 다른 종류로 누르면 <b>종류만 바뀝니다</b>." },
       { el: function () { return document.getElementById("tools"); },
         title: "선택 방식은 두 가지입니다",
@@ -601,6 +622,7 @@
     taken:      "고르신 자리 중 일부를 방금 다른 참여사가 확보했습니다. 화면을 새로 불러왔습니다.",
     occupied:   "고르신 자리 중 일부는 이미 관람객이 예약했습니다. 화면을 새로 불러왔습니다.",
     vipinfo:    "VIP석 정보(이름·소속·연락처)가 빠진 좌석이 있습니다.",
+    vipfront:   "VIP석은 런웨이에 가장 가까운 첫 줄만 지정할 수 있습니다. 화면을 새로 불러왔습니다.",
     badvip:     "VIP석 정보가 좌석과 맞지 않습니다. 화면을 새로 불러왔습니다.",
     full:       "일반 관람객 예약이 이미 들어와 더 확보할 수 없습니다. " + OFFICE + "으로 연락해 주세요."
   };
@@ -654,7 +676,7 @@
       say(REASON[r] || "저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", "err");
       // 상황이 바뀐 경우엔 최신 상태를 다시 받아야 한다
       if (r === "vipinfo") checkVip();
-      if (r === "taken" || r === "occupied" || r === "badseat" || r === "notallowed" || r === "badzone" || r === "badvip") return load(true);
+      if (r === "taken" || r === "occupied" || r === "badseat" || r === "notallowed" || r === "badzone" || r === "badvip" || r === "vipfront") return load(true);
       $("saveBtn").disabled = false;
     }).catch(function () {
       busy = false;

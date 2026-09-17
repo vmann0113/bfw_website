@@ -1222,6 +1222,14 @@ begin
   if v_bad is not null then
     return json_build_object('ok', false, 'reason', 'badvip', 'seats', v_bad);
   end if;
+  -- VIP석은 런웨이에 가장 가까운 첫 줄(1단)만
+  select array_agg(se.id order by se.id) into v_bad
+    from jsonb_array_elements(v_vip) e
+    join seats se on se.id = e->>'seat'
+   where se.tier <> 1;
+  if v_bad is not null then
+    return json_build_object('ok', false, 'reason', 'vipfront', 'seats', v_bad);
+  end if;
 
   -- 바꾸기 전 상태를 먼저 담아둔다 (이력에 남겨 되돌릴 수 있게) — VIP 명단까지
   select coalesce(array_agg(seat_id order by seat_id), '{}') into v_prev
