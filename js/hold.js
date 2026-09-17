@@ -69,14 +69,18 @@
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqY3J6ZHpyZ211YmlweGNnemNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1MTcwMzEsImV4cCI6MjEwNDA5MzAzMX0.T_61-FVfL0fKkR3IDEO8x30UQGfMWBVL6oQAF5m4tF8"
   };
   var NAVY = "#0b2e9e";
+  var GOLD = "#a86d00";   // VIP석
 
   var $ = function (id) { return document.getElementById(id); };
   var token = (new URLSearchParams(location.search).get("t") || "").trim();
 
   var data = null;      // holder_view 응답
   var map = null;       // HallMap
-  var picked = {};      // 지금 화면에서 고른 좌석
-  var saved = {};       // 서버에 저장된 상태 (되돌리기용)
+  var picked = {};      // 지금 화면에서 고른 좌석 : id → 'general'(일반초청석) | 'vip'(VIP석)
+  var saved = {};       // 서버에 저장된 상태 (되돌리기용) : id → 종류
+  var guest = {};       // VIP석에 앉을 분 : id → {name, org, phone} (좌석을 뺐다 넣어도 적은 내용은 남긴다)
+  var savedGuest = {};
+  var grade = "general";  // 지금 칠하는 종류
   var inRange = {};     // 이 참여사가 고를 수 있는 좌석
   var byId = {};
   var mode = "seat";    // 참여사는 보통 몇 자리를 고르므로 좌석 단위로 시작. 대학은 구역 단위로 시작.
@@ -188,7 +192,8 @@
   function decorate(s, el) {
     var st = s.state;
     if (picked[s.id]) {
-      el.style.background = NAVY; el.style.borderColor = NAVY; el.style.color = "#fff";
+      var c = picked[s.id] === "vip" ? GOLD : NAVY;
+      el.style.background = c; el.style.borderColor = c; el.style.color = "#fff";
     } else if (st === "other") {
       el.style.background = "#e8ebf1"; el.style.borderColor = "#e8ebf1"; el.style.color = "#a9b0c2";
     } else if (st === "staff") {
@@ -201,7 +206,7 @@
       el.style.background = "#f1f4ff"; el.style.borderColor = "#b9c6f5"; el.style.color = "#3a4a86";
     }
     if (!canPick(s)) el.disabled = true;
-    var why = picked[s.id] ? "확보(선택됨)" : st === "other" ? "다른 참여사 확보" : st === "staff" ? "주최측 지정"
+    var why = picked[s.id] === "vip" ? "VIP석 확보" : picked[s.id] ? "일반초청석 확보" : st === "other" ? "다른 참여사 확보" : st === "staff" ? "주최측 지정"
       : st === "reserved" ? "관람객 예약" : !inRange[s.id] ? "선택할 수 없는 좌석" : "선택 가능";
     el.title = s.zone_code + "구역 " + s.num + "번 — " + why;
   }
@@ -226,7 +231,11 @@
       onSeat: function (s) {
         if (!canPick(s)) return;
         if (mode === "zone") toggleZone(s.zone_code);
-        else { if (picked[s.id]) delete picked[s.id]; else picked[s.id] = true; map.repaint(s.id); }
+        else {
+          // 같은 종류로 다시 누르면 해제, 다른 종류로 누르면 종류만 바꾼다
+          if (picked[s.id] === grade) delete picked[s.id]; else picked[s.id] = grade;
+          map.repaint(s.id);
+        }
         paintCounts();
       },
       onZone: function (code) {
@@ -242,8 +251,8 @@
     var ids = data.seats.filter(function (s) { return s.zone_code === code && canPick(s); })
                         .map(function (s) { return s.id; });
     if (!ids.length) return;
-    var all = ids.every(function (id) { return picked[id]; });
-    ids.forEach(function (id) { if (all) delete picked[id]; else picked[id] = true; map.repaint(id); });
+    var all = ids.every(function (id) { return picked[id] === grade; });
+    ids.forEach(function (id) { if (all) delete picked[id]; else picked[id] = grade; map.repaint(id); });
   }
 
   /* ---------- 선택 방식 ---------- */
@@ -255,9 +264,25 @@
     [].forEach.call($("modeSeg").querySelectorAll("button"), function (b) {
       b.classList.toggle("on", b.getAttribute("data-mode") === mode);
     });
-    $("modeHint").innerHTML = MODE_HINT[mode];
+    $("modeHint").innerHTML = GRADE_HINT[grade] + "<br>" + MODE_HINT[mode];
     if (map && map.setMode) map.setMode(mode);
   }
+  var GRADE_HINT = {
+    general: "지금 고르는 좌석은 <b>일반초청석</b>입니다.",
+    vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. 고른 좌석마다 오른쪽에 <b>이름·소속·연락처</b>를 적어주세요."
+  };
+  function syncGrade() {
+    [].forEach.call($("gradeSeg").querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-grade") === grade);
+    });
+    $("modeHint").innerHTML = GRADE_HINT[grade] + "<br>" + MODE_HINT[mode];
+  }
+  $("gradeSeg").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("button[data-grade]") : null;
+    if (!b || !data || data.holder.closed) return;
+    grade = b.getAttribute("data-grade");
+    syncGrade();
+  });
   $("modeSeg").addEventListener("click", function (e) {
     var b = e.target.closest ? e.target.closest("button[data-mode]") : null;
     if (!b || !data || data.holder.closed) return;
@@ -283,13 +308,18 @@
 
     /* 이미 확보한 좌석으로 시작. 단, 주최측이 범위를 바꿔 지금은 범위 밖인 좌석은 빼고 알린다
        (그대로 두면 저장할 때 전체가 거부되어 아무것도 저장할 수 없다). */
-    picked = {}; saved = {};
+    picked = {}; saved = {}; guest = {}; savedGuest = {};
     var outside = [];
     data.seats.forEach(function (s) {
       if (s.state !== "mine") return;
-      saved[s.id] = true;
+      var g = s.grade === "vip" ? "vip" : "general";
+      saved[s.id] = g;
+      if (g === "vip") {
+        guest[s.id] = { name: s.guest_name || "", org: s.guest_org || "", phone: s.guest_phone || "" };
+        savedGuest[s.id] = { name: guest[s.id].name, org: guest[s.id].org, phone: guest[s.id].phone };
+      }
       if (!inRange[s.id]) { outside.push(s.zone_code + "구역 " + s.num + "번"); return; }
-      picked[s.id] = true;
+      picked[s.id] = g;
     });
     // 확보한 좌석은 '고를 수 있는' 좌석이기도 하다(해제할 수 있어야 하므로)
     keys(picked).forEach(function (id) { inRange[id] = true; });
@@ -323,15 +353,19 @@
     $("notices").innerHTML = nt.join("");
 
     mode = h.kind === "univ" ? "zone" : "seat";
+    grade = "general";
+    vipKey = null;
     $("loading").hidden = true;
     $("main").hidden = false;
     $("bar").hidden = false;
     $("tools").style.display = h.closed ? "none" : "";
     drawMap();
     syncMode();
+    syncGrade();
 
     $("legend").innerHTML =
-      '<span><i style="background:' + NAVY + ";border-color:" + NAVY + '"></i>우리가 확보</span>' +
+      '<span><i style="background:' + NAVY + ";border-color:" + NAVY + '"></i>일반초청석</span>' +
+      '<span><i style="background:' + GOLD + ";border-color:" + GOLD + '"></i>VIP석</span>' +
       (hasRange ? '<span><i style="background:#f1f4ff;border-color:#b9c6f5"></i>고를 수 있는 좌석</span>'
                 : '<span><i style="background:#fff"></i>고를 수 있는 좌석</span>') +
       '<span><i style="background:#e8ebf1;border-color:#e8ebf1"></i>다른 참여사</span>' +
@@ -353,13 +387,87 @@
     paintCounts();
   }
 
+  /* ---------- VIP석 정보 칸 ----------
+     VIP석으로 고른 좌석마다 이름·소속·연락처 한 줄. 좌석 구성이 바뀔 때만 다시 그려
+     입력하던 칸의 커서를 잃지 않게 한다. */
+  var vipKey = null;
+  function seatLabel(id) { var s = byId[id]; return s ? s.zone_code + "구역 " + s.num + "번" : id; }
+  function vipIds() {
+    return Object.keys(picked).filter(function (k) { return picked[k] === "vip"; }).sort(function (a, b) {
+      var x = byId[a], y = byId[b];
+      return x.zone_code === y.zone_code ? x.num - y.num : (x.zone_code < y.zone_code ? -1 : 1);
+    });
+  }
+  function renderVip(force) {
+    var ids = vipIds(), closed = data.holder.closed;
+    $("vipCnt").textContent = ids.length ? ids.length + "석" : "";
+    var key = ids.join(",") + (closed ? "#c" : "");
+    if (!force && key === vipKey) return;
+    vipKey = key;
+    if (!ids.length) {
+      $("vipList").innerHTML = '<div class="empty">' + (closed
+        ? "VIP석으로 확보한 좌석이 없습니다."
+        : "위에서 <b>VIP석</b>을 누른 뒤 지도에서 좌석을 고르면, 여기에 좌석마다 이름·소속·연락처 칸이 생깁니다.") + "</div>";
+      return;
+    }
+    $("vipList").innerHTML = ids.map(function (id) {
+      var g = guest[id] || {};
+      if (closed) {
+        return '<div class="vr"><div class="st">' + esc(seatLabel(id)) + '</div><div class="ro">' +
+          esc(g.name || "—") + " · " + esc(g.org || "—") + " · " + esc(g.phone || "—") + "</div></div>";
+      }
+      return '<div class="vr" data-seat="' + esc(id) + '"><div class="st">' + esc(seatLabel(id)) + "</div>" +
+        '<div class="f">' +
+          '<input type="text" data-f="name" placeholder="이름" value="' + esc(g.name || "") + '" />' +
+          '<input type="text" data-f="org" placeholder="소속" value="' + esc(g.org || "") + '" />' +
+          '<input type="tel" data-f="phone" placeholder="연락처" value="' + esc(g.phone || "") + '" />' +
+        "</div></div>";
+    }).join("");
+    [].forEach.call($("vipList").querySelectorAll("input[data-f=phone]"), bindPhone);
+  }
+  $("vipList").addEventListener("input", function (e) {
+    var row = e.target.closest ? e.target.closest(".vr[data-seat]") : null;
+    if (!row) return;
+    var id = row.getAttribute("data-seat"), f = e.target.getAttribute("data-f");
+    var g = guest[id] || (guest[id] = { name: "", org: "", phone: "" });
+    g[f] = e.target.value;
+    e.target.classList.remove("bad");
+  });
+  /* VIP석마다 이름·소속·연락처가 다 있는지. 빠진 칸은 빨갛게, 첫 칸으로 데려간다. */
+  function checkVip() {
+    var missing = [], first = null;
+    vipIds().forEach(function (id) {
+      var g = guest[id] || {}, row = $("vipList").querySelector('.vr[data-seat="' + id + '"]');
+      var bad = {
+        name: !String(g.name || "").trim(),
+        org: !String(g.org || "").trim(),
+        phone: String(g.phone || "").replace(/[^0-9]/g, "").length < 9
+      };
+      if (bad.name || bad.org || bad.phone) missing.push(id);
+      if (row) ["name", "org", "phone"].forEach(function (f) {
+        var el = row.querySelector("input[data-f=" + f + "]");
+        el.classList.toggle("bad", bad[f]);
+        if (bad[f] && !first) first = el;
+      });
+    });
+    if (!missing.length) return true;
+    if (first) {
+      first.closest(".vr").scrollIntoView({ block: "nearest", behavior: "smooth" });
+      $("vipBox").scrollIntoView({ block: "nearest", behavior: "smooth" });
+      setTimeout(function () { first.focus({ preventScroll: true }); }, 250);
+    }
+    say("VIP석 " + missing.length + "석의 이름·소속·연락처를 모두 적어주세요", "err");
+    return false;
+  }
+
   /* ---------- 사용법 안내 ---------- */
   function tourSteps() {
     var h = data.holder;
     var nm = esc(h.name);
     var legend = "<ul>" +
       "<li><span class='sw' style='background:" + (hasRange ? "#f1f4ff;border-color:#b9c6f5" : "#fff") + "'></span>고를 수 있는 좌석</li>" +
-      "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 좌석</li>" +
+      "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 일반초청석</li>" +
+      "<li><span class='sw' style='background:#a86d00;border-color:#a86d00'></span>우리가 확보한 VIP석</li>" +
       "<li><span class='sw' style='background:#e8ebf1;border-color:#e8ebf1'></span>다른 참여사가 확보</li>" +
       "<li><span class='sw' style='background:#efe9dc;border-color:#e6dcc6'></span>주최측 지정(내빈석 등)</li>" +
       (hasRange ? "<li><span class='sw' style='background:#f6f7fa;border-color:#eef0f4'></span>고를 수 없는 좌석</li>" : "") +
@@ -377,6 +485,9 @@
         { el: function () { return document.querySelector("#map .hm"); }, maxH: 360, offsetTop: 36,
           title: "좌석 지도 보는 법",
           html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>, 칸 안 숫자가 <b>좌석번호</b>입니다." + legend },
+        { el: "#vipBox", title: "VIP석 명단",
+          html: "VIP석으로 확보한 좌석과 앉으실 분의 정보가 나옵니다.<br>" +
+                "수집된 개인정보는 오직 <b>좌석 확보 및 착석 안내용</b>으로만 사용되며, 개인정보에 대한 책임은 <b>각 참여사</b>에 있습니다." },
         { el: null, title: "안내를 마칩니다",
           html: "이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 다시 볼 수 있습니다." }
       ];
@@ -397,6 +508,12 @@
         title: "먼저 담당자를 적어주세요",
         html: "확보 내용을 확인할 때 연락드릴 분입니다. <b>이름과 연락처가 없으면 저장되지 않습니다.</b><br>" +
               "연락처는 숫자만 누르시면 하이픈이 자동으로 들어갑니다." },
+      { el: "#gradeSeg",
+        title: "일반초청석과 VIP석",
+        html: "좌석은 두 종류로 확보합니다.<ul>" +
+              "<li><span class='k'>일반초청석</span> 좌석만 잡아둡니다 (<b>파란색</b>)</li>" +
+              "<li><span class='k'>VIP석</span> 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 받습니다 (<b>금색</b>)</li></ul>" +
+              "종류를 먼저 누르고 지도에서 좌석을 고르세요. 이미 고른 좌석을 다른 종류로 누르면 <b>종류만 바뀝니다</b>." },
       { el: function () { return document.getElementById("tools"); },
         title: "선택 방식은 두 가지입니다",
         html: "<ul><li><span class='k'>구역 단위</span> 좌석 하나만 눌러도 <b>그 구역 전체</b>가 선택/해제</li>" +
@@ -407,6 +524,10 @@
         title: "좌석 지도 보는 법",
         html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>입니다. 칸 안 숫자가 <b>좌석번호</b>예요." + legend +
               "옆의 구역 글자(A~H)를 누르면 구역을 통째로 고를 수 있습니다." },
+      { el: "#vipBox",
+        title: "VIP석 정보를 적어주세요",
+        html: "VIP석으로 고른 좌석마다 여기에 한 줄씩 칸이 생깁니다. <b>이름·소속·연락처가 모두 있어야 저장</b>됩니다.<br><br>" +
+              "수집된 개인정보는 오직 <b>좌석 확보 및 착석 안내용</b>으로만 사용되며, 개인정보에 대한 책임은 <b>각 참여사</b>에 있습니다." },
       { el: "#bar", pad: 0,
         title: "꼭 ‘저장’을 눌러주세요",
         html: "<b>저장</b>을 눌러야 좌석이 실제로 확보됩니다. 확보한 좌석 수와 <b>일반 공개로 남는 좌석 수</b>가 함께 보입니다.<br><br>" +
@@ -416,13 +537,16 @@
         html: "궁금하신 점은 " + officeLine() + "으로 연락해 주세요.<br>이 안내는 오른쪽 위 <span class='k'>사용법</span>에서 언제든 다시 볼 수 있습니다." }
     ];
   }
-  var TOUR_KEY = "bfw_tour_hold_v1";
+  var TOUR_KEY = "bfw_tour_hold_v2";
   $("helpBtn").addEventListener("click", function () {
     if (data && window.HoldTour) window.HoldTour.start({ key: TOUR_KEY, steps: tourSteps() });
   });
 
   function paintCounts() {
     var n = keys(picked).length;
+    var nv = vipIds().length;
+    $("nVip").textContent = nv ? "(VIP " + nv + ")" : "";
+    renderVip(false);
     var max = data.holder.maxSeats;
     $("nMine").textContent = n;
     $("nMax").textContent = max != null ? " / " + max + "석" : "석";
@@ -460,6 +584,8 @@
     badseat:    "좌석번호가 올바르지 않습니다. 화면을 새로 불러왔습니다.",
     taken:      "고르신 자리 중 일부를 방금 다른 참여사가 확보했습니다. 화면을 새로 불러왔습니다.",
     occupied:   "고르신 자리 중 일부는 이미 관람객이 예약했습니다. 화면을 새로 불러왔습니다.",
+    vipinfo:    "VIP석 정보(이름·소속·연락처)가 빠진 좌석이 있습니다.",
+    badvip:     "VIP석 정보가 좌석과 맞지 않습니다. 화면을 새로 불러왔습니다.",
     full:       "일반 관람객 예약이 이미 들어와 더 확보할 수 없습니다. " + OFFICE + "으로 연락해 주세요."
   };
 
@@ -485,6 +611,7 @@
   $("saveBtn").addEventListener("click", function () {
     if (busy) return;
     if (!checkContact()) return;
+    if (!checkVip()) return;
     busy = true;
     $("saveBtn").disabled = true;
     say("저장 중…", "");
@@ -492,20 +619,26 @@
       p_token: token,
       p_seat_ids: keys(picked),
       p_contact_name: $("cName").value.trim(),
-      p_contact_phone: $("cPhone").value.trim()
+      p_contact_phone: $("cPhone").value.trim(),
+      p_vip: vipIds().map(function (id) {
+        var g = guest[id] || {};
+        return { seat: id, name: String(g.name || "").trim(), org: String(g.org || "").trim(), phone: String(g.phone || "").trim() };
+      })
     }).then(function (d) {
       busy = false;
       if (d && d.ok) {
-        saved = {};
-        keys(picked).forEach(function (k) { saved[k] = true; });
-        say("저장했습니다 · 확보 " + d.saved + "석 / 일반 공개 " + d.publicRemaining + "석", "ok");
+        saved = {}; savedGuest = {};
+        keys(picked).forEach(function (k) { saved[k] = picked[k]; });
+        vipIds().forEach(function (k) { var g = guest[k]; savedGuest[k] = { name: g.name, org: g.org, phone: g.phone }; });
+        say("저장했습니다 · 확보 " + d.saved + "석" + (d.vip ? " (VIP " + d.vip + ")" : "") + " / 일반 공개 " + d.publicRemaining + "석", "ok");
         $("saveBtn").disabled = false;
         return;
       }
       var r = (d && d.reason) || "";
       say(REASON[r] || "저장하지 못했습니다. 잠시 후 다시 시도해 주세요.", "err");
       // 상황이 바뀐 경우엔 최신 상태를 다시 받아야 한다
-      if (r === "taken" || r === "occupied" || r === "badseat" || r === "notallowed" || r === "badzone") return load(true);
+      if (r === "vipinfo") checkVip();
+      if (r === "taken" || r === "occupied" || r === "badseat" || r === "notallowed" || r === "badzone" || r === "badvip") return load(true);
       $("saveBtn").disabled = false;
     }).catch(function () {
       busy = false;
@@ -517,7 +650,10 @@
   $("resetBtn").addEventListener("click", function () {
     var before = keys(picked);
     picked = {};
-    keys(saved).forEach(function (k) { if (inRange[k]) picked[k] = true; });
+    keys(saved).forEach(function (k) { if (inRange[k]) picked[k] = saved[k]; });
+    guest = {};
+    Object.keys(savedGuest).forEach(function (k) { var g = savedGuest[k]; guest[k] = { name: g.name, org: g.org, phone: g.phone }; });
+    renderVip(true);
     before.concat(keys(picked)).forEach(function (id) { map.repaint(id); });
     paintCounts();
     say("마지막으로 저장한 상태로 되돌렸습니다", "");
@@ -525,7 +661,9 @@
 
   window.addEventListener("beforeunload", function (e) {
     if (!data || data.holder.closed) return;
-    var a = keys(picked).sort().join(","), b = keys(saved).filter(function (k) { return inRange[k]; }).sort().join(",");
+    var sig = function (m) { return keys(m).filter(function (k) { return inRange[k]; }).sort().map(function (k) { return k + ":" + m[k]; }).join(","); };
+    var gs = function (g) { return vipIds().map(function (k) { var x = g[k] || {}; return [x.name, x.org, x.phone].join("|"); }).join(","); };
+    var a = sig(picked) + gs(guest), b = sig(saved) + gs(savedGuest);
     if (a !== b) { e.preventDefault(); e.returnValue = ""; }
   });
 
