@@ -353,7 +353,7 @@
         "<div>" +
           '<div class="nm">' + esc(x.name) + '<span class="kind">' + (x.kind === "univ" ? "대학" : "브랜드") + "</span>" +
             '<span class="pill sm ' + (x.isOpen ? "on" : "off") + '"><i></i>' + (x.isOpen ? "열림" : "닫힘") + "</span></div>" +
-          '<div class="meta">배정 <b>' + allot + "</b> · 확보 <b>" + x.held + "</b>석" +
+          '<div class="meta">배정 <b>' + allot + "</b> · 확보 <b>" + x.held + "</b>석" + (x.vip ? " (VIP <b>" + x.vip + "</b>)" : "") +
             (x.maxSeats != null ? " · 한도 <b>" + x.maxSeats + "</b>" : "") +
             (x.contactName ? " · " + esc(x.contactName) : "") +
             (x.savedAt ? " · " + when(x.savedAt) : "") + "</div>" +
@@ -511,7 +511,9 @@
           el.style.background = STAFF_COLOR; el.style.borderColor = STAFF_COLOR; el.style.color = "#fff"; how = "주최측 확보";
         } else if (x.lock) {
           var c = colorOf(x.lock); el.style.background = c; el.style.borderColor = c; el.style.color = "#fff";
-          who = holderById(x.lock); how = (who ? who.name : "참여사") + " 확보";
+          who = holderById(x.lock); how = (who ? who.name : "참여사") + (x.g === "vip" ? " VIP석" : " 일반초청석") + " 확보";
+          // VIP석은 금색 테두리로 구분한다
+          if (x.g === "vip") { el.style.boxShadow = "inset 0 0 0 2px " + VIP_RING; how += " — " + (x.gn || "?") + " / " + (x.go || "?") + " / " + (x.gp || "?"); }
         } else if (x.res) {
           el.style.background = RESERVED_COLOR; el.style.borderColor = RESERVED_COLOR; el.style.color = "#fff"; how = "일반 예약";
         } else if (ai[x.id]) {
@@ -529,12 +531,14 @@
 
   }
 
+  var VIP_RING = "#f5b800";
   function renderLegend() {
     var d = mapData;
     $("legend").innerHTML = '<div class="hm-legend">' +
       '<span><i style="background:#fff"></i>빈 좌석</span>' +
       '<span><i style="background:' + tint(PALETTE[0], 0.2) + ";border-color:" + tint(PALETTE[0], 0.6) + '"></i>배정(연한 색)</span>' +
-      '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + '"></i>확보(진한 색)</span>' +
+      '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + '"></i>일반초청석 확보(진한 색)</span>' +
+      '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + ";box-shadow:inset 0 0 0 2px " + VIP_RING + '"></i>VIP석 확보(금색 테두리)</span>' +
       '<span><i style="background:' + STAFF_COLOR + '"></i>주최측 확보</span>' +
       '<span><i style="background:' + RESERVED_COLOR + '"></i>일반 예약</span>' +
       '<span><i style="outline:2px solid #ff4d6d;border-color:transparent"></i>선택 중</span>' +
@@ -781,12 +785,16 @@
   $("exportBtn").addEventListener("click", function () {
     rpc("hold_export", {}).then(function (rows) {
       rows = rows || [];
-      var lines = [["쇼", "패션쇼", "날짜", "시각", "참여사", "구분", "좌석", "구역", "번호", "담당자", "연락처", "마지막 저장"]];
+      var lines = [["쇼", "패션쇼", "날짜", "시각", "참여사", "구분", "좌석", "구역", "번호", "좌석 종류",
+                    "VIP 이름", "VIP 소속", "VIP 연락처", "담당자", "연락처", "마지막 저장"]];
       rows.forEach(function (r) {
         var sh = (board.shows || []).filter(function (x) { return x.id === r.show_id; })[0];
         lines.push([r.show_id, sh ? showName(sh.title_ko, sh.lineup) : r.title_ko, r.show_date, r.start_time, r.holder_name,
           r.kind === "univ" ? "대학" : r.kind === "brand" ? "브랜드" : "주최측",
-          r.seat_id, r.zone_code, r.seat_num, r.contact_name || "", r.contact_phone || "", when(r.saved_at)]);
+          r.seat_id, r.zone_code, r.seat_num,
+          r.kind === "staff" ? "주최측" : r.grade === "vip" ? "VIP석" : "일반초청석",
+          r.grade === "vip" ? r.guest_name || "" : "", r.grade === "vip" ? r.guest_org || "" : "", r.grade === "vip" ? r.guest_phone || "" : "",
+          r.contact_name || "", r.contact_phone || "", when(r.saved_at)]);
       });
       var csv = lines.map(function (row) {
         return row.map(function (v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(",");
@@ -906,7 +914,7 @@
       { el: "#mapPanel", maxH: 420,
         title: "좌석 지도",
         html: "벡스코 3B홀 모양 그대로입니다. 위가 <b>무대</b>, 가운데가 <b>런웨이</b>, 칸 안 숫자가 <b>좌석번호</b>예요(2025 배치도와 같은 번호).<ul>" +
-              "<li>연한 색 — 참여사 <b>배정</b></li><li>진한 색 — 참여사 <b>확보</b></li><li>짙은 회색 — <b>주최측 확보</b></li></ul>" +
+              "<li>연한 색 — 참여사 <b>배정</b></li><li>진한 색 — 참여사 <b>확보</b> (금색 테두리는 <b>VIP석</b>)</li><li>짙은 회색 — <b>주최측 확보</b></li></ul>" +
               "좌석에 마우스를 올리면 누구 좌석인지 나옵니다. 구역 글자(A~H)를 누르면 구역 전체가 선택됩니다." },
       { el: function () { return lineOf("allotTo"); },
         title: "③ 고른 좌석을 참여사에게 배정",
@@ -931,7 +939,7 @@
         html: "배정·확보·삭제가 <b>모두 기록</b>됩니다. <span class='k'>이 쇼 이력 보기</span>를 누르면 목록이 열리고, " +
               "참여사가 실수로 지웠다면 그 줄의 <b>직전으로</b> 버튼으로 되돌릴 수 있어요.<br><br>" +
               "위쪽 <span class='k'>확보 현황 엑셀</span>은 좌석 하나가 한 줄인 전체 목록입니다. 의자 라벨 인쇄 등에 쓰세요.<br>" +
-              "<span class='k'>전체 백업</span>은 참여사·링크·확보 좌석·이력을 모두 담은 파일입니다. <b>하루 한 번</b> 받아 두세요." },
+              "<span class='k'>전체 백업</span>은 참여사·링크·확보 좌석·VIP 명단·이력을 모두 담은 파일입니다. <b>하루 한 번</b> 받아 두세요." },
       { el: null,
         title: "진행 순서",
         html: "<ol><li>쇼마다 <b>참여사 추가</b> → 링크 전달</li>" +

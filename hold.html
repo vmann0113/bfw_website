@@ -21,12 +21,13 @@
     --warn:#8a5300; --warn-soft:#fff7e8;
     --bad:#b3261e; --bad-soft:#fdeceb;
     --ok:#1f7a4d; --ok-soft:#e9f7f0;
+    --gold:#a86d00;
     --mono:"Space Mono",ui-monospace,monospace;
     --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--kr);-webkit-text-size-adjust:100%}
-  .wrap{max-width:880px;margin:0 auto;padding:24px 16px 200px}
+  .wrap{max-width:1120px;margin:0 auto;padding:24px 16px 200px}
 
   .top{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px 18px;
        box-shadow:0 1px 3px rgba(20,35,90,.05)}
@@ -60,6 +61,21 @@
   .zsum span{font-size:.76rem;font-family:var(--mono);padding:3px 8px;border-radius:6px;background:var(--navy-soft);border:1px solid #d7e0ff;color:#26356e}
   .zsum span.part{border-color:#f2c48a;background:#fff7e8;color:#8a5300}
   .mapbox{display:flex;justify-content:center}
+  .seg button.on.vip{background:var(--gold);color:#fff}
+  .split{display:grid;grid-template-columns:minmax(290px,440px) minmax(0,1fr);gap:18px;align-items:start}
+  .vip{position:sticky;top:12px;max-height:calc(100vh - 110px);overflow:auto;border:1px solid #ecdcb4;
+       border-radius:12px;background:#fffcf4;padding:14px}
+  .vip h3{margin:0;font-size:.98rem;color:#6b4a08}
+  .vip .cnt{font-family:var(--mono);font-size:.84rem;color:#6b4a08;margin-left:6px}
+  .vip .privacy{margin:10px 0 12px;padding:10px 12px;border-radius:9px;background:#fff;border:1px solid #ecdcb4;
+                font-size:.8rem;line-height:1.6;color:#5c4410;word-break:keep-all}
+  .vip .empty{font-size:.84rem;color:#8a7440;line-height:1.6;padding:6px 2px}
+  .vr{padding:9px 0;border-top:1px solid #f1e6c9}
+  .vr .st{font-size:.8rem;font-weight:700;color:#6b4a08;margin-bottom:5px;font-family:var(--mono)}
+  .vr .f{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:5px}
+  .vr input{padding:7px 8px !important;font-size:.84rem !important;border-radius:7px !important}
+  .vr input.bad{border-color:#b3261e;background:#fff8f7}
+  .vr .ro{font-size:.84rem;color:var(--ink)}
   .legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 14px;margin-top:16px;font-size:.78rem;color:var(--ink-mute)}
   .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid #d5dae5;vertical-align:-3px;margin-right:5px}
 
@@ -90,6 +106,10 @@
   .msg.ok{color:var(--ok);font-weight:600}
   .loading{text-align:center;padding:70px 20px;color:var(--ink-mute)}
 
+  @media (max-width:900px){
+    .split{grid-template-columns:1fr}
+    .vip{position:static;max-height:none}
+  }
   @media (max-width:640px){
     .wrap{padding:16px 12px 220px}
     .board{padding:14px 4px}
@@ -139,6 +159,13 @@
 
     <div class="board">
       <div class="tools" id="tools">
+        <div class="modes" style="margin-bottom:10px">
+          <span class="lab">확보 종류</span>
+          <div class="seg" id="gradeSeg">
+            <button type="button" data-grade="general">일반초청석</button>
+            <button type="button" data-grade="vip" class="vip">VIP석</button>
+          </div>
+        </div>
         <div class="modes">
           <span class="lab">선택 방식</span>
           <div class="seg" id="modeSeg">
@@ -149,8 +176,21 @@
         <div class="modehint" id="modeHint"></div>
         <div class="zsum" id="zoneSum"></div>
       </div>
-      <div class="mapbox" id="map"></div>
-      <div class="legend" id="legend"></div>
+      <div class="split">
+        <div>
+          <div class="mapbox" id="map"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <!-- VIP석은 좌석마다 앉을 분의 정보를 받는다. 지도 옆에 붙여 고르는 즉시 칸이 생기게 한다. -->
+        <div class="vip" id="vipBox">
+          <h3>VIP석 정보 <span class="cnt" id="vipCnt"></span></h3>
+          <div class="privacy" id="vipPrivacy">
+            수집된 개인정보는 오직 <b>좌석 확보 및 착석 안내용</b>으로만 사용되며,
+            개인정보에 대한 책임은 <b>각 참여사</b>에 있습니다.
+          </div>
+          <div id="vipList"></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -159,7 +199,7 @@
 <div class="bar" id="bar" hidden>
   <div class="in">
     <div class="n">
-      확보 <b id="nMine">0</b><span id="nMax"></span>
+      확보 <b id="nMine">0</b><span id="nMax"></span> <span id="nVip"></span>
       <span class="sep">·</span>
       일반 공개 <b id="nPublic">—</b>석
     </div>
@@ -175,6 +215,6 @@
      참여사가 옛 화면을 쓰게 되므로, 고칠 때마다 v= 값을 올린다. -->
 <script src="js/hall-map.js?v=20260917e"></script>
 <script src="js/hold-tour.js?v=20260918b"></script>
-<script src="js/hold.js?v=20260918d"></script>
+<script src="js/hold.js?v=20260919a"></script>
 </body>
 </html>
