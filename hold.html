@@ -66,6 +66,10 @@
   .vip{position:sticky;top:12px;max-height:calc(100vh - 110px);overflow:auto;border:1px solid #ecdcb4;
        border-radius:12px;background:#fffcf4;padding:14px}
   .vip h3{margin:0;font-size:.98rem;color:#6b4a08}
+  .vip .opt{display:inline-block;padding:1px 7px;border-radius:5px;font-size:.7rem;font-weight:700;
+            background:#fff;border:1px solid #ecdcb4;color:#8a6a1c;vertical-align:2px}
+  .vip .later{margin-top:6px;font-size:.82rem;color:#7a4b00;line-height:1.55}
+  .vip .later.miss{padding:7px 10px;border-radius:8px;background:#fff3dc;border:1px solid #f2d59a;font-weight:600}
   .vip .cnt{font-family:var(--mono);font-size:.84rem;color:#6b4a08;margin-left:6px}
   .vip .privacy{margin:10px 0 12px;padding:10px 12px;border-radius:9px;background:#fff;border:1px solid #ecdcb4;
                 font-size:.8rem;line-height:1.6;color:#5c4410;word-break:keep-all}
@@ -183,7 +187,8 @@
         </div>
         <!-- VIP석은 좌석마다 앉을 분의 정보를 받는다. 지도 옆에 붙여 고르는 즉시 칸이 생기게 한다. -->
         <div class="vip" id="vipBox">
-          <h3>VIP석 정보 <span class="cnt" id="vipCnt"></span></h3>
+          <h3>VIP석 정보 <span class="opt">선택</span> <span class="cnt" id="vipCnt"></span></h3>
+          <div class="later" id="vipLater">입력하지 않으면 추후 <b>별도 명단을 제출</b>하셔야 합니다.</div>
           <div class="privacy" id="vipPrivacy">
             수집된 개인정보는 오직 <b>좌석 확보 및 착석 안내용</b>으로만 사용되며,
             개인정보에 대한 책임은 <b>각 참여사</b>에 있습니다.
@@ -215,6 +220,6 @@
      참여사가 옛 화면을 쓰게 되므로, 고칠 때마다 v= 값을 올린다. -->
 <script src="js/hall-map.js?v=20260917e"></script>
 <script src="js/hold-tour.js?v=20260918b"></script>
-<script src="js/hold.js?v=20260919a"></script>
+<script src="js/hold.js?v=20260919b"></script>
 </body>
 </html>

@@ -1211,7 +1211,8 @@ begin
     return json_build_object('ok', false, 'reason', 'full');
   end if;
 
-  -- VIP 명단 확인 : 확보하는 좌석이어야 하고, 이름·소속·연락처가 모두 있어야 한다
+  -- VIP 명단 확인 : 확보하는 좌석이어야 한다.
+  -- 이름·소속·연락처는 선택 입력이다(비워두면 참여사가 추후 별도 명단을 제출한다).
   if jsonb_typeof(v_vip) <> 'array' then
     return json_build_object('ok', false, 'reason', 'badvip');
   end if;
@@ -1220,14 +1221,6 @@ begin
    where not (coalesce(e->>'seat', '') = any(v_ids));
   if v_bad is not null then
     return json_build_object('ok', false, 'reason', 'badvip', 'seats', v_bad);
-  end if;
-  select array_agg(e->>'seat' order by e->>'seat') into v_bad
-    from jsonb_array_elements(v_vip) e
-   where btrim(coalesce(e->>'name', '')) = ''
-      or btrim(coalesce(e->>'org', '')) = ''
-      or length(regexp_replace(coalesce(e->>'phone', ''), '[^0-9]', '', 'g')) < 9;
-  if v_bad is not null then
-    return json_build_object('ok', false, 'reason', 'vipinfo', 'seats', v_bad);
   end if;
 
   -- 바꾸기 전 상태를 먼저 담아둔다 (이력에 남겨 되돌릴 수 있게) — VIP 명단까지
@@ -1241,7 +1234,7 @@ begin
                                  grade, guest_name, guest_org, guest_phone)
     select h.show_id, sid, 'invite', h.name, h.id,
            case when v.e is null then 'general' else 'vip' end,
-           btrim(v.e->>'name'), btrim(v.e->>'org'), btrim(v.e->>'phone')
+           nullif(btrim(v.e->>'name'), ''), nullif(btrim(v.e->>'org'), ''), nullif(btrim(v.e->>'phone'), '')
       from unnest(v_ids) sid
       left join lateral (select x as e from jsonb_array_elements(v_vip) x
                           where x->>'seat' = sid limit 1) v on true;
@@ -1266,6 +1259,8 @@ begin
     'ok', true,
     'saved', coalesce(array_length(v_ids, 1), 0),
     'vip', (select count(*) from show_seat_locks where holder_id = h.id and grade = 'vip'),
+    'vipMissing', (select count(*) from show_seat_locks where holder_id = h.id and grade = 'vip'
+                     and (guest_name is null or guest_org is null or guest_phone is null)),
     'publicRemaining', greatest(0, v_show.capacity -
       (select count(*) from show_seat_locks where show_id = h.show_id))
   );
@@ -1588,6 +1583,8 @@ begin
                 'isOpen', h.is_open, 'openedAt', h.opened_at,
                 'held', (select count(*) from show_seat_locks l where l.holder_id = h.id),
                 'vip',  (select count(*) from show_seat_locks l where l.holder_id = h.id and l.grade = 'vip'),
+                'vipMissing', (select count(*) from show_seat_locks l where l.holder_id = h.id and l.grade = 'vip'
+                                 and (l.guest_name is null or l.guest_org is null or l.guest_phone is null)),
                 'contactName', h.contact_name, 'contactPhone', h.contact_phone,
                 'savedAt', h.saved_at, 'createdAt', h.created_at)
                 order by h.created_at), '[]'::json)
