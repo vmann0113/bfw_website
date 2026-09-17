@@ -684,6 +684,16 @@
     if (!h || !selection.length) return;
     var ids = selection.slice();
 
+    // 주최측이 확보한 좌석은 배정 대상이 아니다. 구역째 골라도 빼고 보낸다.
+    var staffCut = 0;
+    if (mode === "add") {
+      var lockOf = {};
+      mapData.seats.forEach(function (x) { lockOf[x.id] = x.lock; });
+      ids = ids.filter(function (sid) { return lockOf[sid] !== "staff"; });
+      staffCut = selection.length - ids.length;
+      if (!ids.length) return toast("선택한 좌석은 모두 주최측이 확보한 좌석이라 배정할 수 없습니다", true);
+    }
+
     if (mode === "add") {
       // 다른 참여사에 배정돼 있던 좌석은 옮겨온다. 미리 확인한다.
       var ai = allotIndex(), from = {};
@@ -706,6 +716,7 @@
         var t = h.name + " 배정 " + (d.unlimited ? "제한 없음" : d.allotted + "석");
         if (d.moved) t += " · 다른 참여사에서 " + d.moved + "석 옮겨옴";
         if (d.released) t += " · 확보 " + d.released + "석 해제";
+        if (staffCut || d.skippedStaff) t += " · 주최측 확보 " + Math.max(staffCut, d.skippedStaff || 0) + "석은 제외";
         toast(t);
         if (d.outOfAllot > 0) toast(h.name + " 가 이미 확보한 " + d.outOfAllot + "석이 배정 밖에 남았습니다. 참여사가 다음에 저장하면 풀립니다.", true);
         // 강조할 참여사를 먼저 정해두면 새로 불러와 그릴 때 한 번에 반영된다.
@@ -900,6 +911,7 @@
       { el: function () { return lineOf("allotTo"); },
         title: "③ 고른 좌석을 참여사에게 배정",
         html: (nH ? "" : "<b>지금 이 쇼에는 참여사가 없어</b> 배정할 곳이 없습니다. 참여사를 추가하면 여기서 고를 수 있습니다.<br><br>") +
+              "<b>주최측이 확보한 좌석은 배정되지 않습니다.</b> 구역을 통째로 골라도 그 좌석은 자동으로 빠집니다.<br><br>" +
               "<b>여러 참여사가 함께하는 쇼</b>에서 씁니다. 참여사를 고르고 <b>배정에 추가</b>. 브랜드끼리 협의해 나눈 구역·좌석을 이렇게 나눠 줍니다. " +
               "참여사가 하나뿐인 쇼는 배정하지 않아도 전 좌석에서 고를 수 있습니다.<br><br>" +
               "다른 참여사에 이미 배정된 좌석이면 <b>옮길지 먼저 묻고</b>, 그 참여사가 이미 확보했으면 <b>한 번 더</b> 묻습니다." },

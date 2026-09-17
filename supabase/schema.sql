@@ -1537,6 +1537,43 @@ end $fn$;
 --  단, 그 좌석을 다른 참여사가 이미 '확보'했다면 그냥 옮기지 않는다
 --  (heldbyother 로 알려준다). p_force=true 일 때만 그 확보를 풀고 옮기며,
 --  푼 내용은 그 참여사 이력에 통째로 남긴다.
+-- ---- 주최측 확보 좌석을 참여사 배정에서 빼기 (내부용) ----
+--  좌석의 최우선 권한은 주최측이다. 주최측이 직접 확보한 좌석은
+--  어떤 참여사의 배정 범위에도 들어 있으면 안 된다. 빠진 참여사마다 이력을 남긴다.
+create or replace function public.hold_strip_staff_allot(p_show_id text)
+returns int language plpgsql security definer set search_path = public as $fn$
+declare
+  o       record;
+  v_after text[];
+  v_cnt   int := 0;
+begin
+  for o in select h.id, h.name, h.show_id, h.allowed_seats, h.contact_name, h.contact_phone
+             from seat_holders h
+            where h.show_id = p_show_id and h.allowed_seats is not null
+              and exists (select 1 from show_seat_locks l
+                           where l.show_id = h.show_id and l.holder_id is null
+                             and l.seat_id = any(h.allowed_seats))
+  loop
+    select coalesce(array_agg(x order by x), '{}') into v_after
+      from unnest(o.allowed_seats) x
+     where not exists (select 1 from show_seat_locks l
+                        where l.show_id = o.show_id and l.holder_id is null and l.seat_id = x);
+    update seat_holders set allowed_seats = v_after where id = o.id;
+    insert into seat_hold_log (holder_id, show_id, holder_name, action,
+                               prev_seat_ids, seat_ids, prev_count, seat_count,
+                               contact_name, contact_phone, note)
+    values (o.id, o.show_id, o.name, 'allot',
+            o.allowed_seats, v_after, cardinality(o.allowed_seats), cardinality(v_after),
+            o.contact_name, o.contact_phone,
+            '주최측 확보 좌석 ' || (cardinality(o.allowed_seats) - cardinality(v_after)) || '석을 배정에서 뺌');
+    v_cnt := v_cnt + 1;
+  end loop;
+  return v_cnt;
+end $fn$;
+
+-- 이미 들어가 있는 겹침을 한 번 정리한다 (다시 실행해도 겹침이 없으면 아무것도 안 함)
+select public.hold_strip_staff_allot(id) from public.shows;
+
 create or replace function public.holder_allot(
   p_holder_id uuid, p_seat_ids text[], p_mode text default 'set', p_force boolean default false
 ) returns json language plpgsql security definer set search_path = public as $fn$
@@ -1555,6 +1592,7 @@ declare
   v_moved  int := 0;
   v_rel    int := 0;
   v_n      int;
+  v_staff  text[] := '{}';
 begin
   if not public.is_staff() then
     return json_build_object('ok', false, 'reason', 'forbidden');
@@ -1575,6 +1613,16 @@ begin
   end if;
 
   v_old := h.allowed_seats;
+
+  -- 주최측이 직접 확보한 좌석은 절대 참여사에게 배정하지 않는다 (구역째 골라도 빠진다)
+  if p_mode in ('add', 'set') then
+    select coalesce(array_agg(sid order by sid), '{}') into v_staff
+      from unnest(v_ids) sid
+     where exists (select 1 from show_seat_locks l
+                    where l.show_id = h.show_id and l.seat_id = sid and l.holder_id is null);
+    select coalesce(array_agg(sid), '{}') into v_ids
+      from unnest(v_ids) sid where not (sid = any(v_staff));
+  end if;
 
   if p_mode = 'clear' then
     v_new := null; v_in := '{}';
@@ -1647,6 +1695,13 @@ begin
             '석을 ' || h.name || ' 에게 옮김');
   end loop;
 
+  -- 예전 배정에 주최측 좌석이 섞여 있었다면 함께 걸러낸다
+  if v_new is not null then
+    select coalesce(array_agg(x order by x), '{}') into v_new
+      from unnest(v_new) x
+     where not exists (select 1 from show_seat_locks l
+                        where l.show_id = h.show_id and l.seat_id = x and l.holder_id is null);
+  end if;
   update seat_holders set allowed_seats = v_new where id = h.id;
 
   -- 배정 변경도 기록한다 (누가 언제 어떤 범위를 받았는지)
@@ -1657,7 +1712,8 @@ begin
           coalesce(array_length(v_old, 1), 0), coalesce(array_length(v_new, 1), 0),
           '좌석 배정 ' || p_mode ||
           case when v_new is null then ' — 제한 없음(전 좌석)' else '' end ||
-          case when v_moved > 0 then ' / 다른 참여사에서 ' || v_moved || '석 옮겨옴' else '' end);
+          case when v_moved > 0 then ' / 다른 참여사에서 ' || v_moved || '석 옮겨옴' else '' end ||
+          case when cardinality(v_staff) > 0 then ' / 주최측 확보 ' || cardinality(v_staff) || '석 제외' else '' end);
 
   return json_build_object(
     'ok', true,
@@ -1665,6 +1721,7 @@ begin
     'unlimited', v_new is null,
     'moved', v_moved,
     'released', v_rel,
+    'skippedStaff', cardinality(v_staff),
     -- 이 참여사가 이미 확보한 좌석 중 새 배정 밖에 남은 것 (다음 저장 때 풀린다)
     'outOfAllot', case when v_new is null then 0 else (
        select count(*) from show_seat_locks l
@@ -1730,6 +1787,10 @@ begin
             v_prev, v_after,
             coalesce(array_length(v_prev, 1), 0), coalesce(array_length(v_after, 1), 0),
             case when p_on then '주최측 직접 확보 ' else '주최측 확보 해제 ' end || v_n || '석');
+  end if;
+
+  if p_on and v_n > 0 then
+    perform public.hold_strip_staff_allot(p_show_id);
   end if;
 
   return json_build_object('ok', true, 'changed', v_n, 'skipped', coalesce(v_skip, '{}'));
@@ -1804,6 +1865,7 @@ revoke all on function
   public.holds_set_open(boolean),
   public.holder_open_set(uuid[],boolean,text),
   public.hold_backup(),
+  public.hold_strip_staff_allot(text),
   public.holds_board(),
   public.holder_delete(uuid),
   public.is_staff(),
