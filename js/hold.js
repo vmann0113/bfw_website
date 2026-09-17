@@ -269,7 +269,7 @@
   }
   var GRADE_HINT = {
     general: "지금 고르는 좌석은 <b>일반초청석</b>입니다.",
-    vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. 고른 좌석마다 오른쪽에 <b>이름·소속·연락처</b>를 적어주세요."
+    vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. 오른쪽에 좌석마다 <b>이름·소속·연락처</b>를 적을 수 있습니다(선택)."
   };
   function syncGrade() {
     [].forEach.call($("gradeSeg").querySelectorAll("button"), function (b) {
@@ -432,8 +432,23 @@
     var g = guest[id] || (guest[id] = { name: "", org: "", phone: "" });
     g[f] = e.target.value;
     e.target.classList.remove("bad");
+    syncLater();
   });
-  /* VIP석마다 이름·소속·연락처가 다 있는지. 빠진 칸은 빨갛게, 첫 칸으로 데려간다. */
+  /* 정보를 다 적지 않은 VIP석 수. 입력은 선택이라 저장은 막지 않고, 추후 명단 제출을 안내한다. */
+  function vipMissing() {
+    return vipIds().filter(function (id) {
+      var g = guest[id] || {};
+      return !String(g.name || "").trim() || !String(g.org || "").trim() || !String(g.phone || "").trim();
+    }).length;
+  }
+  function syncLater() {
+    var n = data ? vipMissing() : 0;
+    $("vipLater").className = "later" + (n ? " miss" : "");
+    $("vipLater").innerHTML = n
+      ? "정보를 다 적지 않은 VIP석이 <b>" + n + "석</b> 있습니다. 입력하지 않으면 추후 <b>별도 명단을 제출</b>하셔야 합니다."
+      : "입력하지 않으면 추후 <b>별도 명단을 제출</b>하셔야 합니다.";
+  }
+  /* (예전) 필수 입력 검사 — 지금은 쓰지 않는다 */
   function checkVip() {
     var missing = [], first = null;
     vipIds().forEach(function (id) {
@@ -512,7 +527,7 @@
         title: "일반초청석과 VIP석",
         html: "좌석은 두 종류로 확보합니다.<ul>" +
               "<li><span class='k'>일반초청석</span> 좌석만 잡아둡니다 (<b>파란색</b>)</li>" +
-              "<li><span class='k'>VIP석</span> 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 받습니다 (<b>금색</b>)</li></ul>" +
+              "<li><span class='k'>VIP석</span> 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 적을 수 있습니다 (<b>금색</b>)</li></ul>" +
               "종류를 먼저 누르고 지도에서 좌석을 고르세요. 이미 고른 좌석을 다른 종류로 누르면 <b>종류만 바뀝니다</b>." },
       { el: function () { return document.getElementById("tools"); },
         title: "선택 방식은 두 가지입니다",
@@ -525,8 +540,8 @@
         html: "위가 <b>무대</b>, 가운데 세로 줄이 <b>런웨이</b>입니다. 칸 안 숫자가 <b>좌석번호</b>예요." + legend +
               "옆의 구역 글자(A~H)를 누르면 구역을 통째로 고를 수 있습니다." },
       { el: "#vipBox",
-        title: "VIP석 정보를 적어주세요",
-        html: "VIP석으로 고른 좌석마다 여기에 한 줄씩 칸이 생깁니다. <b>이름·소속·연락처가 모두 있어야 저장</b>됩니다.<br><br>" +
+        title: "VIP석 정보 (선택)",
+        html: "VIP석으로 고른 좌석마다 여기에 한 줄씩 칸이 생깁니다. 입력은 <b>선택</b>이며, <b>입력하지 않으면 추후 별도 명단을 제출</b>하셔야 합니다.<br><br>" +
               "수집된 개인정보는 오직 <b>좌석 확보 및 착석 안내용</b>으로만 사용되며, 개인정보에 대한 책임은 <b>각 참여사</b>에 있습니다." },
       { el: "#bar", pad: 0,
         title: "꼭 ‘저장’을 눌러주세요",
@@ -547,6 +562,7 @@
     var nv = vipIds().length;
     $("nVip").textContent = nv ? "(VIP " + nv + ")" : "";
     renderVip(false);
+    syncLater();
     var max = data.holder.maxSeats;
     $("nMine").textContent = n;
     $("nMax").textContent = max != null ? " / " + max + "석" : "석";
@@ -611,7 +627,6 @@
   $("saveBtn").addEventListener("click", function () {
     if (busy) return;
     if (!checkContact()) return;
-    if (!checkVip()) return;
     busy = true;
     $("saveBtn").disabled = true;
     say("저장 중…", "");
@@ -630,7 +645,8 @@
         saved = {}; savedGuest = {};
         keys(picked).forEach(function (k) { saved[k] = picked[k]; });
         vipIds().forEach(function (k) { var g = guest[k]; savedGuest[k] = { name: g.name, org: g.org, phone: g.phone }; });
-        say("저장했습니다 · 확보 " + d.saved + "석" + (d.vip ? " (VIP " + d.vip + ")" : "") + " / 일반 공개 " + d.publicRemaining + "석", "ok");
+        say("저장했습니다 · 확보 " + d.saved + "석" + (d.vip ? " (VIP " + d.vip + ")" : "") + " / 일반 공개 " + d.publicRemaining + "석" +
+            (d.vipMissing ? " · VIP석 " + d.vipMissing + "석은 추후 별도 명단 제출이 필요합니다" : ""), d.vipMissing ? "" : "ok");
         $("saveBtn").disabled = false;
         return;
       }

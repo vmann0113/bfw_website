@@ -353,7 +353,7 @@
         "<div>" +
           '<div class="nm">' + esc(x.name) + '<span class="kind">' + (x.kind === "univ" ? "대학" : "브랜드") + "</span>" +
             '<span class="pill sm ' + (x.isOpen ? "on" : "off") + '"><i></i>' + (x.isOpen ? "열림" : "닫힘") + "</span></div>" +
-          '<div class="meta">배정 <b>' + allot + "</b> · 확보 <b>" + x.held + "</b>석" + (x.vip ? " (VIP <b>" + x.vip + "</b>)" : "") +
+          '<div class="meta">배정 <b>' + allot + "</b> · 확보 <b>" + x.held + "</b>석" + (x.vip ? " (VIP <b>" + x.vip + "</b>" + (x.vipMissing ? ", 명단 미입력 <b>" + x.vipMissing + "</b>" : "") + ")" : "") +
             (x.maxSeats != null ? " · 한도 <b>" + x.maxSeats + "</b>" : "") +
             (x.contactName ? " · " + esc(x.contactName) : "") +
             (x.savedAt ? " · " + when(x.savedAt) : "") + "</div>" +
