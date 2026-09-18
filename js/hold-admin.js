@@ -382,7 +382,8 @@
     var lu = String(s.lineup || "").trim();
     if (!lu || lu === "오프닝") return [];
     return lu.split("·").map(function (x) { return x.trim(); }).filter(function (x) {
-      return x && !/해외브랜드/.test(x) && !taken[x];
+      // 해외 브랜드(한글 이름이 없는 곳)는 주최측이 직접 좌석을 잡으므로 후보에서 뺀다
+      return x && !/해외브랜드/.test(x) && /[가-힣]/.test(x) && !taken[x];
     });
   }
 
