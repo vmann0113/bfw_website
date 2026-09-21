@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>관람 예약 | 부산패션위크 2026 · BUSAN FASHION WEEK</title>
 <meta name="description" content="2026 부산패션위크 관람 예약 — 10.29–31 벡스코 3B홀. 쇼별 300석 선착순, 전 좌석 무료. 이름·연락처만으로 예약하고 QR로 현장 입장." />
-<meta name="robots" content="index, follow" />
+<meta name="robots" content="noindex, nofollow" />
+<!-- 오픈 전 잠금 : 주최측이 오픈을 요청할 때까지 예약/신청 화면을 보여주지 않는다 -->
+<style id="bfwClosedStyle">body > *:not(#bfwClosed){display:none !important}
+#bfwClosed{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:#f6f8fc;
+font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;color:#1b2340}
+#bfwClosed .c{max-width:440px;width:100%;background:#fff;border:1px solid #e3e7ef;border-radius:16px;padding:34px 24px;text-align:center}
+#bfwClosed .e{font-size:.72rem;letter-spacing:.12em;color:#0b2e9e;font-weight:700}
+#bfwClosed h1{margin:10px 0 10px;font-size:1.3rem;line-height:1.4;word-break:keep-all}
+#bfwClosed p{margin:0;color:#6b7490;line-height:1.65;font-size:.94rem;word-break:keep-all}
+#bfwClosed a{display:inline-block;margin-top:20px;padding:11px 20px;border-radius:10px;background:#0b2e9e;color:#fff;text-decoration:none;font-weight:700}</style>
 <meta name="theme-color" content="#0a1a4a" />
 <link rel="canonical" href="https://www.busanfashionweek.com/register.html" />
 <meta property="og:type" content="website" />
@@ -142,6 +151,8 @@
 </style>
 </head>
 <body>
+<div id="bfwClosed"><div class="c"><div class="e">2026 BUSAN FASHION WEEK</div>
+<h1>관람 예약 오픈 전입니다</h1><p>관람 예약은 아직 열리지 않았습니다.<br>오픈 일정은 부산패션위크 홈페이지에서 안내해 드립니다.</p><a href="/">홈페이지로 가기</a></div></div>
 
 <nav class="nav" id="nav" data-solid="true">
   <a class="brand" href="index.html" aria-label="부산패션위크 홈"><b>BUSAN</b><span class="bul">●</span><b>FW</b></a>
@@ -187,15 +198,11 @@
 
   <!-- LOOKUP -->
   <section id="lookupPane" class="hidden">
-    <p class="note-line">예약 시 입력한 <b>이름과 연락처</b>로 조회하면 발급된 QR과 예약번호를 다시 확인할 수 있습니다.</p>
+    <p class="note-line">예약 시 입력한 <b>연락처</b>로 조회하면 발급된 QR과 예약번호를 다시 확인할 수 있습니다.</p>
     <div class="lookup-bar">
       <div class="f">
-        <label>예약자 이름</label>
-        <input type="text" id="lookupName" placeholder="홍길동" autocomplete="name" />
-      </div>
-      <div class="f">
         <label>연락처</label>
-        <input type="tel" id="lookupPhone" placeholder="010-0000-0000" autocomplete="tel" />
+        <input type="tel" id="lookupPhone" placeholder="010-0000-0000" />
       </div>
       <button class="btn primary" id="lookupBtn">조회 <span>→</span></button>
     </div>
@@ -209,44 +216,12 @@
   <button class="go" id="selGo">예약 진행 →</button>
 </div>
 
-<!-- seat sheet : 구역 → 좌석 2단계 -->
-<div class="sheet" id="seatSheet">
-  <div class="sheet-card">
-    <button class="sheet-close" data-close="seatSheet">닫기 ✕</button>
-    <h2 id="seatTitle">좌석 선택</h2>
-    <p class="sub" id="seatSub"></p>
-
-    <!-- 1단계 : 구역 -->
-    <div id="zoneStep">
-      <div class="stage-bar">무대 · LED 스크린</div>
-      <div class="zone-map" id="zoneMap"></div>
-      <p class="seat-hint">앉으실 <b>구역</b>을 먼저 고르세요. 무대와 런웨이에 가까울수록 앞자리입니다.</p>
-    </div>
-
-    <!-- 2단계 : 좌석 -->
-    <div id="seatStep" class="hidden">
-      <button class="btn ghost sm" id="zoneBack" style="margin-bottom:14px">← 구역 다시 선택</button>
-      <div class="stage-bar">무대 방향 ↑</div>
-      <div class="seat-grid-wrap">
-        <div class="seat-grid" id="seatGrid"></div>
-        <div class="runway-side" id="runwaySide">런웨이</div>
-      </div>
-      <div class="seat-legend">
-        <span><i class="sl free"></i>선택 가능</span>
-        <span><i class="sl taken"></i>예약됨</span>
-        <span><i class="sl invite"></i>초청석</span>
-        <span><i class="sl sel"></i>선택한 자리</span>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- form sheet -->
 <div class="sheet" id="formSheet">
   <div class="sheet-card">
     <button class="sheet-close" data-close="formSheet">닫기 ✕</button>
     <h2>예약 정보</h2>
-    <p class="sub">선택하신 좌석을 확보합니다. 1인 1석 · 입력하신 정보로 QR이 발급됩니다.</p>
+    <p class="sub">선택한 쇼의 좌석을 확보합니다. 1인 1석 · 입력하신 정보로 QR이 발급됩니다.</p>
     <div class="chosen" id="chosenList"></div>
     <form class="rsv-form" id="rsvForm">
       <div class="f-row">

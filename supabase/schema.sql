@@ -181,7 +181,7 @@ create index if not exists idx_press_phone on public.press_applications(phone_ke
 insert into public.shows
   (id,day,date,dow,start_time,end_time,title,title_ko,lineup,venue,capacity,tbd,sort)
 values
-  ('S01',1,'2026.10.29','목','11:00','11:50','Opening','패페부산X부산패션위크 개막식','오프닝','메인 런웨이',300,false,1),
+  ('S01',1,'2026.10.29','목','11:00','11:50','Opening','패패부산X부산패션위크 개막식','오프닝','메인 런웨이',300,false,1),
   ('S02',1,'2026.10.29','목','13:00','13:30','Joint Show ①','연합쇼 ①','레뷰라X코타로 타니야마 · HARTONO GAN · Sofie · LAKON','메인 런웨이',300,false,2),
   ('S03',1,'2026.10.29','목','14:30','15:00','Joint Show ②','연합쇼 ②','동아대학교','메인 런웨이',300,false,3),
   ('S04',1,'2026.10.29','목','16:00','16:30','Joint Show ③','연합쇼 ③','이미경 뷰띠끄 · Xiangqiao Sheng · 르망고','메인 런웨이',300,false,4),
