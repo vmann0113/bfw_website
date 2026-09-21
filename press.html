@@ -6,15 +6,6 @@
 <title>프레스 방문 신청 | 부산패션위크 2026 · BUSAN FASHION WEEK</title>
 <meta name="description" content="2026 부산패션위크 프레스(취재진) 방문 신청 — 10.29–31 벡스코 3B홀. 신청 후 심사, 승인 시 프레스 QR 발급." />
 <meta name="robots" content="noindex, nofollow" />
-<!-- 오픈 전 잠금 : 주최측이 오픈을 요청할 때까지 예약/신청 화면을 보여주지 않는다 -->
-<style id="bfwClosedStyle">body > *:not(#bfwClosed){display:none !important}
-#bfwClosed{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:#f6f8fc;
-font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;color:#1b2340}
-#bfwClosed .c{max-width:440px;width:100%;background:#fff;border:1px solid #e3e7ef;border-radius:16px;padding:34px 24px;text-align:center}
-#bfwClosed .e{font-size:.72rem;letter-spacing:.12em;color:#0b2e9e;font-weight:700}
-#bfwClosed h1{margin:10px 0 10px;font-size:1.3rem;line-height:1.4;word-break:keep-all}
-#bfwClosed p{margin:0;color:#6b7490;line-height:1.65;font-size:.94rem;word-break:keep-all}
-#bfwClosed a{display:inline-block;margin-top:20px;padding:11px 20px;border-radius:10px;background:#0b2e9e;color:#fff;text-decoration:none;font-weight:700}</style>
 <meta name="theme-color" content="#0a1a4a" />
 <link rel="canonical" href="https://www.busanfashionweek.com/press.html" />
 <meta property="og:type" content="website" />
@@ -83,8 +74,6 @@ font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;
 </style>
 </head>
 <body>
-<div id="bfwClosed"><div class="c"><div class="e">2026 BUSAN FASHION WEEK</div>
-<h1>프레스 신청 오픈 전입니다</h1><p>프레스 신청은 아직 열리지 않았습니다.<br>오픈 일정은 부산패션위크 홈페이지에서 안내해 드립니다.</p><a href="/">홈페이지로 가기</a></div></div>
 
 <nav class="nav" id="nav" data-solid="true">
   <a class="brand" href="index.html" aria-label="부산패션위크 홈"><b>BUSAN</b><span class="bul">●</span><b>FW</b></a>
@@ -172,11 +161,15 @@ font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;
 
   <!-- STATUS -->
   <section id="statusPane" class="hidden">
-    <p class="note-line" style="margin-top:26px">신청 시 입력한 <b>연락처</b>로 조회하면 심사 상태와, 승인 시 발급되는 <b>프레스 QR</b>을 확인할 수 있습니다.</p>
+    <p class="note-line" style="margin-top:26px">신청 시 입력한 <b>기자명과 연락처</b>로 조회하면 심사 상태와, 승인 시 발급되는 <b>프레스 QR</b>을 확인할 수 있습니다.</p>
     <div class="lookup-bar">
       <div class="f">
+        <label>기자명</label>
+        <input type="text" id="stName" placeholder="홍길동" autocomplete="name" />
+      </div>
+      <div class="f">
         <label>연락처</label>
-        <input type="tel" id="stPhone" placeholder="010-0000-0000" />
+        <input type="tel" id="stPhone" placeholder="010-0000-0000" autocomplete="tel" />
       </div>
       <button class="btn primary" id="stBtn">조회 <span>→</span></button>
     </div>
