@@ -358,6 +358,16 @@ async function aligoHistory(mid) {
   return postForm(url, p);
 }
 
+/* 승인된 템플릿 본문 받아오기 — 우리 본문과 글자 단위로 대조하기 위해서다 */
+async function aligoTemplate(tplCode) {
+  return postForm("https://kakaoapi.aligo.in/akv10/template/list/", {
+    apikey: ALIGO.key,
+    userid: ALIGO.userId,
+    senderkey: ALIGO.senderKey,
+    tpl_code: tplCode || ""
+  });
+}
+
 async function aligoToken() {
   const tok = await postForm("https://kakaoapi.aligo.in/akv10/token/create/30/s/", {
     apikey: ALIGO.key,
@@ -504,7 +514,7 @@ function health() {
 }
 
 module.exports = {
-  json, digits, sb, sbAll, findByCodes, findPress, aligoHistory, alreadySent, alreadySentPress, logNoti, logNotiMany,
+  json, digits, sb, sbAll, findByCodes, findPress, aligoHistory, aligoTemplate, alreadySent, alreadySentPress, logNoti, logNotiMany,
   reminderTargets, buildMessage, deliver, deliverBulk,
   hasSms, hasAlimtalk, mode, health, resolveTest, ALIGO, SITE
 };
