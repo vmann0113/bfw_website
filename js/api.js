@@ -13,10 +13,64 @@
   var BFW = global.BFW;
   var SB = BFW.SUPABASE || { url: "", anonKey: "" };
   var BACKEND = !!(SB.url && SB.anonKey);
-  var staffToken = null; // Supabase Auth JWT for staff (check-in / admin)
+  /* ---------- 스태프 로그인 세션 ----------------------------------------
+     예전에는 토큰을 변수 하나에만 두어, 화면을 새로 고치면 로그인이 풀렸다.
+     현장 체크인 기기가 실수로 새로고침되면 그 자리에서 다시 로그인해야 했다.
+     그래서 sessionStorage 에 담는다 :
+       · 새로고침·주소 재입력에는 살아남는다
+       · 탭을 닫으면 사라진다 (공용 기기에 남지 않는다)
+       · 다른 탭·다른 사람의 브라우저로는 넘어가지 않는다
+     접근 토큰은 한 시간이면 만료되므로 갱신 토큰으로 조용히 늘린다.
+     ------------------------------------------------------------------- */
+  var staffToken = null;     // Supabase Auth JWT for staff (check-in / admin)
+  var staffRefresh = null;   // 갱신 토큰
+  var staffExp = 0;          // 만료 시각 (ms)
+  var refreshing = null;     // 갱신이 겹치지 않도록 하나만 돈다
+  var SKEY = "bfw_staff";
+
+  function saveSession(d) {
+    staffToken = d.access_token || null;
+    staffRefresh = d.refresh_token || null;
+    staffExp = Date.now() + (Number(d.expires_in || 3600) * 1000);
+    try {
+      sessionStorage.setItem(SKEY, JSON.stringify({ a: staffToken, r: staffRefresh, e: staffExp }));
+    } catch (e) { /* 저장이 막혀 있어도 이번 화면에서는 그대로 쓴다 */ }
+  }
+  function clearSession() {
+    staffToken = null; staffRefresh = null; staffExp = 0;
+    try { sessionStorage.removeItem(SKEY); } catch (e) {}
+  }
+  /* 세션이 끊겼음을 화면에 알린다. 관리자 화면이 받아 로그인 창을 다시 띄운다.
+     이게 없으면 "불러오는 중…"에서 멈춘 것처럼 보인다. */
+  function staffExpired() {
+    clearSession();
+    try { window.dispatchEvent(new CustomEvent("bfw-staff-expired")); } catch (e) {}
+  }
+  (function restoreSession() {
+    try {
+      var v = JSON.parse(sessionStorage.getItem(SKEY) || "null");
+      if (v && v.a) { staffToken = v.a; staffRefresh = v.r || null; staffExp = v.e || 0; }
+    } catch (e) {}
+  })();
+  /* 갱신 토큰으로 접근 토큰을 다시 받는다. 실패하면 로그인 화면으로 돌아가야 하므로 비운다. */
+  function refreshSession() {
+    if (!BACKEND || !staffRefresh) return Promise.resolve(false);
+    if (refreshing) return refreshing;
+    refreshing = fetch(SB.url.replace(/\/$/, "") + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { apikey: SB.anonKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: staffRefresh })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.access_token) { saveSession(d); return true; }
+      return false;
+    }).catch(function () { return false; }).then(function (ok) {
+      refreshing = null; return ok;
+    });
+    return refreshing;
+  }
 
   /* ---------- small REST helpers ---------- */
-  function rest(path, opts) {
+  function rest(path, opts, retried) {
     opts = opts || {};
     var headers = {
       apikey: SB.anonKey,
@@ -31,7 +85,19 @@
     }).then(function (res) {
       return res.text().then(function (t) {
         var data = t ? JSON.parse(t) : null;
-        if (!res.ok) throw Object.assign(new Error("api"), { status: res.status, data: data });
+        if (!res.ok) {
+          // 스태프 토큰이 만료됐을 뿐이면 조용히 갱신하고 한 번만 다시 시도한다
+          if (res.status === 401 && staffToken) {
+            if (staffRefresh && !retried) {
+              return refreshSession().then(function (ok) {
+                if (!ok) { staffExpired(); throw Object.assign(new Error("api"), { status: 401, data: data }); }
+                return rest(path, opts, true);
+              });
+            }
+            staffExpired();
+          }
+          throw Object.assign(new Error("api"), { status: res.status, data: data });
+        }
         return data;
       });
     });
@@ -83,12 +149,20 @@
         headers: { apikey: SB.anonKey, "Content-Type": "application/json" },
         body: JSON.stringify({ email: email, password: password })
       }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.access_token) { staffToken = d.access_token; return { ok: true }; }
+        if (d.access_token) { saveSession(d); return { ok: true }; }
         return { ok: false, error: d.error_description || d.msg || "로그인 실패" };
       });
     },
     setStaffToken: function (t) { staffToken = t; },
-    hasStaff: function () { return !BACKEND || !!staffToken; },
+    /* 공용 기기에서 쓰고 나면 이걸로 지운다 */
+    staffSignOut: function () { clearSession(); },
+    hasStaff: function () {
+      if (!BACKEND) return true;
+      if (!staffToken) return false;
+      // 만료됐는데 갱신할 방법도 없으면 로그인 창을 다시 띄워야 한다
+      if (staffExp && Date.now() >= staffExp && !staffRefresh) { clearSession(); return false; }
+      return true;
+    },
 
     /* ---- availability: { showId: {capacity, reserved, remaining} } ---- */
     availability: function () {

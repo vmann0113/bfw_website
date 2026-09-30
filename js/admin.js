@@ -490,8 +490,21 @@
   });
 
   /* ---------- staff gate (backend mode only) ---------- */
+  /* 세션이 끊기면(만료·갱신 실패) 로그인 창을 다시 띄우고, 보던 탭을 다시 불러온다 */
+  window.addEventListener("bfw-staff-expired", function () {
+    var b = document.querySelector("#navlist button.active");
+    var tab = b ? b.getAttribute("data-tab") : null;
+    withStaff(function () {
+      if (tab === "seats") initSeats();
+      else if (tab === "reservations") renderResv();
+      else if (tab === "pressvisit") renderPressApps();
+      else if (tab === "checkin") initCheckin();
+    });
+  });
+
   function withStaff(run) {
     if (BFWApi.hasStaff()) { run(); return; }
+    if (document.querySelector(".staff-gate")) return;   // 로그인 창이 겹치지 않게
     var ov = document.createElement("div");
     ov.className = "staff-gate";
     ov.innerHTML =
