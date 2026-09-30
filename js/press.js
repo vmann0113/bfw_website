@@ -28,6 +28,20 @@
     return;
   }
 
+  /* 서버 스위치가 닫혀 있으면 신청을 받지 않는다 (배포 없이 여닫기 위해) */
+  if (Api && Api.pressOpen) {
+    Api.pressOpen().then(function (open) {
+      if (!open) {
+        var pane2 = document.getElementById("applyPane");
+        if (pane2) {
+          pane2.innerHTML =
+            '<div class="closed-note">프레스 방문 신청은 아직 열리지 않았습니다.<br>' +
+            '취재 문의는 사무국으로 연락해 주세요.</div>';
+        }
+      }
+    });
+  }
+
   var pv = cfg.pressVisit || { open: true, note: "" };
   $("prsNote").textContent = pv.note || "";
   if (!pv.open) {

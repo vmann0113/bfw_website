@@ -37,6 +37,13 @@
     lockUntilOpen();
     return;
   }
+  /* 화면이 열려 있어도 서버 스위치가 닫혀 있으면 예약을 받지 않는다.
+     오픈은 서버 스위치 한 곳에서만 켠다 — 배포 없이 여닫기 위해서다. */
+  if (Api && Api.reservationsOpen) {
+    Api.reservationsOpen().then(function (open) {
+      if (!open) lockUntilOpen();
+    });
+  }
   function lockUntilOpen() {
     var tabs = document.querySelector(".tabs-row");
     if (tabs) tabs.style.display = "none";

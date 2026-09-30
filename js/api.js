@@ -389,6 +389,15 @@
       if (BACKEND) return rest("/rest/v1/press_applications?select=*&order=created_at.desc").then(function (rows) { return (rows || []).map(fromPressRow); }).catch(function () { return []; });
       return Promise.resolve(BFW.loadPress());
     },
+    /* 오픈 여부는 서버가 진짜다. 화면 설정만으로는 열지 않는다. */
+    reservationsOpen: function () {
+      if (!BACKEND) return Promise.resolve(true);
+      return rpc("reservations_open", {}).then(function (d) { return d === true; }).catch(function () { return false; });
+    },
+    pressOpen: function () {
+      if (!BACKEND) return Promise.resolve(true);
+      return rpc("press_open", {}).then(function (d) { return d === true; }).catch(function () { return false; });
+    },
     pressSetStatus: function (id, status) {
       if (BACKEND) return rpc("press_set_status", { p_id: id, p_status: status }).then(function (d) { return fromPressRow(d && d.application); }).catch(function () { return null; });
       return Promise.resolve(BFW.setPressStatus(id, status));

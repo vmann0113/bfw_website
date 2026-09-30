@@ -286,6 +286,29 @@ grant select on public.zone_availability to anon, authenticated;
 --     · 아래 함수를 통해서만 데이터가 오갑니다.
 -- =====================================================================
 
+-- ---- 입력값 정리 : 사람이 손으로 넣는 값이라 모양이 제각각이다 ----
+--  이름   : 앞뒤 공백을 자르고, 가운데 연속 공백은 하나로 (홍  길동 → 홍 길동)
+--  연락처 : 숫자만 남긴 뒤 보기 좋은 하이픈 모양으로 (010 7577 3707 → 010-7577-3707)
+--  대조용 키(phone_key / name_key)는 기존대로 공백·기호를 무시하므로,
+--  어떤 모양으로 넣어도 조회·중복확인은 그대로 동작한다.
+create or replace function public.norm_name(p text)
+returns text language sql immutable as $fn$
+  select nullif(btrim(regexp_replace(coalesce(p, ''), '\s+', ' ', 'g')), '')
+$fn$;
+
+create or replace function public.norm_phone(p text)
+returns text language sql immutable as $fn$
+  select case
+    when d = '' then null
+    when length(d) = 11 then substr(d,1,3) || '-' || substr(d,4,4) || '-' || substr(d,8,4)
+    when length(d) = 10 and left(d,2) = '02' then '02-' || substr(d,3,4) || '-' || substr(d,7,4)
+    when length(d) = 10 then substr(d,1,3) || '-' || substr(d,4,3) || '-' || substr(d,7,4)
+    when length(d) = 9 and left(d,2) = '02' then '02-' || substr(d,3,3) || '-' || substr(d,6,4)
+    else d
+  end
+  from (select regexp_replace(coalesce(p, ''), '[^0-9]', '', 'g') as d) t
+$fn$;
+
 -- ---- 4-1. 예약 : 선착순의 핵심 ----
 --  쇼마다 방식이 다르다.
 --   · seating_mode='assigned' → 관람객이 좌석을 지정한다 (p_seat_id 필수)
@@ -459,7 +482,7 @@ begin
   values
     (v_code, v_show.id, v_show.title, v_show.title_ko, v_show.lineup, v_show.day, v_show.date,
      v_show.start_time, v_show.end_time, v_show.venue,
-     btrim(p_name), btrim(p_phone), nullif(btrim(coalesce(p_email,'')), ''), coalesce(p_marketing, false),
+     public.norm_name(p_name), public.norm_phone(p_phone), nullif(btrim(coalesce(p_email,'')), ''), coalesce(p_marketing, false),
      v_seat_id, v_label, 'web')
   returning * into v_row;
 
@@ -672,7 +695,7 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'dup');
   end if;
   insert into public.press_applications (media, reporter, phone, email, types, days, note)
-  values (btrim(p_media), btrim(p_reporter), btrim(p_phone),
+  values (public.norm_name(p_media), public.norm_name(p_reporter), public.norm_phone(p_phone),
           nullif(btrim(coalesce(p_email,'')),''), p_types, p_days, p_note)
   returning * into a;
   return jsonb_build_object('ok', true, 'application', to_jsonb(a));
@@ -900,7 +923,7 @@ begin
   values
     (v_code, v_show.id, v_show.title, v_show.title_ko, v_show.lineup, v_show.day, v_show.date,
      v_show.start_time, v_show.end_time, v_show.venue,
-     btrim(p_name), nullif(btrim(coalesce(p_phone,'')), ''), null, false,
+     public.norm_name(p_name), public.norm_phone(p_phone), null, false,
      v_seat.id, v_zone.label || ' ' || v_seat.num || '번', 'invite',
      nullif(btrim(coalesce(p_org,'')), ''), nullif(btrim(coalesce(p_title,'')), ''))
   returning * into v_row;
@@ -2136,3 +2159,14 @@ from public.shows order by sort;
 --  [참고] 마감을 없앨 때
 --    update public.shows set reserve_close_at = null where id = 'S01';
 -- ---------------------------------------------------------------------
+
+-- 이미 들어와 있는 값도 같은 모양으로 맞춘다
+update public.reservations
+   set name = public.norm_name(name), phone = public.norm_phone(phone)
+ where name is distinct from public.norm_name(name)
+    or phone is distinct from public.norm_phone(phone);
+update public.press_applications
+   set reporter = public.norm_name(reporter), media = public.norm_name(media), phone = public.norm_phone(phone)
+ where reporter is distinct from public.norm_name(reporter)
+    or media is distinct from public.norm_name(media)
+    or phone is distinct from public.norm_phone(phone);
