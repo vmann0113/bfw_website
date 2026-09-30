@@ -932,11 +932,14 @@ begin
 end $$;
 
 -- ---- 4-13. 좌석 현황판 (스태프 전용) : 누가 어느 자리인지 ----
+-- 반환 열이 늘었으므로 먼저 지웁니다(create or replace 로는 열을 못 바꿉니다).
+drop function if exists public.seat_admin_map(text);
 create or replace function public.seat_admin_map(p_show_id text)
 returns table (
   seat_id text, zone_code text, zone_label text, num int, tier int, row_no int,
   status text, name text, guest_org text, guest_title text, phone text,
-  code text, checked_in boolean, source text, lock_note text
+  code text, checked_in boolean, source text, lock_note text,
+  hold_grade text, hold_guest text
 ) language sql security definer set search_path = public as $$
   select s.id, s.zone_code, z.label, s.num, s.tier, s.row_no,
     case
@@ -944,7 +947,9 @@ returns table (
       when k.seat_id is not null then coalesce(k.kind, 'invite')
       else 'free'
     end,
-    r.name, r.guest_org, r.guest_title, r.phone, r.code, r.checked_in, r.source, k.note
+    r.name, r.guest_org, r.guest_title, r.phone, r.code, r.checked_in, r.source, k.note,
+    -- 관리자 좌석 지도에서 참가사 VIP석을 구분해 보여주기 위한 두 열
+    k.grade, k.guest_name
   from seats s
   join zones z on z.code = s.zone_code
   left join show_seat_locks k
