@@ -649,6 +649,19 @@
   $("saveBtn").addEventListener("click", function () {
     if (busy) return;
     if (!checkContact()) return;
+    /* 좌석이 줄어드는 저장은 한 번 더 묻는다.
+       구역 단위로 고를 때는 좌석 하나만 눌러도 그 구역 전체가 풀리기 때문에,
+       확보를 마친 뒤 실수로 저장하면 그대로 일반 공개로 넘어간다. */
+    var wasN = keys(saved).length, nowN = keys(picked).length;
+    if (nowN < wasN) {
+      var msg = nowN === 0
+        ? ["확보하신 " + wasN + "석을 모두 해제합니다.", "",
+           "저장하면 이 좌석은 일반 관람객이 예약할 수 있게 됩니다.",
+           "정말 진행할까요?"].join(String.fromCharCode(10))
+        : ["확보 좌석이 " + wasN + "석에서 " + nowN + "석으로 " + (wasN - nowN) + "석 줄어듭니다.", "",
+           "저장할까요?"].join(String.fromCharCode(10));
+      if (!window.confirm(msg)) return;
+    }
     busy = true;
     $("saveBtn").disabled = true;
     say("저장 중…", "");
