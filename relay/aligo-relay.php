@@ -30,12 +30,69 @@ header('X-Robots-Tag: noindex');
 /* 서버 IP 확인용 — 알리고에 등록할 주소를 알기 위해서다.
    서버의 공개 IP 는 이미 공개된 정보라 열쇠를 요구하지 않는다. */
 if (isset($_GET['ip'])) {
-    $ip = @file_get_contents('https://api.ipify.org');
+    /* 호스팅에 따라 file_get_contents 로는 바깥에 못 나간다(allow_url_fopen 꺼짐).
+       curl 로도 시도하고, 실패 사유까지 돌려줘 무엇이 막혔는지 알 수 있게 한다. */
+    $tries = [];
+    $ip = null;
+    foreach ([
+        'https://api.ipify.org',
+        'http://api.ipify.org',
+        'https://ifconfig.me/ip',
+        'http://ipv4.icanhazip.com',
+    ] as $u) {
+        if ($ip) break;
+        $t = ['url' => $u, 'via' => 'curl'];
+        if (function_exists('curl_init')) {
+            $ch = curl_init($u);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_FOLLOWLOCATION => true,
+            ]);
+            $body = curl_exec($ch);
+            $t['httpCode'] = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $t['error'] = curl_error($ch) ?: null;
+            curl_close($ch);
+        } else {
+            $t['via'] = 'file_get_contents';
+            $body = @file_get_contents($u);
+            $t['error'] = $body === false ? '실패' : null;
+        }
+        $body = is_string($body) ? trim($body) : '';
+        if (preg_match('/^[0-9]{1,3}(\.[0-9]{1,3}){3}$/', $body)) { $ip = $body; $t['ok'] = true; }
+        $tries[] = $t;
+    }
+
+    /* 알리고까지 실제로 닿는지도 같이 본다 (키 없이 호출해 응답 코드만 본다) */
+    $aligo = ['reachable' => false];
+    if (function_exists('curl_init')) {
+        $ch = curl_init('https://apis.aligo.in/remain/');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => 'key=&user_id=',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+        $b = curl_exec($ch);
+        $aligo['httpCode'] = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $aligo['error'] = curl_error($ch) ?: null;
+        $aligo['reachable'] = $b !== false;
+        $aligo['body'] = is_string($b) ? mb_substr($b, 0, 200) : null;
+        curl_close($ch);
+    }
+
     echo json_encode([
-        'outboundIp' => $ip ?: null,
+        'outboundIp' => $ip,
         'serverAddr' => $_SERVER['SERVER_ADDR'] ?? null,
-        'note' => '이 주소를 알리고 발송 서버 IP 에 등록하세요',
-    ], JSON_UNESCAPED_UNICODE);
+        'php' => PHP_VERSION,
+        'curl' => function_exists('curl_init'),
+        'allowUrlFopen' => (bool) ini_get('allow_url_fopen'),
+        'tries' => $tries,
+        'aligo' => $aligo,
+        'note' => 'outboundIp 가 나오면 그 값을, 안 나오면 serverAddr 를 알리고에 등록합니다',
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 
