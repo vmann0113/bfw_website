@@ -16,6 +16,32 @@
     else nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
   })();
 
+  /* ---- 오픈 전 잠금 : register.html 과 같은 이유 ----
+     링크만 숨기면 주소를 직접 친 사람은 신청 폼을 만난다. ---- */
+  if (!(BFW.baked().reserve || {}).published) {
+    var pane = document.getElementById("applyPane");
+    if (pane) {
+      pane.innerHTML =
+        '<div class="closed-note">프레스 방문 신청은 아직 열리지 않았습니다.<br>' +
+        '취재 문의는 사무국으로 연락해 주세요.</div>';
+    }
+    return;
+  }
+
+  /* 서버 스위치가 닫혀 있으면 신청을 받지 않는다 (배포 없이 여닫기 위해) */
+  if (Api && Api.pressOpen) {
+    Api.pressOpen().then(function (open) {
+      if (!open) {
+        var pane2 = document.getElementById("applyPane");
+        if (pane2) {
+          pane2.innerHTML =
+            '<div class="closed-note">프레스 방문 신청은 아직 열리지 않았습니다.<br>' +
+            '취재 문의는 사무국으로 연락해 주세요.</div>';
+        }
+      }
+    });
+  }
+
   var pv = cfg.pressVisit || { open: true, note: "" };
   $("prsNote").textContent = pv.note || "";
   if (!pv.open) {
@@ -78,6 +104,7 @@
         return fail("일시적인 오류로 접수하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       }
       try { localStorage.setItem("bfw_last_phone", phone); } catch (e2) {}
+      notifyPress("press_received", { phone: phone, reporter: name });
       $("prsForm").classList.add("hidden");
       var d = $("applyDone");
       d.classList.remove("hidden");
@@ -92,6 +119,18 @@
       });
     });
   });
+
+  /* 접수·승인 안내 보내기. 안내가 실패해도 신청 자체는 이미 접수됐으므로
+     화면에는 알리지 않는다(관리자 화면에서 발송 이력을 확인한다). */
+  function notifyPress(event, data) {
+    try {
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: event, phone: data.phone, reporter: data.reporter || "", code: data.code || "" })
+      }).catch(function () {});
+    } catch (e) { /* 무시 */ }
+  }
 
   /* tabs */
   function switchPane(pane) {
@@ -121,14 +160,18 @@
       return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
     } catch (e) { return '<div style="font:11px monospace;color:#888;padding:8px">' + esc(text) + "</div>"; }
   }
-  $("stBtn").addEventListener("click", function () { runLookup($("stPhone").value.trim()); });
-  $("stPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") runLookup(this.value.trim()); });
-  function runLookup(phone) {
+  function doLookup() { runLookup($("stPhone").value.trim(), $("stName").value.trim()); }
+  if (BFW.bindPhonesIn) BFW.bindPhonesIn(document);
+
+  $("stBtn").addEventListener("click", doLookup);
+  $("stPhone").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
+  $("stName").addEventListener("keydown", function (e) { if (e.key === "Enter") doLookup(); });
+  function runLookup(phone, reporter) {
     var box = $("stResult");
-    if (!phone) { box.innerHTML = '<p class="lookup-empty">연락처를 입력해 주세요.</p>'; return; }
+    if (!phone || !reporter) { box.innerHTML = '<p class="lookup-empty">기자명과 연락처를 모두 입력해 주세요.</p>'; return; }
     box.innerHTML = '<p class="lookup-empty">조회 중…</p>';
-    Api.pressLookup(phone).then(function (list) {
-      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">해당 연락처로 접수된 신청이 없습니다.</p>'; return; }
+    Api.pressLookup(phone, reporter).then(function (list) {
+      if (!list || !list.length) { box.innerHTML = '<p class="lookup-empty">입력하신 기자명·연락처로 접수된 신청이 없습니다.</p>'; return; }
       box.innerHTML = '<div class="tickets"></div>';
       var t = box.querySelector(".tickets");
       list.forEach(function (p) { t.appendChild(card(p)); });

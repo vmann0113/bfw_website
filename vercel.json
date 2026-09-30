@@ -19,11 +19,20 @@
       ]
     },
     {
-      "source": "/(.*).(css|js)",
+      "source": "/(.*).css",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*).js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     },
@@ -39,6 +48,11 @@
   ],
   "redirects": [
     {
+      "source": "/map",
+      "destination": "https://www.busanfashionweek.com/#visit",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
@@ -48,6 +62,12 @@
       ],
       "destination": "https://www.busanfashionweek.com/:path*",
       "permanent": true
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-remind",
+      "schedule": "0 1 * * *"
     }
   ]
 }

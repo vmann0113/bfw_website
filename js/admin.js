@@ -71,7 +71,7 @@
   var crumbMap = {
     brand: "브랜드", brandlist: "참여 브랜드", unilist: "참여 대학", lastyear: "2025 라인업", event: "행사 정보", sections: "섹션 On/Off", media: "On Film 영상",
     press: "언론 보도", archive: "아카이브", instagram: "인스타그램", map: "오시는 길 · 지도",
-    shows: "쇼 관리", reservations: "예약 현황", pressvisit: "프레스 방문", checkin: "현장 체크인"
+    shows: "쇼 관리", seats: "좌석 · 초청석", reservations: "예약 현황", pressvisit: "프레스 방문", checkin: "현장 체크인"
   };
   document.querySelectorAll("#navlist button").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -83,6 +83,7 @@
       });
       $("crumb").textContent = crumbMap[tab] || "";
       $("side").classList.remove("open");
+      if (tab === "seats") withStaff(initSeats);
       if (tab === "reservations") withStaff(renderResv);
       if (tab === "pressvisit") withStaff(renderPressApps);
       if (tab === "checkin") withStaff(initCheckin);
@@ -513,6 +514,285 @@
       });
     });
   }
+  /* ==========================================================
+     좌석 · 초청석 관리
+     쇼별로 자리를 잠그면 관람객 예약 화면에서 선택되지 않는다.
+     ========================================================== */
+  var szInited = false, szShowId = null, szZones = [], szSeats = {}, szPick = {}, szMode = "free", szResvCount = 0;
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function seatIdOf(zoneCode, num) { return zoneCode + "-" + pad2(num); }
+  function zoneOrder(a, b) { return a.side === b.side ? a.sort - b.sort : (a.side === "L" ? -1 : 1); }
+
+  function initSeats() {
+    if (!szInited) {
+      var sel = $("szShow");
+      sel.innerHTML = (cfg.shows || []).map(function (s2) {
+        return '<option value="' + esc(s2.id) + '">' + esc(s2.id) + " · D" + esc(s2.day) +
+               " " + esc(s2.time || "") + " · " + esc(s2.titleKo || s2.title || "") + "</option>";
+      }).join("");
+      sel.addEventListener("change", function () { szPick = {}; loadSeats(); });
+      $("szReload").addEventListener("click", function () { szPick = {}; loadSeats(); });
+      $("szPrint").addEventListener("click", printSeats);
+      $("szLockSel").addEventListener("click", function () { applyLock(Object.keys(szPick), "invite"); });
+      $("szUnlockSel").addEventListener("click", function () { applyLock(Object.keys(szPick), null); });
+      $("szClearSel").addEventListener("click", function () { szPick = {}; renderSeatAdmin(); });
+      $("sqLock").addEventListener("click", function () { quickRange("invite"); });
+      $("sqUnlock").addEventListener("click", function () { quickRange(null); });
+      document.querySelectorAll('input[name="szMode"]').forEach(function (r) {
+        r.addEventListener("change", function () { changeMode(r.value); });
+      });
+      szInited = true;
+    }
+    loadSeats();
+  }
+
+  function loadSeats() {
+    szShowId = $("szShow").value;
+    $("szMap").innerHTML = '<div class="empty-state">불러오는 중…</div>';
+    Promise.all([BFWApi.zoneAvailability(), BFWApi.seatAdminMap(szShowId), BFWApi.availability()])
+      .then(function (res) {
+      szMode = ((res[2] || {})[szShowId] || {}).mode || "free";
+      szResvCount = ((res[2] || {})[szShowId] || {}).reserved || 0;
+      renderMode();
+      szZones = ((res[0] || {})[szShowId] || []).slice();
+      szSeats = {};
+      (res[1] || []).forEach(function (r) { szSeats[r.seat_id] = r; });
+      var zsel = $("sqZone");
+      if (zsel && !zsel.options.length && szZones.length) {
+        zsel.innerHTML = szZones.slice().sort(zoneOrder).map(function (z) {
+          return '<option value="' + esc(z.code) + '">' + esc(z.label) + "</option>";
+        }).join("");
+      }
+      renderSeatAdmin();
+    });
+  }
+
+  function renderSeatAdmin() {
+    var wrap = $("szMap");
+    if (!szZones.length) {
+      wrap.innerHTML = '<div class="empty-state">구역 정보를 불러오지 못했습니다. 새로고침해 주세요.</div>';
+      return;
+    }
+    function bySort(a, b) { return a.sort - b.sort; }
+    var L = szZones.filter(function (z) { return z.side === "L"; }).sort(bySort);
+    var R = szZones.filter(function (z) { return z.side === "R"; }).sort(bySort);
+    wrap.innerHTML = "";
+    var colL = document.createElement("div"); colL.className = "sam-col";
+    L.forEach(function (z) { colL.appendChild(zoneBlock(z)); });
+    var mid = document.createElement("div"); mid.className = "sam-runway";
+    mid.innerHTML = "<span>RUNWAY</span>";
+    var colR = document.createElement("div"); colR.className = "sam-col";
+    R.forEach(function (z) { colR.appendChild(zoneBlock(z)); });
+    wrap.appendChild(colL); wrap.appendChild(mid); wrap.appendChild(colR);
+    renderSzSummary();
+  }
+
+  function zoneBlock(z) {
+    var box = document.createElement("div");
+    box.className = "sam-zone";
+    var lock = 0, take = 0;
+    for (var n = 1; n <= z.seatCount; n++) {
+      var st = szSeats[seatIdOf(z.code, n)];
+      if (!st) continue;
+      if (st.status === "taken") take++;
+      else if (st.status !== "free") lock++;
+    }
+    box.innerHTML = "<h4>" + esc(z.label) + "</h4>" +
+      '<div class="zmeta">전체 ' + z.seatCount + "석 · 초청 " + lock + " · 예약 " + take + "</div>";
+    var g = document.createElement("div");
+    g.className = "sam-grid";
+    var R = z.rows;
+    for (var r = 1; r <= R; r++) {
+      // 실제 배치도와 같은 방향 (좌측 구역은 바깥단이 왼쪽)
+      var nums = (z.side === "L") ? [2 * R + r, R + r, r] : [r, R + r, 2 * R + r];
+      for (var c = 0; c < 3; c++) g.appendChild(seatBtn(z, nums[c]));
+    }
+    box.appendChild(g);
+    return box;
+  }
+
+  function seatBtn(z, num) {
+    var id = seatIdOf(z.code, num);
+    var st = szSeats[id] || { status: "free" };
+    var b = document.createElement("button");
+    b.type = "button";
+    var cls = "sseat";
+    if (szPick[id]) cls += " pick";
+    else if (st.status === "taken") cls += " taken";
+    else if (st.status !== "free") cls += " invite";
+    b.className = cls;
+    b.textContent = num;
+    b.title = z.label + " " + num + "번" +
+      (st.status === "taken" ? " · 예약 " + (st.name || "") : st.status !== "free" ? " · 초청석" : "");
+    if (st.status === "taken") {
+      b.disabled = true;
+    } else {
+      b.addEventListener("click", function () {
+        if (szPick[id]) { delete szPick[id]; b.classList.remove("pick"); }
+        else { szPick[id] = true; b.classList.add("pick"); }
+        syncSzBar();
+      });
+    }
+    return b;
+  }
+
+  function renderMode() {
+    var locked = szResvCount > 0;   // 예약이 있으면 방식을 못 바꾼다
+    document.querySelectorAll('input[name="szMode"]').forEach(function (r) {
+      r.checked = (r.value === szMode);
+      r.disabled = locked;
+    });
+    var row = document.querySelector(".mode-row");
+    if (row) row.classList.toggle("is-locked", locked);
+
+    var cur = szMode === "assigned"
+      ? "지금 <b>지정좌석</b>입니다. 관람객이 <b>구역 → 좌석</b> 순으로 자리를 직접 고르고, QR과 안내 문자에 좌석번호가 함께 나갑니다."
+      : "지금 <b>자유석</b>입니다. 관람객은 <b>쇼만 선택</b>하고 자리는 현장에서 선착순으로 앉습니다.";
+    var extra = locked
+      ? '<span class="mode-warn">⚠ 이 쇼에 이미 예약 ' + szResvCount +
+        "건이 들어와 방식을 바꿀 수 없습니다. 바꾸려면 <b>예약 현황</b> 탭에서 해당 예약을 먼저 취소하세요.</span>"
+      : "";
+    $("szModeNote").innerHTML = cur + extra;
+  }
+
+  function changeMode(mode) {
+    if (mode === szMode) return;
+    BFWApi.setSeatingMode(szShowId, mode).then(function (r) {
+      if (r && r.ok) {
+        szMode = mode;
+        renderMode();
+        toast(mode === "assigned" ? "지정좌석제로 바꿨습니다." : "자유석으로 바꿨습니다.");
+        loadSeats();
+      } else if (r && r.reason === "hasreservations") {
+        szResvCount = r.count || szResvCount || 1;
+        toast("예약 " + szResvCount + "건이 있어 방식을 바꿀 수 없습니다.", true);
+        renderMode();
+      } else if (r && r.reason === "forbidden") {
+        toast("스태프 로그인이 필요합니다.", true);
+        renderMode();
+      } else {
+        toast("변경하지 못했습니다.", true);
+        renderMode();
+      }
+    });
+  }
+
+  function renderSzSummary() {
+    var total = 0, lock = 0, take = 0;
+    szZones.forEach(function (z) { total += z.seatCount; });
+    Object.keys(szSeats).forEach(function (k) {
+      var st = szSeats[k];
+      if (st.status === "taken") take++;
+      else if (st.status !== "free") lock++;
+    });
+    var sh = (cfg.shows || []).filter(function (x) { return x.id === szShowId; })[0] || {};
+    $("szSummary").innerHTML =
+      '<span class="s-show"><b>' + esc(szShowId) + "</b> " + esc(sh.titleKo || sh.title || "") + "</span>" +
+      "<span>전체 <b>" + total + "</b>석</span>" +
+      '<span class="s-lock">초청석 <b>' + lock + "</b>석</span>" +
+      '<span class="s-take">관람객 예약 <b>' + take + "</b>석</span>" +
+      "<span>예약 가능 <b>" + (total - lock - take) + "</b>석</span>";
+    syncSzBar();
+  }
+
+  function syncSzBar() {
+    var n = Object.keys(szPick).length;
+    $("szPickCount").textContent = n;
+    $("szActions").classList.toggle("show", n > 0);
+  }
+
+  function applyLock(ids, kind) {
+    if (!ids || !ids.length) { toast("자리를 먼저 선택해 주세요.", true); return; }
+    BFWApi.seatLockSet(szShowId, ids, kind, null).then(function (r) {
+      if (r && r.ok) {
+        toast(kind ? ids.length + "자리를 초청석으로 잠갔습니다." : ids.length + "자리 잠금을 해제했습니다.");
+        szPick = {};
+        loadSeats();
+      } else if (r && r.reason === "occupied") {
+        toast("이미 관람객이 예약한 자리가 있어 잠글 수 없습니다.", true);
+      } else if (r && r.reason === "forbidden") {
+        toast("스태프 로그인이 필요합니다.", true);
+      } else {
+        toast("처리하지 못했습니다.", true);
+      }
+    });
+  }
+
+  function quickRange(kind) {
+    var zc = $("sqZone").value;
+    var z = szZones.filter(function (x) { return x.code === zc; })[0];
+    if (!z) { toast("구역을 선택해 주세요.", true); return; }
+    var a = parseInt($("sqFrom").value, 10), b = parseInt($("sqTo").value, 10);
+    if (isNaN(a) || isNaN(b)) { toast("시작·끝 번호를 입력해 주세요.", true); return; }
+    if (a > b) { var t = a; a = b; b = t; }
+    if (a < 1 || b > z.seatCount) { toast(z.label + "은 1~" + z.seatCount + "번까지입니다.", true); return; }
+    var ids = [];
+    for (var n = a; n <= b; n++) ids.push(seatIdOf(zc, n));
+    applyLock(ids, kind);
+  }
+
+  /* 연속된 번호를 1~12 형태로 묶는다 (라벨 작업용 인쇄) */
+  function toRanges(nums) {
+    if (!nums.length) return "";
+    nums = nums.slice().sort(function (a, b) { return a - b; });
+    var out = [], st = nums[0], prev = nums[0];
+    for (var i = 1; i <= nums.length; i++) {
+      var n = nums[i];
+      if (n !== prev + 1) {
+        out.push(st === prev ? String(st) : st + "~" + prev);
+        st = n;
+      }
+      prev = n;
+    }
+    return out.join(", ");
+  }
+
+  function printSeats() {
+    var sh = (cfg.shows || []).filter(function (x) { return x.id === szShowId; })[0] || {};
+    var rows = [], total = 0;
+    szZones.slice().sort(zoneOrder).forEach(function (z) {
+      var list = [];
+      for (var n = 1; n <= z.seatCount; n++) {
+        var st = szSeats[seatIdOf(z.code, n)];
+        if (st && st.status !== "free" && st.status !== "taken") list.push(n);
+      }
+      if (list.length) { rows.push({ label: z.label, nums: list }); total += list.length; }
+    });
+    var body = rows.length
+      ? rows.map(function (r) {
+          return "<tr><td class=z>" + esc(r.label) + "</td><td class=c>" + r.nums.length +
+                 "석</td><td>" + esc(toRanges(r.nums)) + "</td></tr>";
+        }).join("")
+      : '<tr><td colspan="3" style="text-align:center;padding:30px;color:#888">잠긴 초청석이 없습니다.</td></tr>';
+    var html =
+      "<!doctype html><html lang=ko><head><meta charset=utf-8><title>초청석 지정 현황</title><style>" +
+      "body{font-family:'Pretendard',system-ui,sans-serif;margin:40px;color:#16204a}" +
+      "h1{font-size:20px;margin:0 0 4px}.sub{color:#667;font-size:13px;margin-bottom:22px}" +
+      "table{width:100%;border-collapse:collapse;font-size:14px}" +
+      "th,td{padding:10px 12px;border-bottom:1px solid #e2e6ef;text-align:left}" +
+      "th{background:#f4f6fa;font-size:12px;letter-spacing:.05em}" +
+      "td.z{font-weight:700;width:110px}td.c{width:80px;font-variant-numeric:tabular-nums}" +
+      ".tot{margin-top:18px;font-weight:700}" +
+      ".note{margin-top:26px;font-size:12px;color:#667;line-height:1.7}" +
+      "</style></head><body>" +
+      "<h1>초청석 지정 현황</h1>" +
+      '<div class="sub">' + esc(sh.id || "") + " · " + esc(sh.titleKo || sh.title || "") +
+      " · " + esc(sh.date || "") + " " + esc(sh.time || "") + "</div>" +
+      "<table><thead><tr><th>구역</th><th>좌석 수</th><th>좌석 번호</th></tr></thead><tbody>" +
+      body + "</tbody></table>" +
+      '<div class="tot">합계 ' + total + "석</div>" +
+      '<div class="note">※ 번호가 작을수록 런웨이·무대에 가깝습니다. 각 구역은 3단 계단식이며 ' +
+      "1단(런웨이 최근접)부터 번호가 매겨집니다.<br>※ 이 표를 보고 해당 의자에 라벨을 부착하세요.</div>" +
+      "</body></html>";
+    var w = window.open("", "_blank");
+    if (!w) { toast("팝업이 차단되었습니다. 팝업을 허용해 주세요.", true); return; }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(function () { w.print(); }, 300);
+  }
+
   /* ---------- RESERVATIONS dashboard ---------- */
   var resvCache = [];
   function renderResv() {
@@ -641,7 +921,18 @@
       var okB = tr.querySelector('[data-act=ok]');
       if (okB) okB.addEventListener("click", function () {
         BFWApi.pressSetStatus(p.id, "approved").then(function (out) {
-          toast("승인 완료 — 프레스 QR " + ((out && out.code) || "") + " 발급");
+          var code = (out && out.code) || (out && out.application && out.application.code) || "";
+          toast("승인 완료 — 프레스 QR " + code + " 발급");
+          // 승인 안내를 신청자에게 보낸다. 실패해도 승인 자체는 끝난 상태다.
+          if (code) {
+            try {
+              fetch("/api/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ event: "press_approved", phone: p.phone, code: code })
+              }).catch(function () {});
+            } catch (e) { /* 무시 */ }
+          }
           renderPressApps();
         });
       });
@@ -673,53 +964,143 @@
   function initCheckin() {
     if (!ciInited) {
       $("ciSearch").addEventListener("click", function () { doCheckinSearch($("ciInput").value); });
-      $("ciInput").addEventListener("keydown", function (e) { if (e.key === "Enter") doCheckinSearch(this.value); });
+      $("ciInput").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); doCheckinSearch(this.value); }
+      });
       $("ciScanBtn").addEventListener("click", toggleScan);
+      initWalkin();
       ciInited = true;
     }
+    renderWalkinStats();
     $("ciInput").focus();
+  }
+
+  /* QR 리더기는 '글자 입력 + Enter' 로 동작한다. 한 건 처리할 때마다
+     입력칸을 비우고 포커스를 되돌려야 다음 사람 스캔이 들어온다. */
+  function ciReset() { $("ciInput").value = ""; $("ciInput").focus(); }
+  function ciHint(html) {
+    var h = $("ciHint");
+    if (!h) return;
+    if (!html) { h.style.display = "none"; h.innerHTML = ""; return; }
+    h.style.display = ""; h.innerHTML = html;
+  }
+  var RESV_CODE = /^(?:BFW-?)?(S\d{2}-[A-Z0-9]{4,10})$/;
+  var PRESS_CODE = /^(?:BFW-?)?(PRS-[A-Z0-9]{4,10})$/;
+
+  /* 스캔 즉시 입장 처리 — 클릭 없이 다음 사람으로 넘어간다 */
+  function autoCheckin(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">확인 중…</div></div>';
+    BFWApi.checkIn("BFW-" + code).then(function (out) {
+      if (out.ok) { showCiCard(out.entry, "entered"); toast(out.entry.name + "님 입장 ✓"); }
+      else if (out.reason === "already" && out.entry) { showCiCard(out.entry, "already"); toast("이미 입장한 예약입니다.", true); }
+      else if (out.reason === "forbidden") {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 스태프 로그인이 필요합니다</div><div class="ci-show">화면을 새로고침한 뒤 다시 로그인해 주세요.</div></div>';
+      } else {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘BFW-' + esc(code) + '’ 에 해당하는 예약이 없습니다. 취소된 예약일 수 있습니다.</div></div>';
+      }
+      ciReset();
+    });
+  }
+  function autoPressCheckin(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">확인 중…</div></div>';
+    BFWApi.pressCheckIn(code).then(function (out) {
+      if (out.ok) { showPressCiCard(out.entry, "entered"); toast(out.entry.reporter + " 기자 입장 ✓"); }
+      else if (out.reason === "already" && out.entry) { showPressCiCard(out.entry, "already"); toast("이미 입장한 프레스입니다.", true); }
+      else if (out.reason === "forbidden") {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 스태프 로그인이 필요합니다</div></div>';
+      } else {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(code) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
+      }
+      ciReset();
+    });
+  }
+
+  /* ---------- 현장 스탠드석 인원 ---------- */
+  function initWalkin() {
+    var sel = $("wkShow");
+    if (!sel) return;
+    sel.innerHTML = (cfg.shows || []).map(function (s2) {
+      return '<option value="' + esc(s2.id) + '">D' + esc(s2.day) + " · " + esc(s2.time || "") + " · " + esc(s2.titleKo || s2.title || s2.id) + "</option>";
+    }).join("");
+    $("wkSave").addEventListener("click", function () {
+      var id = sel.value, n = parseInt($("wkCount").value, 10);
+      if (!id || isNaN(n) || n < 0) { toast("인원수를 숫자로 입력해 주세요.", true); return; }
+      BFWApi.walkinSet(id, n, $("wkNote").value.trim()).then(function (r) {
+        if (r.ok) {
+          toast(id + " 현장 인원 " + n + "명 저장 ✓");
+          $("wkCount").value = ""; $("wkNote").value = "";
+          renderWalkinStats();
+        } else toast(r.reason === "forbidden" ? "스태프 로그인이 필요합니다." : "저장하지 못했습니다.", true);
+      });
+    });
+  }
+  function renderWalkinStats() {
+    var box = $("wkStats");
+    if (!box) return;
+    box.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+    BFWApi.attendanceStats().then(function (rows) {
+      if (!rows || !rows.length) { box.innerHTML = '<div class="empty-state">집계할 자료가 없습니다.</div>'; return; }
+      var tR = 0, tE = 0, tW = 0;
+      var h = '<table class="wk-table"><thead><tr><th>쇼</th><th>예약</th><th>입장 확인</th><th>현장</th><th>합계</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        tR += +r.reserved; tE += +r.entered; tW += +r.walkin;
+        h += '<tr><td><b>' + esc(r.show_id) + '</b> · ' + esc(r.title_ko || "") + (r.note ? ' <span class="wk-note">' + esc(r.note) + '</span>' : "") + '</td>' +
+             '<td>' + r.reserved + '</td><td>' + r.entered + '</td><td>' + r.walkin + '</td><td><b>' + r.total + '</b></td></tr>';
+      });
+      h += '</tbody><tfoot><tr><td>전체 합계</td><td>' + tR + '</td><td>' + tE + '</td><td>' + tW + '</td><td><b>' + (tE + tW) + '</b></td></tr></tfoot></table>';
+      box.innerHTML = h;
+    });
   }
   function doCheckinSearch(q) {
     q = String(q || "").trim();
     var res = $("ciResult");
-    if (!q) { res.innerHTML = ""; return; }
-    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
-    // press pass? (PRS-XXXX)
-    if (/^PRS/.test(q.toUpperCase().replace(/\s+/g, "").replace(/^BFW-?/, ""))) {
-      BFWApi.pressFindByCode(q).then(function (p) {
-        if (p) showPressCiCard(p);
-        else res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
-      });
+    if (!q) { res.innerHTML = ""; ciHint(""); return; }
+
+    // 키보드가 한글 모드인 채로 스캔되면 코드가 자모로 깨져 들어온다
+    if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(q) && /[-0-9]/.test(q)) {
+      ciHint('⌨ 키보드가 <b>한글 모드</b>인 것 같습니다. <b>한/영 키</b>를 눌러 영문으로 바꾼 뒤 다시 스캔해 주세요.');
+      res.innerHTML = "";
+      ciReset();
       return;
     }
-    // direct code match first
-    BFWApi.findByCode(q).then(function (byCode) {
-      if (byCode) { showCiCard(byCode); return; }
-      // otherwise search name / phone
-      BFWApi.staffSearch(q).then(function (matches) {
-        if (!matches.length) {
-          res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 예약을 찾을 수 없습니다.</div></div>';
-          return;
-        }
-        if (matches.length === 1) { showCiCard(matches[0]); return; }
-        res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">' + matches.length + '건 검색됨 — 선택하세요</div><div class="ci-multi"></div></div>';
-        var box = res.querySelector(".ci-multi");
-        matches.forEach(function (r) {
-          var row = document.createElement("div");
-          row.className = "ci-pick";
-          row.innerHTML = '<span class="cp-t">' + esc(r.showId) + ' · ' + esc(r.time || "") + '</span><span class="cp-n">' + esc(r.name) + ' · ' + esc(r.phone) + '</span>' +
-            '<span class="pill ' + (r.checkedIn ? "entered" : "reserved") + '">' + (r.checkedIn ? "입장완료" : "예약") + '</span>';
-          row.addEventListener("click", function () { showCiCard(r); });
-          box.appendChild(row);
-        });
+    ciHint("");
+
+    // QR·예약번호 형태면 곧바로 입장 처리 (연속 스캔)
+    var up = q.toUpperCase().replace(/\s+/g, "");
+    var mp = up.match(PRESS_CODE);
+    if (mp) { autoPressCheckin(mp[1]); return; }
+    var mc = up.match(RESV_CODE);
+    if (mc) { autoCheckin(mc[1]); return; }
+
+    // 코드가 아니면 이름·연락처 검색 — 자동 입장 처리하지 않는다
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
+    BFWApi.staffSearch(q).then(function (matches) {
+      if (!matches.length) {
+        res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘' + esc(q) + '’ 에 해당하는 예약을 찾을 수 없습니다.</div></div>';
+        return;
+      }
+      if (matches.length === 1) { showCiCard(matches[0]); return; }
+      res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">' + matches.length + '건 검색됨 — 선택하세요</div><div class="ci-multi"></div></div>';
+      var box = res.querySelector(".ci-multi");
+      matches.forEach(function (r) {
+        var row = document.createElement("div");
+        row.className = "ci-pick";
+        row.innerHTML = '<span class="cp-t">' + esc(r.showId) + ' · ' + esc(r.time || "") + '</span><span class="cp-n">' + esc(r.name) + ' · ' + esc(r.phone) + '</span>' +
+          '<span class="pill ' + (r.checkedIn ? "entered" : "reserved") + '">' + (r.checkedIn ? "입장완료" : "예약") + '</span>';
+        row.addEventListener("click", function () { showCiCard(r); });
+        box.appendChild(row);
       });
     });
   }
-  function showCiCard(r) {
+  function showCiCard(r, mode) {
     var res = $("ciResult");
     var already = r.checkedIn;
-    var cls = already ? "warn" : "ok";
-    var status = already ? "⚠ 이미 입장한 예약입니다" : "✓ 유효한 예약";
+    var cls = (mode === "entered") ? "ok" : (already ? "warn" : "ok");
+    var status = (mode === "entered") ? "✓ 입장 완료"
+               : already ? "⚠ 이미 입장한 예약입니다"
+               : "✓ 유효한 예약";
     res.innerHTML =
       '<div class="ci-card ' + cls + '">' +
         '<div class="ci-status">' + status + '</div>' +
@@ -731,32 +1112,33 @@
     var acts = res.querySelector(".ci-actions");
     if (already) {
       var undo = mkBtn("btn ghost", "입장 취소");
-      undo.addEventListener("click", function () { BFWApi.undoCheckIn(r.id).then(function () { toast("입장을 취소했습니다."); reReadAndShow(r.code); }); });
+      undo.addEventListener("click", function () { BFWApi.undoCheckIn(r.id).then(function () { toast("입장을 취소했습니다."); reReadAndShow(r.code); ciReset(); }); });
       acts.appendChild(undo);
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
         BFWApi.checkIn("BFW-" + r.code).then(function (out) {
-          if (out.ok) { toast(r.name + "님 입장 처리됨 ✓"); reReadAndShow(r.code); }
-          else if (out.reason === "already") { toast("이미 입장한 예약입니다.", true); reReadAndShow(r.code); }
+          if (out.ok) { toast(r.name + "님 입장 처리됨 ✓"); reReadAndShow(r.code, "entered"); }
+          else if (out.reason === "already") { toast("이미 입장한 예약입니다.", true); reReadAndShow(r.code, "already"); }
           else toast("처리 실패", true);
+          ciReset();
         });
       });
       acts.appendChild(go);
     }
     var clear = mkBtn("btn ghost", "다음 →");
-    clear.addEventListener("click", function () { $("ciInput").value = ""; $("ciInput").focus(); res.innerHTML = ""; });
+    clear.addEventListener("click", function () { res.innerHTML = ""; ciHint(""); ciReset(); });
     acts.appendChild(clear);
   }
-  function reReadAndShow(code) {
-    BFWApi.findByCode("BFW-" + code).then(function (r) { if (r) showCiCard(r); });
+  function reReadAndShow(code, mode) {
+    BFWApi.findByCode("BFW-" + code).then(function (r) { if (r) showCiCard(r, mode); });
   }
-  function showPressCiCard(p) {
+  function showPressCiCard(p, mode) {
     var res = $("ciResult");
     var already = p.checkedIn;
     res.innerHTML =
-      '<div class="ci-card ' + (already ? "warn" : "ok") + '">' +
-        '<div class="ci-status">' + (already ? "⚠ 이미 입장한 프레스입니다" : "✓ 승인된 프레스") + '</div>' +
+      '<div class="ci-card ' + ((mode === "entered") ? "ok" : (already ? "warn" : "ok")) + '">' +
+        '<div class="ci-status">' + ((mode === "entered") ? "✓ 입장 완료" : already ? "⚠ 이미 입장한 프레스입니다" : "✓ 승인된 프레스") + '</div>' +
         '<div class="ci-name">' + esc(p.reporter) + ' <span style="font-weight:400">· ' + esc(p.media) + '</span></div>' +
         '<div class="ci-show">PRESS · ' + esc(p.types || "") + (p.days ? " · " + esc(p.days) : "") + '</div>' +
         '<div class="ci-meta">' + esc(p.code) + ' · ' + esc(p.phone) + (already && p.checkedInAt ? ' · 입장 ' + fmtDate(p.checkedInAt) : "") + '</div>' +
@@ -765,24 +1147,25 @@
     var acts = res.querySelector(".ci-actions");
     if (already) {
       var undo = mkBtn("btn ghost", "입장 취소");
-      undo.addEventListener("click", function () { BFWApi.pressUndoCheckIn(p.id).then(function () { toast("입장을 취소했습니다."); reShowPress(p.code); }); });
+      undo.addEventListener("click", function () { BFWApi.pressUndoCheckIn(p.id).then(function () { toast("입장을 취소했습니다."); reShowPress(p.code); ciReset(); }); });
       acts.appendChild(undo);
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
         BFWApi.pressCheckIn(p.code).then(function (out) {
-          if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code); }
-          else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code); }
+          if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code, "entered"); }
+          else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code, "already"); }
           else toast("처리 실패", true);
+          ciReset();
         });
       });
       acts.appendChild(go);
     }
     var clear = mkBtn("btn ghost", "다음 →");
-    clear.addEventListener("click", function () { $("ciInput").value = ""; $("ciInput").focus(); res.innerHTML = ""; });
+    clear.addEventListener("click", function () { res.innerHTML = ""; ciHint(""); ciReset(); });
     acts.appendChild(clear);
   }
-  function reShowPress(code) { BFWApi.pressFindByCode(code).then(function (p) { if (p) showPressCiCard(p); }); }
+  function reShowPress(code, mode) { BFWApi.pressFindByCode(code).then(function (p) { if (p) showPressCiCard(p, mode); }); }
   function mkBtn(cls, label) { var b = document.createElement("button"); b.className = cls; b.textContent = label; return b; }
 
   function toggleScan() {
