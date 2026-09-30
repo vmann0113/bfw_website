@@ -115,6 +115,9 @@
   /* ---- render show grid grouped by day ---- */
   function renderGroups() {
     var wrap = $("showGroups");
+    // 오픈 전 잠금이 예약 영역을 안내문으로 바꿔치우면 이 자리가 사라진다.
+    // 잔여석 조회가 그 뒤에 끝나 여기로 들어오므로 조용히 물러난다.
+    if (!wrap) return;
     wrap.innerHTML = "";
     var days = [];
     shows.forEach(function (s) { if (days.indexOf(s.day) < 0) days.push(s.day); });
