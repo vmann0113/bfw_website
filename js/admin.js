@@ -590,10 +590,19 @@
   var SZ_VIP   = "#f5b800";   // VIP석 테두리
   var SZ_TAKEN = "#c9ced9";   // 관람객 예약
 
+  /* 홀은 세로로 50열이라 그냥 그리면 화면 밖으로 한참 넘어간다.
+     보이는 높이에 맞춰 칸을 줄여, 한 화면에 300석이 다 들어오게 한다. */
   function szSize() {
-    var w = ($("szMap").clientWidth || 700);
-    var sq = w < 520 ? 14 : w < 760 ? 17 : 20;
-    return { w: sq, h: sq, gap: 2, sep: 8, lab: 28, run: 48,
+    var bands = {}, rows = 0;
+    szZones.forEach(function (z) { bands[z.sort] = Math.max(bands[z.sort] || 0, z.rows); });
+    Object.keys(bands).forEach(function (k) { rows += bands[k]; });
+    if (!rows) rows = 50;
+    var seps = Math.max(0, Object.keys(bands).length - 1);
+    var gap = 2, sep = 8, ends = 56;          // 무대·연출석 띠
+    var avail = Math.max(420, (window.innerHeight || 900) - 300);
+    var sq = Math.floor((avail - ends - seps * sep - (rows + seps - 1) * gap) / rows);
+    sq = Math.max(13, Math.min(24, sq));
+    return { w: sq, h: sq, gap: gap, sep: sep, lab: Math.max(22, sq + 6), run: Math.max(34, sq * 2),
              fs: Math.max(8, Math.round(sq * 0.5)), rad: Math.max(3, Math.round(sq * 0.28)) };
   }
 

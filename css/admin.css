@@ -317,7 +317,8 @@ td .row-acts { display: flex; gap: 6px; }
   text-align: center; font-family: var(--a-mono); font-size: .72rem; letter-spacing: .14em; margin-bottom: 16px; }
 
 /* 실측 배치도(js/hall-map.js)를 그대로 싣는 자리. 세로로 길어 가운데 정렬만 한다. */
-.seat-admin-map { display: block; text-align: center; overflow-x: auto; padding: 2px 0 6px; }
+.seat-admin-map { display: block; text-align: center; overflow: auto; padding: 4px 0 8px;
+  max-height: calc(100vh - 230px); }
 
 /* 구역별 한 줄 현황 */
 .sz-zones { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
