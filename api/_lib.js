@@ -276,9 +276,10 @@ function buildMessage(kind, r) {
   const isPress = kind === "press_received" || kind === "press_approved";
   const isCancel = kind === "cancelled";
   const link = isPress ? pressUrl() : isCancel ? registerUrl() : ticketUrl(r);
+  // 버튼 이름도 승인 템플릿과 같아야 한다. 등록된 이름 끝에 화살표가 붙어 있다.
   const label = isPress
-    ? (kind === "press_approved" ? "프레스 QR 보기" : "신청 조회")
-    : isCancel ? "예약 페이지" : "모바일 입장권 보기";
+    ? (kind === "press_approved" ? "프레스 QR 보기 →" : "신청 조회 →")
+    : isCancel ? "예약 페이지 →" : "모바일 입장권 보기 →";
   return {
     title: TITLES[kind] || TITLES.reserved,
     // 알림톡 본문 : 승인 템플릿과 동일해야 한다 (링크는 버튼이 담당)
