@@ -39,6 +39,14 @@ module.exports = async (req, res) => {
         return L.json(res, 200, { ok: false, relay: "응답 없음", detail: String(e && e.message) });
       }
     }
+    if (req.query && (req.query.mid || req.query.history)) {
+      try {
+        const d = await L.aligoHistory(req.query.mid || "");
+        return L.json(res, 200, { ok: true, history: d });
+      } catch (e) {
+        return L.json(res, 200, { ok: false, error: String(e && e.message) });
+      }
+    }
     return L.json(res, 200, { ok: true, health: L.health() });
   }
   if (req.method !== "POST") return L.json(res, 405, { ok: false, error: "POST only" });

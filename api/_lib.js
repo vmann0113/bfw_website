@@ -347,6 +347,17 @@ async function sendSms(to, msg, tmode) {
   };
 }
 
+/* 발송 결과 캐묻기 — 알림톡이 거부되면 대체문자로 나가는데,
+   묶음 응답만으로는 그 사실을 알 수 없다. mid 로 건별 결과를 본다. */
+async function aligoHistory(mid) {
+  const url = mid
+    ? "https://kakaoapi.aligo.in/akv10/history/detail/"
+    : "https://kakaoapi.aligo.in/akv10/history/list/";
+  const p = { apikey: ALIGO.key, userid: ALIGO.userId, page: 1, limit: 10 };
+  if (mid) p.mid = mid;
+  return postForm(url, p);
+}
+
 async function aligoToken() {
   const tok = await postForm("https://kakaoapi.aligo.in/akv10/token/create/30/s/", {
     apikey: ALIGO.key,
@@ -493,7 +504,7 @@ function health() {
 }
 
 module.exports = {
-  json, digits, sb, sbAll, findByCodes, findPress, alreadySent, alreadySentPress, logNoti, logNotiMany,
+  json, digits, sb, sbAll, findByCodes, findPress, aligoHistory, alreadySent, alreadySentPress, logNoti, logNotiMany,
   reminderTargets, buildMessage, deliver, deliverBulk,
   hasSms, hasAlimtalk, mode, health, resolveTest, ALIGO, SITE
 };
