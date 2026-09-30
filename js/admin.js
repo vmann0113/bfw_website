@@ -646,7 +646,8 @@
           tip += " — 주최측 확보";
         } else if (kind === "hold" || kind === "vip") {
           el.style.background = SZ_HOLD; el.style.borderColor = SZ_HOLD; el.style.color = "#fff";
-          tip += " — " + who + " 확보";
+          el.disabled = true;                      // 참가사 확보석은 이 화면에서 건드릴 수 없다
+          tip += " — " + who + " 확보 (이 화면에서 변경 불가)";
           if (kind === "vip") {
             el.style.boxShadow = "inset 0 0 0 2px " + SZ_VIP;
             tip += " (VIP석" + (st.hold_guest ? " · " + st.hold_guest : "") + ")";
@@ -657,7 +658,11 @@
         }
         el.title = tip;
       },
-      canSelect: function (x) { return (x.s || {}).status !== "taken"; },
+      canSelect: function (x) {
+        // 관람객 예약석과 참가사 확보석은 선택 자체가 안 된다
+        var k = szKindOf(x.s || {});
+        return k !== "taken" && k !== "hold" && k !== "vip";
+      },
       onZone: function (code) { if (szMapApi) szMapApi.toggleZone(code); },
       onChange: function (ids) {
         szPick = {};
@@ -756,11 +761,26 @@
     $("szActions").classList.toggle("show", n > 0);
   }
 
+  /* 참가사가 확보한 자리인가. 서버도 막고 있지만(holder_id 있는 행은 갱신·삭제에서 제외),
+     화면에서 섞여 들어가면 "잠갔습니다" 안내만 보고 바뀐 줄 안다. 여기서 먼저 걸러 낸다. */
+  function isParticipantSeat(id) {
+    var k = szKindOf(szSeats[id]);
+    return k === "hold" || k === "vip";
+  }
+
   function applyLock(ids, kind) {
     if (!ids || !ids.length) { toast("자리를 먼저 선택해 주세요.", true); return; }
+    var kept = ids.filter(function (id) { return !isParticipantSeat(id); });
+    var skipped = ids.length - kept.length;
+    if (!kept.length) {
+      toast("참가사가 확보한 자리는 이 화면에서 바꿀 수 없습니다. 사전 좌석 확보 화면에서만 가능합니다.", true);
+      return;
+    }
+    ids = kept;
     BFWApi.seatLockSet(szShowId, ids, kind, null).then(function (r) {
       if (r && r.ok) {
-        toast(kind ? ids.length + "자리를 초청석으로 잠갔습니다." : ids.length + "자리 잠금을 해제했습니다.");
+        var tail = skipped ? " (참가사 확보 " + skipped + "자리는 건드리지 않았습니다)" : "";
+        toast((kind ? ids.length + "자리를 초청석으로 잠갔습니다." : ids.length + "자리 잠금을 해제했습니다.") + tail);
         szPick = {};
         loadSeats();
       } else if (r && r.reason === "occupied") {
