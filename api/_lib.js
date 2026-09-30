@@ -32,7 +32,9 @@ const ALIGO = {
   tpl: {
     reserved: process.env.ALIGO_TPL_RESERVED || "",
     reminder: process.env.ALIGO_TPL_REMINDER || "",
-    cancelled: process.env.ALIGO_TPL_CANCELLED || ""
+    cancelled: process.env.ALIGO_TPL_CANCELLED || "",
+    press_received: process.env.ALIGO_TPL_PRESS_RECEIVED || "",
+    press_approved: process.env.ALIGO_TPL_PRESS_APPROVED || ""
   },
   testmode: process.env.ALIGO_TESTMODE === "Y" ? "Y" : "N",
   // 알리고는 호출 서버 IP 를 화이트리스트로 막는다. Vercel 은 IP 가 수시로
@@ -81,6 +83,23 @@ const RESV_COLS =
 async function findByCodes(codes) {
   const list = codes.map((c) => `"${String(c).replace(/[^A-Za-z0-9-]/g, "")}"`).join(",");
   return sb(`/rest/v1/reservations?select=${RESV_COLS}&code=in.(${list})`);
+}
+
+/* 프레스 신청 : 예약과 표가 다르므로 따로 찾는다 */
+const PRESS_COLS = "id,media,reporter,phone,phone_key,reporter_key,days,status,code";
+
+async function findPress(phoneKey) {
+  const q = String(phoneKey || "").replace(/[^0-9]/g, "");
+  if (q.length < 9) return [];
+  return sb(`/rest/v1/press_applications?select=${PRESS_COLS}&phone_key=eq.${q}`);
+}
+
+/* 프레스는 예약번호가 없으므로 접수 코드 대신 연락처+종류로 중복을 막는다 */
+async function alreadySentPress(key, kind) {
+  const rows = await sb(
+    `/rest/v1/notifications?select=id&code=eq.${encodeURIComponent(key)}&kind=eq.${kind}&status=eq.sent&limit=1`
+  );
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 async function alreadySent(reservationId, kind) {
@@ -208,6 +227,31 @@ function tmplText(kind, r) {
       `  다른 분이 관람하실 수 있습니다`
     );
   }
+  if (kind === "press_received") {
+    return (
+      `[2026 부산패션위크] 프레스 신청이 접수되었습니다.\n\n` +
+      `${r.reporter || ""}님, 신청 내용을 확인해 주세요.\n\n` +
+      `▶ 매체 : ${r.media || ""}\n` +
+      `▶ 취재일 : ${r.days || ""}\n\n` +
+      `· 심사 후 승인 결과를 다시 안내해 드립니다\n` +
+      `· 신청 내용은 홈페이지 프레스 신청 조회에서\n` +
+      `  기자명과 연락처로 확인하실 수 있습니다`
+    );
+  }
+  if (kind === "press_approved") {
+    return (
+      `[2026 부산패션위크] 프레스 신청이 승인되었습니다.\n\n` +
+      `${r.reporter || ""}님, 취재 등록이 완료되었습니다.\n\n` +
+      `▶ 매체 : ${r.media || ""}\n` +
+      `▶ 취재일 : ${r.days || ""}\n` +
+      `▶ 승인번호 : ${r.code || ""}\n\n` +
+      `· 장소 : 벡스코 제1전시장 3B홀\n` +
+      `· 홈페이지 프레스 신청 조회에서 프레스 QR을\n` +
+      `  받으실 수 있습니다\n` +
+      `· 행사 당일 프레스 데스크에서 QR을 제시하고\n` +
+      `  비표를 받아 주세요`
+    );
+  }
   return (
     `[2026 부산패션위크] 관람 예약이 취소되었습니다.\n\n` +
     `${이름}님\n\n` +
@@ -221,21 +265,27 @@ function tmplText(kind, r) {
 const TITLES = {
   reserved: "[부산패션위크] 관람 예약 완료",
   reminder: "[부산패션위크] 내일 관람 안내",
-  cancelled: "[부산패션위크] 관람 예약 취소"
+  cancelled: "[부산패션위크] 관람 예약 취소",
+  press_received: "[부산패션위크] 프레스 신청 접수",
+  press_approved: "[부산패션위크] 프레스 신청 승인"
 };
+function pressUrl() { return `${SITE}/press.html`; }
 
 function buildMessage(kind, r) {
   const body = tmplText(kind, r);
+  const isPress = kind === "press_received" || kind === "press_approved";
   const isCancel = kind === "cancelled";
-  const link = isCancel ? registerUrl() : ticketUrl(r);
-  const label = isCancel ? "예약 페이지" : "모바일 입장권 보기";
+  const link = isPress ? pressUrl() : isCancel ? registerUrl() : ticketUrl(r);
+  const label = isPress
+    ? (kind === "press_approved" ? "프레스 QR 보기" : "신청 조회")
+    : isCancel ? "예약 페이지" : "모바일 입장권 보기";
   return {
     title: TITLES[kind] || TITLES.reserved,
     // 알림톡 본문 : 승인 템플릿과 동일해야 한다 (링크는 버튼이 담당)
     text: body,
     // 문자 / 대체문자 : 버튼이 없으므로 링크를 글자로 붙인다
     sms: `${body}\n\n▶ ${label}\n${link}`,
-    button: { name: label, mo: link, pc: isCancel ? link : "" }
+    button: { name: label, mo: link, pc: isCancel || isPress ? link : "" }
   };
 }
 
@@ -441,7 +491,7 @@ function health() {
 }
 
 module.exports = {
-  json, digits, sb, sbAll, findByCodes, alreadySent, logNoti, logNotiMany,
+  json, digits, sb, sbAll, findByCodes, findPress, alreadySent, alreadySentPress, logNoti, logNotiMany,
   reminderTargets, buildMessage, deliver, deliverBulk,
   hasSms, hasAlimtalk, mode, health, resolveTest, ALIGO, SITE
 };

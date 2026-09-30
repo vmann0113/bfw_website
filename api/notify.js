@@ -49,6 +49,12 @@ module.exports = async (req, res) => {
   }
   body = body || {};
 
+  /* 프레스 신청 안내(접수·승인)는 예약과 표가 달라 따로 처리한다.
+     접수 : 연락처 + 기자명이 맞는 건        승인 : 연락처 + 승인번호가 맞는 건 */
+  if (body.event === "press_received" || body.event === "press_approved") {
+    return sendPress(req, res, body);
+  }
+
   const kind = body.event === "cancelled" ? "cancelled" : "reserved";
   // test:true → 모의 발송, test:false → 실제 발송, 없으면 환경변수를 따른다
   const opts = typeof body.test === "boolean" ? { test: body.test } : undefined;
@@ -108,3 +114,55 @@ module.exports = async (req, res) => {
 
   return L.json(res, 200, { ok: true, mode: L.mode(), results: out });
 };
+
+/* ---------- 프레스 신청 접수·승인 안내 ---------- */
+async function sendPress(req, res, body) {
+  const kind = body.event;
+  const opts = typeof body.test === "boolean" ? { test: body.test } : undefined;
+  const phoneKey = L.digits(body.phone);
+  const reporter = String(body.reporter || "").replace(/\s/g, "").toLowerCase();
+  const code = String(body.code || "").trim();
+
+  if (phoneKey.length < 9) return L.json(res, 400, { ok: false, error: "phone required" });
+  if (kind === "press_approved" && !code) return L.json(res, 400, { ok: false, error: "code required" });
+
+  let rows;
+  try {
+    rows = await L.findPress(phoneKey);
+  } catch (e) {
+    return L.json(res, 500, { ok: false, error: "lookup failed", detail: String(e && e.message) });
+  }
+
+  // 연락처만으로 남의 신청에 안내가 가지 않도록, 기자명이나 승인번호까지 맞아야 한다
+  const mine = (rows || []).filter(function (a) {
+    if (kind === "press_approved") return a.code === code && a.status === "approved";
+    return !reporter || (a.reporter_key || "") === reporter;
+  });
+  if (!mine.length) return L.json(res, 404, { ok: false, error: "not found" });
+
+  const a = mine[0];
+  const key = a.code || "PRS-" + phoneKey;   // 접수 단계에는 승인번호가 없다
+  try {
+    if (await L.alreadySentPress(key, kind)) {
+      return L.json(res, 200, { ok: true, mode: L.mode(), results: [{ status: "skipped", detail: "이미 보냄" }] });
+    }
+    const msg = L.buildMessage(kind, a);
+    const sent = await L.deliver(kind, phoneKey, a.reporter || "", msg, opts);
+    await L.logNoti({
+      reservation_id: null, code: key, kind,
+      channel: sent.channel, to_phone: a.phone,
+      status: sent.ok ? (sent.test ? "test" : "sent") : "failed",
+      detail: sent.detail || null
+    });
+    return L.json(res, 200, {
+      ok: true, mode: L.mode(),
+      results: [{
+        status: sent.ok ? (sent.test ? "test" : "sent") : "failed",
+        channel: sent.channel, detail: sent.detail,
+        preview: sent.channel === "dryrun" ? msg.sms : undefined
+      }]
+    });
+  } catch (e) {
+    return L.json(res, 500, { ok: false, error: "send failed", detail: String(e && e.message) });
+  }
+}

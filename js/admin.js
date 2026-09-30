@@ -921,7 +921,18 @@
       var okB = tr.querySelector('[data-act=ok]');
       if (okB) okB.addEventListener("click", function () {
         BFWApi.pressSetStatus(p.id, "approved").then(function (out) {
-          toast("승인 완료 — 프레스 QR " + ((out && out.code) || "") + " 발급");
+          var code = (out && out.code) || (out && out.application && out.application.code) || "";
+          toast("승인 완료 — 프레스 QR " + code + " 발급");
+          // 승인 안내를 신청자에게 보낸다. 실패해도 승인 자체는 끝난 상태다.
+          if (code) {
+            try {
+              fetch("/api/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ event: "press_approved", phone: p.phone, code: code })
+              }).catch(function () {});
+            } catch (e) { /* 무시 */ }
+          }
           renderPressApps();
         });
       });

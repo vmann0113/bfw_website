@@ -90,6 +90,7 @@
         return fail("일시적인 오류로 접수하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       }
       try { localStorage.setItem("bfw_last_phone", phone); } catch (e2) {}
+      notifyPress("press_received", { phone: phone, reporter: name });
       $("prsForm").classList.add("hidden");
       var d = $("applyDone");
       d.classList.remove("hidden");
@@ -104,6 +105,18 @@
       });
     });
   });
+
+  /* 접수·승인 안내 보내기. 안내가 실패해도 신청 자체는 이미 접수됐으므로
+     화면에는 알리지 않는다(관리자 화면에서 발송 이력을 확인한다). */
+  function notifyPress(event, data) {
+    try {
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: event, phone: data.phone, reporter: data.reporter || "", code: data.code || "" })
+      }).catch(function () {});
+    } catch (e) { /* 무시 */ }
+  }
 
   /* tabs */
   function switchPane(pane) {
