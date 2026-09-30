@@ -493,7 +493,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- 카메라 스캔 라이브러리. 행사장 네트워크에서 외부 CDN 이 막혀도 동작해야 하므로
+     사이트에 포함한다 (unpkg·jsdelivr 배포본과 SHA-256 동일, v2.3.8). -->
+<script src="js/html5-qrcode.min.js?v=2.3.8"></script>
 <script src="js/hall-map.js?v=20260917e"></script>
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
