@@ -65,7 +65,11 @@
   if (BFW.bindPhonesIn) BFW.bindPhonesIn(document);
 
   var shows = (cfg.shows || []).slice();
-  $("mShows").textContent = shows.length + " Shows";
+  /* 예약을 받지 않는 쇼(noReserve)는 이 화면에서만 감춘다.
+     쇼 자체는 그대로 남아 스케줄·좌석·관리자 기능이 모두 살아 있고,
+     config.js 의 표시만 지우면 즉시 다시 예약을 받는다. */
+  function bookable(s2) { return !s2.noReserve; }
+  $("mShows").textContent = shows.filter(bookable).length + " Shows";
   var caps = shows.map(function (s) { return s.cap || cfg.reserve.defaultCap || 300; });
   $("mCap").textContent = "쇼당 " + (cfg.reserve.defaultCap || 300) + "석";
   $("bookNote").textContent = cfg.reserve.note || "";
@@ -120,10 +124,11 @@
     if (!wrap) return;
     wrap.innerHTML = "";
     var days = [];
-    shows.forEach(function (s) { if (days.indexOf(s.day) < 0) days.push(s.day); });
+    var list = shows.filter(bookable);
+    list.forEach(function (s) { if (days.indexOf(s.day) < 0) days.push(s.day); });
 
     days.forEach(function (day) {
-      var inDay = shows.filter(function (s) { return s.day === day; });
+      var inDay = list.filter(function (s) { return s.day === day; });
       var first = inDay[0] || {};
       var group = document.createElement("div");
       group.className = "day-group";
