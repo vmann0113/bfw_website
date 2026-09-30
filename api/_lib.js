@@ -169,7 +169,10 @@ function seatText(r) { return r.seat_label || "자유석 · 선착순 착석"; }
 function ticketUrl(r) { return `${SITE}/ticket.html?c=BFW-${r.code}`; }
 function registerUrl() { return `${SITE}/register.html`; }
 
-/* 승인 템플릿과 동일한 본문 (변수만 치환) */
+/* 승인 템플릿과 동일한 본문 (변수만 치환)
+   2026-09-30 승인 : UL_9022 예약완료 / UL_9026 전날안내 / UL_9027 취소
+                     UL_9028 프레스 접수 / UL_9029 프레스 승인
+   본문이 승인 문구와 한 글자라도 다르면 발송이 통째로 거부된다. */
 function tmplText(kind, r) {
   const 이름 = r.name || "";
   const 공연 = showName(r);
@@ -181,7 +184,7 @@ function tmplText(kind, r) {
     return (
       `[2026 부산패션위크] 관람 예약이 완료되었습니다.\n\n` +
       `${이름}님, 예약 내용을 확인해 주세요.\n\n` +
-      `▶ 공연 : ${공연}\n` +
+      `▶ 패션쇼 : ${공연}\n` +
       `▶ 일시 : ${일시}\n` +
       `▶ 좌석 : ${좌석}\n` +
       `▶ 예약번호 : ${예약번호}\n\n` +
@@ -195,7 +198,7 @@ function tmplText(kind, r) {
     return (
       `[2026 부산패션위크] 내일 관람 예정입니다.\n\n` +
       `${이름}님, 내일 뵙겠습니다.\n\n` +
-      `▶ 공연 : ${공연}\n` +
+      `▶ 패션쇼 : ${공연}\n` +
       `▶ 일시 : ${일시}\n` +
       `▶ 좌석 : ${좌석}\n` +
       `▶ 예약번호 : ${예약번호}\n\n` +
@@ -208,7 +211,7 @@ function tmplText(kind, r) {
   return (
     `[2026 부산패션위크] 관람 예약이 취소되었습니다.\n\n` +
     `${이름}님\n\n` +
-    `▶ 공연 : ${공연}\n` +
+    `▶ 패션쇼 : ${공연}\n` +
     `▶ 일시 : ${일시}\n` +
     `▶ 예약번호 : ${예약번호}\n\n` +
     `다시 예약하시려면 홈페이지를 이용해 주세요.`
