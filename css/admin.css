@@ -309,6 +309,8 @@ td .row-acts { display: flex; gap: 6px; }
 .seat-summary .s-lock b { color: #b98900; }
 .seat-summary .s-take b { color: var(--a-accent); }
 .seat-quick { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seat-quick .mini-select { flex: 1 1 120px; }
+.seat-legend-a { flex-direction: column; gap: 8px; }
 .seat-quick input[type=number] { width: 110px; font-family: var(--a-mono);
   border: 1.5px solid var(--a-line); border-radius: 9px; padding: 10px 12px; background: var(--a-bg); color: var(--a-ink); }
 .seat-quick .tilde { color: var(--a-mute); }
@@ -318,10 +320,23 @@ td .row-acts { display: flex; gap: 6px; }
 
 /* 실측 배치도(js/hall-map.js)를 그대로 싣는 자리. 세로로 길어 가운데 정렬만 한다. */
 .seat-admin-map { display: block; text-align: center; overflow: auto; padding: 4px 0 8px;
-  max-height: calc(100vh - 230px); }
+  max-height: calc(100vh - 210px); }
 
-/* 구역별 한 줄 현황 */
-.sz-zones { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+/* 왼쪽 도구 · 오른쪽 배치도 */
+.seat-wrap { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px;
+  align-items: start; margin-top: 16px; }
+.seat-side { display: flex; flex-direction: column; gap: 16px; }
+.seat-mapcard { position: sticky; top: 16px; display: flex; justify-content: center; }
+.side-h { display: block; font-size: .9rem; margin-bottom: 12px; }
+.sq-range, .sq-btns { display: flex; gap: 8px; align-items: center; }
+.sq-range { flex: 1 1 100%; }
+@media (max-width: 1080px) {
+  .seat-wrap { grid-template-columns: 1fr; }
+  .seat-mapcard { position: static; }
+}
+
+/* 구역별 현황 */
+.sz-zones { display: flex; flex-wrap: wrap; gap: 8px; }
 .szc { font-family: var(--a-mono); font-size: .76rem; color: var(--a-ink);
   background: var(--a-bg); border: 1px solid var(--a-line); border-radius: 999px; padding: 5px 11px; }
 .szc b { color: var(--a-accent-deep); margin-right: 3px; }
