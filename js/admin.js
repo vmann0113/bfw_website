@@ -568,73 +568,105 @@
     });
   }
 
+  /* 지도는 참가사 좌석 확보 화면과 같은 모듈(js/hall-map.js)로 그린다.
+     실측 배치(런웨이 중앙, 좌우 3단 계단식, 세로 50열)를 두 화면이 똑같이
+     보여야 현장에서 같은 자리를 같은 그림으로 이야기할 수 있다. */
+  var szMapApi = null;
+  var SZ_STAFF = "#3b3f4a";   // 주최측 확보
+  var SZ_HOLD  = "#0b2e9e";   // 참가사 확보
+  var SZ_VIP   = "#f5b800";   // VIP석 테두리
+  var SZ_TAKEN = "#c9ced9";   // 관람객 예약
+
+  function szSize() {
+    var w = ($("szMap").clientWidth || 700);
+    var sq = w < 520 ? 14 : w < 760 ? 17 : 20;
+    return { w: sq, h: sq, gap: 2, sep: 8, lab: 28, run: 48,
+             fs: Math.max(8, Math.round(sq * 0.5)), rad: Math.max(3, Math.round(sq * 0.28)) };
+  }
+
+  /* 한 자리가 어떤 상태인지 한 마디로 정리한다.
+     참가사·주최측 확보는 note 로 구분된다 — 주최측은 '주최측', 참가사는 회사 이름이 들어간다.
+     hold_grade 는 서버가 내려줄 때만 있다(없으면 일반 확보로 본다). */
+  function szKindOf(st) {
+    if (!st || st.status === "free") return "free";
+    if (st.status === "taken") return "taken";
+    var note = (st.lock_note || "").trim();
+    if (note === "주최측") return "staff";
+    if (note) return st.hold_grade === "vip" ? "vip" : "hold";
+    return "invite";
+  }
+
   function renderSeatAdmin() {
     var wrap = $("szMap");
     if (!szZones.length) {
       wrap.innerHTML = '<div class="empty-state">구역 정보를 불러오지 못했습니다. 새로고침해 주세요.</div>';
       return;
     }
-    function bySort(a, b) { return a.sort - b.sort; }
-    var L = szZones.filter(function (z) { return z.side === "L"; }).sort(bySort);
-    var R = szZones.filter(function (z) { return z.side === "R"; }).sort(bySort);
-    wrap.innerHTML = "";
-    var colL = document.createElement("div"); colL.className = "sam-col";
-    L.forEach(function (z) { colL.appendChild(zoneBlock(z)); });
-    var mid = document.createElement("div"); mid.className = "sam-runway";
-    mid.innerHTML = "<span>RUNWAY</span>";
-    var colR = document.createElement("div"); colR.className = "sam-col";
-    R.forEach(function (z) { colR.appendChild(zoneBlock(z)); });
-    wrap.appendChild(colL); wrap.appendChild(mid); wrap.appendChild(colR);
+    if (!window.HallMap) {
+      wrap.innerHTML = '<div class="empty-state">좌석 지도를 불러오지 못했습니다. 새로고침해 주세요.</div>';
+      return;
+    }
+    var list = Object.keys(szSeats).map(function (k) {
+      var r = szSeats[k];
+      return { id: r.seat_id, z: r.zone_code, n: r.num, t: r.tier, r: r.row_no, s: r };
+    });
+    szMapApi = window.HallMap.create(wrap, {
+      zones: szZones, seats: list, size: szSize(), numbers: true, drag: true, mode: "seat",
+      decorate: function (x, el) {
+        var st = x.s || {}, kind = szKindOf(st), who = (st.lock_note || "").trim();
+        var tip = x.z + "구역 " + x.n + "번 (" + x.t + "단 " + x.r + "열)";
+        if (kind === "taken") {
+          el.style.background = SZ_TAKEN; el.style.borderColor = SZ_TAKEN; el.style.color = "#4a5063";
+          el.disabled = true;
+          tip += " — 관람객 예약" + (st.name ? " " + st.name : "");
+        } else if (kind === "staff") {
+          el.style.background = SZ_STAFF; el.style.borderColor = SZ_STAFF; el.style.color = "#fff";
+          tip += " — 주최측 확보";
+        } else if (kind === "hold" || kind === "vip") {
+          el.style.background = SZ_HOLD; el.style.borderColor = SZ_HOLD; el.style.color = "#fff";
+          tip += " — " + who + " 확보";
+          if (kind === "vip") {
+            el.style.boxShadow = "inset 0 0 0 2px " + SZ_VIP;
+            tip += " (VIP석" + (st.hold_guest ? " · " + st.hold_guest : "") + ")";
+          }
+        } else if (kind === "invite") {
+          el.style.background = "#fff6e5"; el.style.borderColor = "#f0dcae"; el.style.color = "#b98900";
+          tip += " — 초청석(관리자 지정)";
+        }
+        el.title = tip;
+      },
+      canSelect: function (x) { return (x.s || {}).status !== "taken"; },
+      onZone: function (code) { if (szMapApi) szMapApi.toggleZone(code); },
+      onChange: function (ids) {
+        szPick = {};
+        (ids || []).forEach(function (id) { szPick[id] = true; });
+        syncSzBar();
+      }
+    });
+    var keep = Object.keys(szPick);
+    if (keep.length) szMapApi.setSelection(keep);
+    renderZoneStrip();
     renderSzSummary();
   }
 
-  function zoneBlock(z) {
-    var box = document.createElement("div");
-    box.className = "sam-zone";
-    var lock = 0, take = 0;
-    for (var n = 1; n <= z.seatCount; n++) {
-      var st = szSeats[seatIdOf(z.code, n)];
-      if (!st) continue;
-      if (st.status === "taken") take++;
-      else if (st.status !== "free") lock++;
-    }
-    box.innerHTML = "<h4>" + esc(z.label) + "</h4>" +
-      '<div class="zmeta">전체 ' + z.seatCount + "석 · 초청 " + lock + " · 예약 " + take + "</div>";
-    var g = document.createElement("div");
-    g.className = "sam-grid";
-    var R = z.rows;
-    for (var r = 1; r <= R; r++) {
-      // 실제 배치도와 같은 방향 (좌측 구역은 바깥단이 왼쪽)
-      var nums = (z.side === "L") ? [2 * R + r, R + r, r] : [r, R + r, 2 * R + r];
-      for (var c = 0; c < 3; c++) g.appendChild(seatBtn(z, nums[c]));
-    }
-    box.appendChild(g);
-    return box;
-  }
-
-  function seatBtn(z, num) {
-    var id = seatIdOf(z.code, num);
-    var st = szSeats[id] || { status: "free" };
-    var b = document.createElement("button");
-    b.type = "button";
-    var cls = "sseat";
-    if (szPick[id]) cls += " pick";
-    else if (st.status === "taken") cls += " taken";
-    else if (st.status !== "free") cls += " invite";
-    b.className = cls;
-    b.textContent = num;
-    b.title = z.label + " " + num + "번" +
-      (st.status === "taken" ? " · 예약 " + (st.name || "") : st.status !== "free" ? " · 초청석" : "");
-    if (st.status === "taken") {
-      b.disabled = true;
-    } else {
-      b.addEventListener("click", function () {
-        if (szPick[id]) { delete szPick[id]; b.classList.remove("pick"); }
-        else { szPick[id] = true; b.classList.add("pick"); }
-        syncSzBar();
-      });
-    }
-    return b;
+  /* 구역별 현황 한 줄 요약 — 지도만 봐서는 숫자를 세기 어렵다 */
+  function renderZoneStrip() {
+    var host = $("szZones");
+    if (!host) return;
+    var cnt = {};
+    Object.keys(szSeats).forEach(function (k) {
+      var st = szSeats[k];
+      var c = cnt[st.zone_code] || (cnt[st.zone_code] = { lock: 0, take: 0 });
+      var kind = szKindOf(st);
+      if (kind === "taken") c.take++;
+      else if (kind !== "free") c.lock++;
+    });
+    host.innerHTML = szZones.slice().sort(zoneOrder).map(function (z) {
+      var c = cnt[z.code] || { lock: 0, take: 0 };
+      var left = z.seatCount - c.lock - c.take;
+      return '<span class="szc' + (left <= 0 ? " full" : "") + '"><b>' + esc(z.code) + "</b> " +
+             z.seatCount + "석 · 확보 " + c.lock + " · 예약 " + c.take + " · 남음 " + left + "</span>";
+    }).join("");
   }
 
   function renderMode() {
@@ -752,19 +784,30 @@
     var sh = (cfg.shows || []).filter(function (x) { return x.id === szShowId; })[0] || {};
     var rows = [], total = 0;
     szZones.slice().sort(zoneOrder).forEach(function (z) {
-      var list = [];
+      // 같은 구역이라도 확보처가 다르면 줄을 나눈다 — 라벨 작업에 그대로 쓴다
+      var byWho = {}, order = [];
       for (var n = 1; n <= z.seatCount; n++) {
         var st = szSeats[seatIdOf(z.code, n)];
-        if (st && st.status !== "free" && st.status !== "taken") list.push(n);
+        var kind = szKindOf(st);
+        if (kind === "free" || kind === "taken") continue;
+        var who = kind === "staff" ? "주최측"
+                : kind === "invite" ? "초청석(관리자 지정)"
+                : (st.lock_note || "참가사") + (kind === "vip" ? " · VIP석" : "");
+        if (!byWho[who]) { byWho[who] = []; order.push(who); }
+        byWho[who].push(n);
       }
-      if (list.length) { rows.push({ label: z.label, nums: list }); total += list.length; }
+      order.forEach(function (who) {
+        rows.push({ label: z.label, who: who, nums: byWho[who] });
+        total += byWho[who].length;
+      });
     });
     var body = rows.length
       ? rows.map(function (r) {
-          return "<tr><td class=z>" + esc(r.label) + "</td><td class=c>" + r.nums.length +
+          return "<tr><td class=z>" + esc(r.label) + "</td><td>" + esc(r.who) +
+                 "</td><td class=c>" + r.nums.length +
                  "석</td><td>" + esc(toRanges(r.nums)) + "</td></tr>";
         }).join("")
-      : '<tr><td colspan="3" style="text-align:center;padding:30px;color:#888">잠긴 초청석이 없습니다.</td></tr>';
+      : '<tr><td colspan="4" style="text-align:center;padding:30px;color:#888">확보된 자리가 없습니다.</td></tr>';
     var html =
       "<!doctype html><html lang=ko><head><meta charset=utf-8><title>초청석 지정 현황</title><style>" +
       "body{font-family:'Pretendard',system-ui,sans-serif;margin:40px;color:#16204a}" +
@@ -776,10 +819,10 @@
       ".tot{margin-top:18px;font-weight:700}" +
       ".note{margin-top:26px;font-size:12px;color:#667;line-height:1.7}" +
       "</style></head><body>" +
-      "<h1>초청석 지정 현황</h1>" +
+      "<h1>좌석 확보 현황</h1>" +
       '<div class="sub">' + esc(sh.id || "") + " · " + esc(sh.titleKo || sh.title || "") +
       " · " + esc(sh.date || "") + " " + esc(sh.time || "") + "</div>" +
-      "<table><thead><tr><th>구역</th><th>좌석 수</th><th>좌석 번호</th></tr></thead><tbody>" +
+      "<table><thead><tr><th>구역</th><th>확보처</th><th>좌석 수</th><th>좌석 번호</th></tr></thead><tbody>" +
       body + "</tbody></table>" +
       '<div class="tot">합계 ' + total + "석</div>" +
       '<div class="note">※ 번호가 작을수록 런웨이·무대에 가깝습니다. 각 구역은 3단 계단식이며 ' +
@@ -795,10 +838,16 @@
 
   /* ---------- RESERVATIONS dashboard ---------- */
   var resvCache = [];
+  var resvAvail = {};   // 쇼별 { capacity, reserved, locked, remaining } — 확보석까지 함께 본다
   function renderResv() {
     $("resvBody").innerHTML = '<tr><td colspan="7"><div class="empty-state">불러오는 중…</div></td></tr>';
-    BFWApi.listReservations().then(function (list) {
-      resvCache = list || [];
+    // 잔여석 조회가 실패해도 예약 목록은 반드시 보여야 한다
+    Promise.all([
+      BFWApi.listReservations(),
+      BFWApi.availability().catch(function () { return {}; })
+    ]).then(function (res) {
+      resvCache = res[0] || [];
+      resvAvail = res[1] || {};
       renderResvStats();
       populateFilter();
       renderResvTable();
@@ -809,16 +858,26 @@
     wrap.innerHTML = "";
     cfg.shows.forEach(function (s) {
       var active = resvCache.filter(function (r) { return r.showId === s.id; });
-      var cap = s.cap || cfg.reserve.defaultCap || 300;
+      var av = resvAvail[s.id] || {};
+      var cap = av.capacity || s.cap || cfg.reserve.defaultCap || 300;
+      // 참가사·주최측이 미리 확보한 자리는 관람객이 예약할 수 없다. 그래서 따로 보여준다.
+      var hold = av.locked || 0;
+      var used = active.length + hold;
+      var left = av.remaining != null ? av.remaining : Math.max(0, cap - used);
       var inCount = active.filter(function (r) { return r.checkedIn; }).length;
-      var pct = Math.min(100, Math.round((active.length / cap) * 100));
+      var pr = Math.min(100, Math.round((active.length / cap) * 100));
+      var ph = Math.min(100 - pr, Math.round((hold / cap) * 100));
       var card = document.createElement("div");
       card.className = "stat-card";
       card.innerHTML =
         '<div class="sc-h"><span class="sc-id">' + esc(s.id) + '</span><span class="sc-time">D' + esc(s.day) + ' · ' + esc(s.time) + '</span></div>' +
         '<div class="sc-name">' + esc(s.titleKo || s.title) + '</div>' +
-        '<div class="sc-bar"><div class="sc-fill' + (active.length >= cap ? " warn" : "") + '" style="width:' + pct + '%"></div></div>' +
-        '<div class="sc-nums"><span class="resv">' + active.length + ' / ' + cap + '</span><span class="inct">입장 ' + inCount + '</span></div>';
+        '<div class="sc-bar"><div class="sc-fill' + (left <= 0 ? " warn" : "") + '" style="width:' + pr + '%"></div>' +
+          '<div class="sc-hold" style="width:' + ph + '%"></div></div>' +
+        '<div class="sc-nums"><span class="resv">예약 ' + active.length + '</span>' +
+          '<span class="held">확보 ' + hold + '</span>' +
+          '<span class="left' + (left <= 0 ? " zero" : "") + '">남음 ' + left + '</span></div>' +
+        '<div class="sc-sub">정원 ' + cap + '석 · 입장 ' + inCount + '명</div>';
       wrap.appendChild(card);
     });
   }

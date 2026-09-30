@@ -372,14 +372,18 @@
         </div>
 
         <div class="card" style="margin-top:16px">
-          <div class="stage-bar-a">무대 · LED 스크린</div>
+          <div id="szZones" class="sz-zones"></div>
           <div id="szMap" class="seat-admin-map"></div>
           <div class="seat-legend-a">
             <span><i class="sla free"></i>빈자리</span>
-            <span><i class="sla invite"></i>초청석(잠금)</span>
+            <span><i class="sla hold"></i>참가사 확보</span>
+            <span><i class="sla vip"></i>참가사 VIP석</span>
+            <span><i class="sla staff"></i>주최측 확보</span>
+            <span><i class="sla invite"></i>초청석(관리자 지정)</span>
             <span><i class="sla taken"></i>관람객 예약</span>
             <span><i class="sla pick"></i>선택 중</span>
           </div>
+          <p class="quick-hint">참가사 좌석 확보 화면과 같은 실측 배치도입니다. 끌어서 여러 자리를 한 번에 고를 수 있고, 구역 이름(A~H)을 누르면 그 구역 전체가 선택됩니다.</p>
         </div>
 
         <div class="seat-actionbar" id="szActions">
@@ -490,6 +494,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="js/hall-map.js?v=20260917e"></script>
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script src="js/admin.js"></script>
