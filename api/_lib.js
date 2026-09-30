@@ -479,7 +479,9 @@ function health() {
   return {
     mode: mode(),
     aligo: { key: !!ALIGO.key, userId: !!ALIGO.userId, sender: !!ALIGO.sender, senderKey: !!ALIGO.senderKey },
-    templates: { reserved: !!ALIGO.tpl.reserved, reminder: !!ALIGO.tpl.reminder, cancelled: !!ALIGO.tpl.cancelled },
+    // 템플릿 코드는 비밀이 아니다. 값이 그대로 보여야 '코드는 옛것인데 본문만 새것'
+    // 같은 어긋남을 바로 잡을 수 있다.
+    templates: ALIGO.tpl,
     // 주소는 비밀이 아니라 그대로, 키는 길이만 (오타·줄바꿈 섞임을 잡기 위해)
     supabase: { url: SB_URL || null, serviceKeyLen: SB_KEY.length, serviceKeyLooksJwt: SB_KEY.split(".").length === 3 },
     site: SITE,
