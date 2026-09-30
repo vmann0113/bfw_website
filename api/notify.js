@@ -71,7 +71,8 @@ module.exports = async (req, res) => {
     return sendPress(req, res, body);
   }
 
-  const kind = body.event === "cancelled" ? "cancelled" : "reserved";
+  const kind = body.event === "cancelled" ? "cancelled"
+    : body.event === "reminder" ? "reminder" : "reserved";
   // test:true → 모의 발송, test:false → 실제 발송, 없으면 환경변수를 따른다
   const opts = typeof body.test === "boolean" ? { test: body.test } : undefined;
   const phoneKey = L.digits(body.phone);
@@ -101,7 +102,11 @@ module.exports = async (req, res) => {
   const out = [];
   for (const r of mine) {
     try {
-      if (await L.alreadySent(r.id, kind)) {
+      // 점검용 재발송 : 아무나 다시 보낼 수 없게 관리 열쇠를 요구한다
+      const force = body.force === true &&
+        !!process.env.CRON_SECRET &&
+        (req.headers["x-cron-secret"] || "") === process.env.CRON_SECRET;
+      if (!force && await L.alreadySent(r.id, kind)) {
         out.push({ code: r.code, status: "skipped", detail: "이미 보냄" });
         continue;
       }
