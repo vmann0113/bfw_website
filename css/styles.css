@@ -864,3 +864,71 @@ html.intro .r.in { opacity: 1; transform: none; }
 .btn.is-disabled { background: color-mix(in oklch, var(--paper) 22%, transparent); color: color-mix(in oklch, var(--paper) 60%, transparent); border-color: transparent; cursor: not-allowed; pointer-events: none; }
 .nav-cta.is-disabled { background: transparent; color: var(--ink-mute); border-color: var(--line); cursor: not-allowed; pointer-events: none; }
 .media-cap .is-live { color: var(--coral); font-weight: 700; }
+
+
+/* =========================================================
+   좌석 선택 — 구역 배치도 + 좌석 격자
+   ========================================================= */
+.stage-bar {
+  margin: 4px 0 14px; padding: 9px 12px; border-radius: 8px;
+  background: var(--navy, #0B2E9E); color: #fff; text-align: center;
+  font-family: "Space Mono", monospace; font-size: .74rem;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.zone-map { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.zone-col { display: flex; flex-direction: column; gap: 8px; }
+.zone-runway {
+  width: 42px; border-radius: 8px; background: repeating-linear-gradient(
+    180deg, rgba(11,46,158,.10) 0 14px, rgba(11,46,158,.02) 14px 28px);
+  border: 1px dashed rgba(11,46,158,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.zone-runway span {
+  writing-mode: vertical-rl; font-family: "Space Mono", monospace;
+  font-size: .66rem; letter-spacing: .3em; color: rgba(11,46,158,.6);
+}
+.zone-btn {
+  border: 1.5px solid var(--line, #d9e0ee); border-radius: 10px;
+  background: #fff; padding: 12px 10px; cursor: pointer; text-align: left;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.zone-btn:hover:not(:disabled) { border-color: var(--navy, #0B2E9E); box-shadow: 0 2px 10px rgba(11,46,158,.10); }
+.zone-btn .zb-name { font-weight: 700; font-size: 1.02rem; }
+.zone-btn .zb-rem { font-family: "Space Mono", monospace; font-size: .78rem; color: var(--ink-mute, #667); margin-top: 3px; }
+.zone-btn.low .zb-rem { color: var(--coral, #e2574c); font-weight: 700; }
+.zone-btn:disabled { opacity: .45; cursor: not-allowed; background: #f4f6fa; }
+.zone-btn.sel { border-color: var(--navy, #0B2E9E); background: rgba(11,46,158,.06); }
+
+.seat-grid-wrap { display: flex; gap: 10px; align-items: stretch; justify-content: center; }
+.seat-grid { display: grid; gap: 6px; }
+.seat {
+  width: 40px; height: 36px; border-radius: 7px; border: 1.5px solid var(--line, #d9e0ee);
+  background: #fff; font-family: "Space Mono", monospace; font-size: .78rem;
+  color: var(--ink, #16204a); cursor: pointer; padding: 0;
+  transition: transform .08s, border-color .15s, background .15s;
+}
+.seat:hover:not(:disabled) { border-color: var(--navy, #0B2E9E); transform: translateY(-1px); }
+.seat.taken  { background: #e7eaf1; color: #9aa3b8; border-color: #e7eaf1; cursor: not-allowed; }
+.seat.invite { background: #fff6e5; color: #b98900; border-color: #f0dcae; cursor: not-allowed; }
+.seat.blocked{ background: #f0f1f4; color: #b9bfcc; border-color: #e7eaf1; cursor: not-allowed; }
+.seat.sel    { background: var(--navy, #0B2E9E); color: #fff; border-color: var(--navy, #0B2E9E); font-weight: 700; }
+.runway-side {
+  width: 34px; border-radius: 8px; border: 1px dashed rgba(11,46,158,.35);
+  background: rgba(11,46,158,.05); display: flex; align-items: center; justify-content: center;
+  writing-mode: vertical-rl; font-family: "Space Mono", monospace;
+  font-size: .64rem; letter-spacing: .22em; color: rgba(11,46,158,.6);
+}
+.seat-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; font-size: .82rem; color: var(--ink-mute, #667); }
+.seat-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 5px; vertical-align: -2px; border: 1.5px solid var(--line, #d9e0ee); }
+.seat-legend i.free { background: #fff; }
+.seat-legend i.taken { background: #e7eaf1; border-color: #e7eaf1; }
+.seat-legend i.invite { background: #fff6e5; border-color: #f0dcae; }
+.seat-legend i.sel { background: var(--navy, #0B2E9E); border-color: var(--navy, #0B2E9E); }
+.seat-hint { margin-top: 14px; font-size: .86rem; color: var(--ink-mute, #667); line-height: 1.6; }
+.sc-seat { margin-top: 6px; font-family: "Space Mono", monospace; font-size: .78rem; font-weight: 700; color: var(--navy, #0B2E9E); }
+
+@media (max-width: 560px) {
+  .seat { width: 34px; height: 32px; font-size: .72rem; }
+  .zone-runway { width: 30px; }
+  .runway-side { width: 26px; }
+}
