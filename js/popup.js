@@ -14,9 +14,14 @@
 
   var POPUP = {
     enabled: true,
-    /* "soon" : 오픈 전 (COMING SOON, 링크 없음)
-       "open" : 오픈 후 (예약하러 가기 → 예약 페이지) */
-    variant: "soon",
+    /* 오픈일이 되면 판이 저절로 바뀐다 — 그날 배포하지 않아도 된다.
+         이 날짜 전 : "soon" (COMING SOON, 링크 없음)
+         이 날짜부터 : "open" (예약하러 가기 → 예약 페이지)
+       서버 스위치도 같은 날 오전 10시에 자동으로 켜진다(api/cron-remind.js).
+       날짜를 바꾸려면 두 곳을 함께 고친다. */
+    openFrom: "2026-10-06",
+    /* 날짜와 무관하게 한쪽으로 고정하고 싶을 때만 "soon" 또는 "open" 을 적는다 */
+    variant: "",
     /* 이 날짜까지만 보여준다. 행사 전날(10.28)까지 */
     until: "2026-10-28",
     art: {
@@ -34,6 +39,13 @@
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
 
+  /* 오늘 날짜로 어느 판을 보여줄지 정한다 (variant 를 적어두면 그쪽이 우선) */
+  function variantNow() {
+    if (POPUP.variant) return POPUP.variant;
+    if (POPUP.openFrom && today() >= POPUP.openFrom) return "open";
+    return "soon";
+  }
+
   /* 노출 기간이 지났는가 (문자열 비교로 충분하다 — 둘 다 YYYY-MM-DD) */
   function expired() { return POPUP.until && today() > POPUP.until; }
 
@@ -41,15 +53,16 @@
   function hiddenToday() {
     try {
       var v = localStorage.getItem(POPUP.key);
-      return v === POPUP.variant + "|" + today();
+      return v === variantNow() + "|" + today();
     } catch (e) { return false; }   // 저장이 막혀 있으면 그냥 보여준다
   }
   function hideForToday() {
-    try { localStorage.setItem(POPUP.key, POPUP.variant + "|" + today()); } catch (e) {}
+    try { localStorage.setItem(POPUP.key, variantNow() + "|" + today()); } catch (e) {}
   }
 
   function build() {
-    var art = POPUP.art[POPUP.variant];
+    var kind = variantNow();
+    var art = POPUP.art[kind];
     if (!art) return;
     var mobile = window.matchMedia("(max-width:" + POPUP.mobileAt + "px)").matches;
     var src = mobile ? art.mo : art.pc;
@@ -75,7 +88,7 @@
     }
     var img = document.createElement("img");
     img.src = src;
-    img.alt = POPUP.variant === "open"
+    img.alt = kind === "open"
       ? "2026 부산패션위크 패션쇼 관람 예약 접수 중"
       : "2026 부산패션위크 패션쇼 관람 예약 10월 6일 오픈";
     art_el.appendChild(img);
