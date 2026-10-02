@@ -932,3 +932,46 @@ html.intro .r.in { opacity: 1; transform: none; }
   .zone-runway { width: 30px; }
   .runway-side { width: 26px; }
 }
+
+
+/* =========================================================
+   메인 팝업 공지 (js/popup.js)
+   메인 화면에서만 쓰며, 다른 화면의 규칙과 섞이지 않도록
+   모든 선택자를 .bfwpop 아래에 둔다.
+   ========================================================= */
+.bfwpop {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(6, 18, 48, .62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  animation: bfwpop-in .22s ease-out;
+}
+@keyframes bfwpop-in { from { opacity: 0 } to { opacity: 1 } }
+.bfwpop-box {
+  width: 500px; max-width: 100%;
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 18px 48px rgba(6, 18, 48, .38);
+  animation: bfwpop-up .26s cubic-bezier(.2, .8, .3, 1);
+}
+@keyframes bfwpop-up { from { transform: translateY(14px) } to { transform: none } }
+.bfwpop-art { display: block; line-height: 0; }
+.bfwpop-art img { width: 100%; height: auto; display: block; }
+.bfwpop-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #0d1b3e; padding: 0 6px 0 14px; height: 46px;
+}
+.bfwpop-day { display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: .86rem; color: #cdd6ee; user-select: none; }
+.bfwpop-day input { width: 15px; height: 15px; accent-color: #5ee0c8; cursor: pointer; }
+.bfwpop-x {
+  background: none; border: 0; color: #fff; cursor: pointer;
+  font: inherit; font-size: .9rem; font-weight: 600;
+  padding: 0 14px; height: 100%;
+}
+.bfwpop-x:hover { color: #5ee0c8; }
+@media (max-width: 640px) {
+  .bfwpop { padding: 20px 14px; }
+  .bfwpop-box { width: 340px; }
+  .bfwpop-bar { height: 44px; padding-left: 12px; }
+  .bfwpop-day { font-size: .82rem; }
+}
