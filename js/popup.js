@@ -25,6 +25,9 @@
     variant: "",
     /* 이 날짜까지만 보여준다. 행사 전날(10.28)까지 */
     until: "2026-10-28",
+    /* 이미지는 하루치 캐시가 걸려 있다. 그림을 고쳐 올릴 때는 이 판 번호도 올려야
+       이미 한 번 본 사람에게 새 그림이 간다. */
+    ver: "20261002b",
     art: {
       soon: { pc: "images/popup-soon.webp", mo: "images/popup-soon-m.webp", link: "" },
       open: { pc: "images/popup-open.webp", mo: "images/popup-open-m.webp", link: "register.html" }
@@ -94,7 +97,7 @@
       art_el.className = "bfwpop-art";
     }
     var img = document.createElement("img");
-    img.src = src;
+    img.src = src + (POPUP.ver ? "?v=" + POPUP.ver : "");
     img.alt = kind === "open"
       ? "2026 부산패션위크 패션쇼 관람 예약 접수 중"
       : "2026 부산패션위크 패션쇼 관람 예약 10월 6일 오픈";
