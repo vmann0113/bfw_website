@@ -14,12 +14,13 @@
 
   var POPUP = {
     enabled: true,
-    /* 오픈일이 되면 판이 저절로 바뀐다 — 그날 배포하지 않아도 된다.
-         이 날짜 전 : "soon" (COMING SOON, 링크 없음)
-         이 날짜부터 : "open" (예약하러 가기 → 예약 페이지)
-       서버 스위치도 같은 날 오전 10시에 자동으로 켜진다(api/cron-remind.js).
-       날짜를 바꾸려면 두 곳을 함께 고친다. */
-    openFrom: "2026-10-06",
+    /* 오픈 시각이 되면 판이 저절로 바뀐다 — 그날 배포하지 않아도 된다.
+         이 시각 전 : "soon" (COMING SOON, 링크 없음)
+         이 시각부터 : "open" (예약하러 가기 → 예약 페이지)
+       서버 스위치도 같은 시각에 자동으로 켜진다(api/_open.js 의 OPEN_AT).
+       시각을 바꾸려면 두 곳과 js/reserve.js 안내 문구를 함께 고친다.
+       (보는 사람 기기의 시계를 쓴다. 서버가 먼저 열리므로 몇 분 어긋나도 탈이 없다.) */
+    openFrom: "2026-10-06 14:00",
     /* 날짜와 무관하게 한쪽으로 고정하고 싶을 때만 "soon" 또는 "open" 을 적는다 */
     variant: "",
     /* 이 날짜까지만 보여준다. 행사 전날(10.28)까지 */
@@ -39,10 +40,16 @@
     return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
 
-  /* 오늘 날짜로 어느 판을 보여줄지 정한다 (variant 를 적어두면 그쪽이 우선) */
+  /* 'YYYY-MM-DD HH:MM' — openFrom 과 같은 형식이라 문자열로 바로 견준다 */
+  function nowStamp() {
+    var d = new Date(), p = function (n) { return ("0" + n).slice(-2); };
+    return today() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  /* 지금 시각으로 어느 판을 보여줄지 정한다 (variant 를 적어두면 그쪽이 우선) */
   function variantNow() {
     if (POPUP.variant) return POPUP.variant;
-    if (POPUP.openFrom && today() >= POPUP.openFrom) return "open";
+    if (POPUP.openFrom && nowStamp() >= POPUP.openFrom) return "open";
     return "soon";
   }
 
