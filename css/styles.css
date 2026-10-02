@@ -975,3 +975,21 @@ html.intro .r.in { opacity: 1; transform: none; }
   .bfwpop-bar { height: 44px; padding-left: 12px; }
   .bfwpop-day { font-size: .82rem; }
 }
+
+
+/* 예약 오픈 전 안내 (js/reserve.js lockUntilOpen) — 메인 팝업과 같은 내용 */
+.closed-note.open-soon { display: block; text-align: center; padding: 48px 24px 52px; line-height: 1.6; }
+.open-soon .os-tag {
+  display: inline-block; font-family: var(--mono); font-size: .68rem; letter-spacing: .2em;
+  color: var(--cobalt); border: 1.5px solid var(--cobalt); border-radius: 999px; padding: 5px 12px;
+}
+.open-soon .os-d {
+  display: block; margin: 20px 0 6px; font-family: var(--mono); font-size: 4.4rem; font-weight: 700;
+  line-height: 1; letter-spacing: -.02em; color: var(--cobalt);
+}
+.open-soon .os-h { display: block; margin-top: 14px; font-size: 1.22rem; font-weight: 700; color: var(--ink); }
+.open-soon .os-p { display: block; margin-top: 12px; font-size: .95rem; color: var(--ink-mute); }
+@media (max-width: 560px) {
+  .open-soon .os-d { font-size: 3.2rem; }
+  .open-soon .os-h { font-size: 1.05rem; }
+}
