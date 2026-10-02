@@ -62,7 +62,7 @@
         '<div class="closed-note open-soon">' +
           '<span class="os-tag">RESERVATION</span>' +
           '<strong class="os-d">10.06</strong>' +
-          '<b class="os-h">패션쇼 관람 예약은 10월 6일(화)에 열립니다</b>' +
+          '<b class="os-h">패션쇼 관람 예약은 10월 6일(화) 오후 2시에 열립니다</b>' +
           '<span class="os-p">이 페이지에서 바로 신청하실 수 있습니다.<br>' +
           '전 패션쇼 무료 · 쇼당 300석 선착순 · 회원가입 없이 신청</span>' +
         '</div>';
