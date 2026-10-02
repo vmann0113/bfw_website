@@ -30,6 +30,56 @@ function qs(url, key) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
+/* ===========================================================
+   관람 예약 자동 오픈
+
+   정해진 날이 되면 서버 스위치(app_settings.reservations_open)를
+   스스로 켠다. 사람이 그날 자리에 없어도 열리게 하려는 장치다.
+   이 파일은 하루 한 번(한국시간 오전 10시) 자동 실행되므로,
+   오픈일 아침 10시에 켜진다.
+
+   안전장치
+     · OPEN_ON 보다 이른 날에는 어떤 경우에도 켜지 않는다
+     · 이미 켜져 있으면 아무것도 하지 않는다 (몇 번 돌아도 같다)
+     · 날짜 비교는 한국시간 기준 'YYYY-MM-DD' 문자열로만 한다
+   끄고 싶으면 OPEN_ON 을 빈 문자열로 두면 된다.
+   =========================================================== */
+const OPEN_ON = "2026-10-06";
+
+function kstToday() {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return kst.getUTCFullYear() + "-" +
+    String(kst.getUTCMonth() + 1).padStart(2, "0") + "-" +
+    String(kst.getUTCDate()).padStart(2, "0");
+}
+
+async function maybeOpenReservations(dry) {
+  const today = kstToday();
+  if (!OPEN_ON) return { acted: false, why: "자동 오픈 꺼짐", today };
+  if (today < OPEN_ON) return { acted: false, why: "오픈일 전", today, openOn: OPEN_ON };
+
+  let cur = null;
+  try {
+    const rows = await L.sb("/rest/v1/app_settings?select=reservations_open&limit=1");
+    cur = rows && rows[0] ? rows[0].reservations_open : null;
+  } catch (e) {
+    return { acted: false, why: "상태 조회 실패", detail: String(e && e.message), today };
+  }
+  if (cur === true) return { acted: false, why: "이미 열려 있음", today };
+  if (dry) return { acted: false, why: "dry — 열었을 상태", wouldOpen: true, today };
+
+  try {
+    await L.sb("/rest/v1/app_settings?id=eq.true", {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: { reservations_open: true }
+    });
+  } catch (e) {
+    return { acted: false, why: "켜지 못함", detail: String(e && e.message), today };
+  }
+  return { acted: true, why: "관람 예약을 열었습니다", today };
+}
+
 module.exports = async (req, res) => {
   const url = req.url || "";
   const dry = qs(url, "dry") === "1";
@@ -45,6 +95,10 @@ module.exports = async (req, res) => {
     }
   }
 
+  /* 안내 발송보다 먼저, 오픈일이 됐는지 확인한다.
+     여기서 실패해도 아래 안내 발송은 그대로 진행한다. */
+  const open = await maybeOpenReservations(dry);
+
   const date = qs(url, "date") || kstTomorrow();
 
   let targets;
@@ -59,7 +113,7 @@ module.exports = async (req, res) => {
 
   if (dry) {
     return L.json(res, 200, {
-      ok: true, date: date, mode: L.mode(),
+      ok: true, date: date, mode: L.mode(), open: open,
       count: targets.length,
       shows: targets.reduce(function (acc, r) {
         acc[r.show_id] = (acc[r.show_id] || 0) + 1;
@@ -70,7 +124,7 @@ module.exports = async (req, res) => {
   }
 
   if (!targets.length) {
-    return L.json(res, 200, { ok: true, date: date, count: 0, note: "보낼 대상이 없습니다" });
+    return L.json(res, 200, { ok: true, date: date, open: open, count: 0, note: "보낼 대상이 없습니다" });
   }
 
   const items = targets.map(function (r) {
