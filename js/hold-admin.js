@@ -392,6 +392,31 @@
     }).catch(function () { toast("바꾸지 못했습니다", true); });
   }
 
+  /* 링크는 복사뿐 아니라 '눈에 보이게' 둔다.
+     브라우저가 클립보드를 막거나 대화상자를 막는 경우가 있어,
+     주소를 글상자에 그대로 띄워 직접 긁어 갈 수 있게 한다. */
+  var linkBox = null;   // { id, url, label }
+
+  function showLink(id, path, label) {
+    var url = location.origin + location.pathname.replace(/[^/]*$/, "") + path;
+    linkBox = { id: id, url: url, label: label };
+    renderHolders();
+    var el = $("linkInput");
+    if (el) { el.focus(); el.select(); }
+    copyText(url).then(function () { toast(label + "를 복사했습니다"); })
+                 .catch(function () { toast("아래 칸의 주소를 복사해 주세요", true); });
+  }
+
+  function linkBoxEl() {
+    return '<div class="invbox">' +
+      "<label>" + esc(linkBox.label) +
+        '<input type="text" id="linkInput" readonly value="' + esc(linkBox.url) + '" />' +
+      "</label>" +
+      '<button class="btn sm" data-act="linkClose" type="button">닫기</button>' +
+      '<div class="invhint">복사가 안 되면 이 칸을 길게 눌러(또는 마우스로 긁어) 복사하세요.</div>' +
+    "</div>";
+  }
+
   /* 참여사 줄 아래에 펼쳐지는 입력칸 */
   function inviteBox(x) {
     var cur = x.inviteQuota || 0, used = x.inviteUsed || 0;
@@ -434,17 +459,18 @@
           '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">초청권' +
             (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
           (x.inviteQuota > 0
-            ? '<button class="btn sm pri" data-act="inviteCopy" data-token="' + esc(x.token) + '" type="button">초청 링크</button>'
+            ? '<button class="btn sm pri" data-act="inviteCopy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">초청 링크</button>'
             : "") +
           (x.isOpen
             ? '<button class="btn sm bad" data-act="open" data-open="0" data-id="' + esc(x.id) + '" type="button">닫기</button>'
             : '<button class="btn sm go" data-act="open" data-open="1" data-id="' + esc(x.id) + '" type="button">열기</button>') +
-          '<button class="btn sm pri" data-act="copy" data-token="' + esc(x.token) + '" type="button">링크</button>' +
+          '<button class="btn sm pri" data-act="copy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">링크</button>' +
           '<button class="btn sm" data-act="pickAllot" data-id="' + esc(x.id) + '" type="button">배정 보기</button>' +
           '<button class="btn sm" data-act="edit" data-id="' + esc(x.id) + '" type="button">수정</button>' +
           '<button class="btn sm bad" data-act="del" data-id="' + esc(x.id) + '" type="button">삭제</button>' +
         "</div>" +
         (x.id === inviteEditing ? inviteBox(x) : "") +
+        (linkBox && linkBox.id === x.id ? linkBoxEl() : "") +
         "</div>");
     });
     $("holderList").innerHTML = h.join("");
@@ -671,11 +697,11 @@
     ev.stopPropagation();
 
     if (act === "copy") {
-      var url = location.origin + location.pathname.replace(/[^/]*$/, "") + "hold.html?t=" + b.getAttribute("data-token");
-      copyText(url).then(function () { toast("링크를 복사했습니다"); }).catch(function () { window.prompt("아래 링크를 복사하세요", url); });
+      showLink(b.getAttribute("data-id"), "hold.html?t=" + b.getAttribute("data-token"), "좌석 확보 링크");
     } else if (act === "inviteCopy") {
-      var iurl = location.origin + location.pathname.replace(/[^/]*$/, "") + "invite.html?t=" + b.getAttribute("data-token");
-      copyText(iurl).then(function () { toast("초청 링크를 복사했습니다"); }).catch(function () { window.prompt("아래 링크를 복사하세요", iurl); });
+      showLink(b.getAttribute("data-id"), "invite.html?t=" + b.getAttribute("data-token"), "초청 링크");
+    } else if (act === "linkClose") {
+      linkBox = null; renderHolders();
     } else if (act === "invite") {
       openInviteBox(b.getAttribute("data-id"));
     } else if (act === "inviteSave") {
