@@ -680,6 +680,11 @@
 
   /* ================= 조작 ================= */
   document.addEventListener("click", function (ev) {
+    /* 펼쳐진 칸(장수 입력·링크) 안을 누른 것은 참여사 줄을 누른 것이 아니다.
+       여기서 걸러내지 않으면 글상자를 누르는 순간 목록이 다시 그려져
+       선택이 풀리고 주소를 긁을 수 없다. 칸 안의 버튼은 아래에서 처리한다. */
+    if (ev.target.closest && ev.target.closest(".invbox") && !ev.target.closest("[data-act]")) return;
+
     var b = ev.target.closest ? ev.target.closest("button,[data-focus]") : null;
     if (!b) return;
 
