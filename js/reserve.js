@@ -33,16 +33,41 @@
      사람은 그대로 폼을 만나고 예약까지 된다. 오픈(published) 전에는
      페이지를 안내문으로 대체하고 아무것도 초기화하지 않는다.
      ----------------------------------------------------------------- */
-  if (!(BFW.baked().reserve || {}).published) {
+  /* ---- 시연 모드 -------------------------------------------------
+     주소에 ?demo=<열쇠> 가 붙어 있으면 오픈 전이라도 화면을 연다.
+     주최측이 오픈 전에 실제와 같은 화면·절차로 예약부터 알림톡까지
+     확인하기 위한 것이다. 열쇠는 서버가 대조하므로 아무 값이나 넣으면
+     예약 단계에서 거부된다. 여기서 만들어진 예약은 source='demo' 로
+     따로 표시되고, 관람 예약이 열리는 순간 전부 지워진다.
+     ----------------------------------------------------------------- */
+  var DEMO = (function () {
+    var m = /[?&]demo=([^&#]+)/.exec(location.search);
+    return m ? decodeURIComponent(m[1]) : "";
+  })();
+
+  if (!DEMO && !(BFW.baked().reserve || {}).published) {
     lockUntilOpen();
     return;
   }
   /* 화면이 열려 있어도 서버 스위치가 닫혀 있으면 예약을 받지 않는다.
      오픈은 서버 스위치 한 곳에서만 켠다 — 배포 없이 여닫기 위해서다. */
-  if (Api && Api.reservationsOpen) {
+  if (!DEMO && Api && Api.reservationsOpen) {
     Api.reservationsOpen().then(function (open) {
       if (!open) lockUntilOpen();
     });
+  }
+  if (DEMO) showDemoBar();
+  var demoProblem = "";   // 시연 중 서버가 돌려준 거부 사유
+
+  /* 시연 중임을 화면에서 분명히 한다. 진짜 예약으로 오해하면 안 된다. */
+  function showDemoBar() {
+    var bar = document.createElement("div");
+    bar.id = "demoBar";
+    bar.innerHTML =
+      '<b>시연 모드</b> 실제 관람 예약이 아닙니다 · 여기서 만든 예약은 ' +
+      '<b>10월 6일 오후 2시 오픈 때 자동으로 지워집니다</b>';
+    document.body.appendChild(bar);
+    document.body.classList.add("has-demo-bar");
   }
   function lockUntilOpen() {
     var tabs = document.querySelector(".tabs-row");
@@ -373,6 +398,7 @@
 
     var picks = selected.slice();
     var done = [], failFull = [], failDup = [], failErr = [], failClosed = [], failTaken = [];
+    demoProblem = "";
 
     // process sequentially so the server enforces first-come order cleanly
     var chain = Promise.resolve();
@@ -384,13 +410,18 @@
           showId: s.id, seatId: it.seatId,
           showTitle: s.title, titleKo: s.titleKo, lineup: s.lineup,
           day: s.day, date: s.date, dow: s.dow, time: s.time, end: s.end, venue: s.venue,
-          name: name, phone: phone, email: email, marketing: mkt
+          name: name, phone: phone, email: email, marketing: mkt,
+          demo: DEMO                      /* 비어 있으면 평소 예약으로 간다 */
         }).then(function (res) {
           if (res.ok) done.push(res.entry);
           else if (res.reason === "dup") failDup.push(s);
           else if (res.reason === "full") failFull.push(s);
           else if (res.reason === "closed" || res.reason === "notopen") failClosed.push(s);
           else if (res.reason === "taken" || res.reason === "locked") failTaken.push(it);
+          /* 시연 모드에서만 나오는 사유. 일반 오류로 뭉뚱그리면 원인을 못 찾는다. */
+          else if (res.reason === "badkey" || res.reason === "demofull" || res.reason === "assignedshow") {
+            demoProblem = res.reason; failErr.push(s);
+          }
           else failErr.push(s);
         });
       });
@@ -422,7 +453,18 @@
     if (failDup && failDup.length) msgs.push("‘" + failDup.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 이미 이 연락처로 예약되어 있습니다.");
     if (failTaken && failTaken.length) msgs.push("‘" + failTaken.map(function (it) { return it.seatLabel || (showById(it.showId) || {}).titleKo || ""; }).join(", ") + "’ 은(는) 방금 다른 분이 선택하셨습니다. 다시 들어가 다른 자리를 골라 주세요.");
     if (failClosed && failClosed.length) msgs.push("‘" + failClosed.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 예약 기간이 끝났습니다. 패션쇼 전날 자정에 마감되며, 당일에는 현장에서 스탠드석으로 관람하실 수 있습니다.");
-    if (failErr && failErr.length) msgs.push("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") + "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    if (failErr && failErr.length) {
+      /* 시연 모드에서 거부된 것이면 원인을 그대로 알려준다 */
+      var demoMsg = demoProblem === "badkey"
+        ? "시연 링크의 열쇠가 맞지 않습니다. 받으신 주소를 끝까지 그대로 열어 주세요."
+        : demoProblem === "demofull"
+        ? "시연 예약이 한도(50건)에 찼습니다. 담당자에게 알려 주세요."
+        : demoProblem === "assignedshow"
+        ? "이 쇼는 지정좌석이라 시연 대상이 아닙니다. 다른 쇼로 해 주세요."
+        : "";
+      msgs.push(demoMsg || ("‘" + failErr.map(function (s) { return s.titleKo || s.title; }).join(", ") +
+        "’ 은(는) 일시적인 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요."));
+    }
     if (msgs.length) {
       failBox.innerHTML = msgs.join("<br>");
       failBox.style.display = "block";

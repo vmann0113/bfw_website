@@ -191,6 +191,18 @@
     /* ---- reserve one seat (atomic on the server) ---- */
     reserve: function (show) {
       if (BACKEND) {
+        /* 시연 모드(오픈 전 주최측 점검)는 전용 함수로 간다.
+           실제 예약 함수는 손대지 않는다 — 오픈 직전에 핵심 코드를 건드리지 않기 위해서다. */
+        if (show.demo) {
+          return rpc("demo_reserve", {
+            p_key: show.demo, p_show_id: show.showId,
+            p_name: show.name, p_phone: show.phone,
+            p_email: show.email || null, p_marketing: !!show.marketing
+          }).then(function (d) {
+            if (d && d.ok) return { ok: true, entry: fromRow(d.reservation) };
+            return { ok: false, reason: (d && d.reason) || "error" };
+          }).catch(function () { return { ok: false, reason: "network" }; });
+        }
         return rpc("reserve_seat", {
           p_show_id: show.showId, p_seat_id: show.seatId || null,
           p_name: show.name, p_phone: show.phone,
