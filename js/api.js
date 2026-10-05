@@ -256,6 +256,21 @@
     },
 
     /* ---- 모바일 입장권 조회 (공개, 이름은 가려져서 옴) ---- */
+    /* ---- 현장등록 : 배너 QR. 등록과 동시에 입장 처리된다 ---- */
+    walkinShow: function (key) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("walkin_show", { p_key: key })
+        .then(function (d) { return d || { ok: false, reason: "error" }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
+    walkinRegister: function (key, who) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("walkin_register", {
+        p_key: key, p_name: who.name, p_phone: who.phone, p_marketing: !!who.marketing
+      }).then(function (d) { return d || { ok: false, reason: "error" }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
+
     /* ---- 브랜드 초청권 : 좌석 없는 사전등록 ---- */
     inviteView: function (token) {
       if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
