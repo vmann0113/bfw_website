@@ -256,6 +256,24 @@
     },
 
     /* ---- 모바일 입장권 조회 (공개, 이름은 가려져서 옴) ---- */
+    /* ---- 브랜드 초청권 : 좌석 없는 사전등록 ---- */
+    inviteView: function (token) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("invite_view", { p_token: token })
+        .then(function (d) { return d || { ok: false, reason: "error" }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
+    inviteClaim: function (token, who) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("invite_claim", {
+        p_token: token, p_name: who.name, p_phone: who.phone,
+        p_email: who.email || null, p_marketing: !!who.marketing
+      }).then(function (d) {
+        if (d && d.ok) return { ok: true, brand: d.brand, entry: fromRow(d.reservation) };
+        return { ok: false, reason: (d && d.reason) || "error" };
+      }).catch(function () { return { ok: false, reason: "network" }; });
+    },
+
     ticketView: function (codes) {
       if (BACKEND) {
         return rpc("ticket_view", { p_codes: codes })

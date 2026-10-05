@@ -37,6 +37,14 @@
     border-radius: 18px; border: 1.5px solid var(--line);
     box-shadow: 0 6px 26px rgba(20,35,90,.10); margin-bottom: 18px; }
 
+  /* 어느 줄로 와야 하는지. 입장 순서가 셋으로 나뉘어 입장권 맨 위에 적는다. */
+  .t-line { position: relative; z-index: 3; padding: 11px 18px; background: #e9edf7;
+    color: var(--navy); display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .t-line b { font-size: .98rem; font-weight: 800; }
+  .t-line span { font-size: .82rem; color: #5d6a8c; }
+  .t-line.first { background: #5ee0c8; color: #06204a; }
+  .t-line.first span { color: #0a3b57; }
+
   .t-head { background: var(--navy); color: #fff; padding: 16px 18px; position: relative; z-index: 2; }
   .t-head .kicker { font-family: "Space Mono", monospace; font-size: .62rem;
     letter-spacing: .2em; opacity: .78; }

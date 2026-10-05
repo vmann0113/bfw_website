@@ -46,11 +46,24 @@
            (r.end_time ? "–" + r.end_time : "");
   }
 
+  /* 어느 줄로 와야 하는지. 입장 순서가 셋으로 나뉘므로 입장권에 적어 둔다.
+     브랜드 초청권 → 사전등록 → 현장등록 순으로 들어온다. */
+  function lineBar(source) {
+    if (source === "brand") {
+      return '<div class="t-line first"><b>초청권 입장줄</b><span>가장 먼저 입장합니다</span></div>';
+    }
+    if (source === "invite") {
+      return '<div class="t-line"><b>내빈 입장</b><span>지정된 좌석으로 안내해 드립니다</span></div>';
+    }
+    return '<div class="t-line"><b>사전등록 입장줄</b><span>초청권 다음으로 입장합니다</span></div>';
+  }
+
   function ticketEl(r) {
     var el = document.createElement("div");
     el.className = "ticket";
     var used = !!r.checked_in;
     el.innerHTML =
+      lineBar(r.source) +
       '<div class="t-head">' +
         '<div class="kicker">2026 BUSAN FASHION WEEK</div>' +
         "<h2>" + esc(r.title_ko || r.show_title || "") + "</h2>" +
