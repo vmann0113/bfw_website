@@ -80,7 +80,6 @@
     $("sWhen").textContent = whenText(SHOW);
     /* shows.venue 는 홀 안의 위치(메인 런웨이)라, 처음 오시는 분을 위해 건물부터 적는다 */
     $("sVenue").textContent = "벡스코 제1전시장 3B홀" + (SHOW.venue ? " · " + SHOW.venue : "");
-    $("leftTag").textContent = "남은 초청권 " + d.left + "장";
 
     hide("loading");
     show("form");
