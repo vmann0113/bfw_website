@@ -112,7 +112,7 @@
       showTitle: r.show_title, titleKo: r.title_ko, lineup: r.lineup,
       day: r.day, date: r.date, time: r.start_time, end: r.end_time, venue: r.venue,
       name: r.name, phone: r.phone, email: r.email, marketing: r.marketing,
-      seatId: r.seat_id, seatLabel: r.seat_label, source: r.source,
+      seatId: r.seat_id, seatLabel: r.seat_label, source: r.source, holderId: r.holder_id,
       guestOrg: r.guest_org, guestTitle: r.guest_title,
       status: r.status, checkedIn: r.checked_in, checkedInAt: r.checked_in_at, at: r.created_at
     };
@@ -401,6 +401,24 @@
     },
 
     /* ---- admin: list all (optionally one show) ---- */
+    /* 내보내기용 : 사전등록·초청권·내빈(reserved) 에 더해 현장등록(entered)까지 담는다.
+       화면 목록은 지금처럼 예약만 보여주고, 파일에만 네 갈래가 모두 들어간다. */
+    listForExport: function () {
+      if (!BACKEND) return Promise.resolve([]);
+      return rest("/rest/v1/reservations?select=*&status=in.(reserved,entered)&order=created_at.desc")
+        .then(function (rows) { return (rows || []).map(fromRow); })
+        .catch(function () { return []; });
+    },
+    /* 초청권을 준 참여사 이름 (id → 이름). holder_list 에는 id 가 없어 현황판을 쓴다. */
+    holderNames: function () {
+      if (!BACKEND) return Promise.resolve({});
+      return rpc("holds_board", {}).then(function (d) {
+        var by = {};
+        ((d && d.holders) || []).forEach(function (h) { if (h && h.id) by[h.id] = h.name; });
+        return by;
+      }).catch(function () { return {}; });
+    },
+
     listReservations: function (showId) {
       if (BACKEND) {
         var q = "/rest/v1/reservations?select=*&status=eq.reserved&order=created_at.desc";

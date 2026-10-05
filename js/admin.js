@@ -968,19 +968,45 @@
   $("resvClear").addEventListener("click", function () {
     if (confirm("모든 예약 내역을 삭제할까요? 되돌릴 수 없습니다.")) BFWApi.clearAll().then(renderResv);
   });
+  /* 명단 내보내기 — 네 갈래를 한 파일에 담는다.
+     화면 목록은 예약만 보여주지만, 파일에는 현장등록까지 들어간다(최종 보고용). */
+  var SRC_LABEL = { web: "사전등록", brand: "브랜드 초청권", invite: "주최측 내빈", walkin: "현장등록" };
+
   $("resvCsv").addEventListener("click", function () {
-    var list = resvCache;
-    if (!list.length) { toast("내보낼 내역이 없습니다.", true); return; }
-    var cols = ["at", "code", "showId", "showTitle", "day", "date", "time", "name", "phone", "email", "marketing", "checkedIn", "checkedInAt"];
-    var rows = [cols.join(",")].concat(list.map(function (r) {
-      return cols.map(function (c) {
-        var v = c === "code" ? "BFW-" + r.code : r[c];
-        return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-      }).join(",");
-    }));
-    var blob = new Blob(["\ufeff" + rows.join("\n")], { type: "text/csv;charset=utf-8" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "bfw_reservations.csv"; a.click();
+    var btn = $("resvCsv");
+    btn.disabled = true;
+    Promise.all([BFWApi.listForExport(), BFWApi.holderNames()]).then(function (res) {
+      btn.disabled = false;
+      var list = res[0] || [], names = res[1] || {};
+      if (!list.length) { toast("내보낼 내역이 없습니다.", true); return; }
+
+      var head = ["구분", "초청브랜드", "예약번호", "쇼", "쇼이름", "일자", "시간",
+                  "이름", "연락처", "이메일", "마케팅동의", "입장", "입장시각", "신청시각"];
+      var rows = [head.join(",")].concat(list.map(function (r) {
+        var cells = [
+          SRC_LABEL[r.source] || r.source || "",
+          r.source === "brand" ? (names[r.holderId] || "") : "",
+          "BFW-" + r.code,
+          r.showId, r.titleKo || r.showTitle || "", r.date, r.time,
+          r.name, r.phone, r.email || "",
+          r.marketing ? "동의" : "",
+          r.checkedIn ? "입장" : "", r.checkedInAt || "", r.at || ""
+        ];
+        return cells.map(function (v) {
+          return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+        }).join(",");
+      }));
+
+      var blob = new Blob([String.fromCharCode(65279) + rows.join(String.fromCharCode(10))], { type: "text/csv;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "bfw_명단_" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + ".csv";
+      a.click();
+      toast(list.length + "건을 내려받았습니다");
+    }).catch(function () {
+      btn.disabled = false;
+      toast("내보내지 못했습니다.", true);
+    });
   });
 
   /* ---------- PRESS VISIT dashboard ---------- */
