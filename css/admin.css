@@ -394,3 +394,30 @@ td .row-acts { display: flex; gap: 6px; }
   color: var(--a-ink); }
 .seat-summary .s-show { font-family: var(--a-kr); }
 .seat-summary .s-show b { font-family: var(--a-mono); color: var(--a-accent-deep); }
+
+
+/* ---- 현장 체크인 : 입장 단계 ---- */
+.ci-stage { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
+.ci-stage .cis {
+  font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+  border: 1.5px solid var(--a-line); background: var(--a-bg); color: var(--a-mute);
+  border-radius: 999px; padding: 9px 16px;
+}
+.ci-stage .cis.on { background: var(--a-accent); border-color: var(--a-accent); color: #fff; }
+.ci-stage .cis-hint { flex: 1 1 100%; font-size: .8rem; color: var(--a-mute); }
+
+/* 스캔 결과의 순위 띠 */
+.ci-tier { display: inline-block; font-size: .82rem; font-weight: 700; border-radius: 999px;
+  padding: 4px 12px; margin-bottom: 10px; background: var(--a-bg); color: var(--a-ink); }
+.ci-tier.t1 { background: #5ee0c8; color: #06204a; }
+.ci-tier.t2 { background: #dbe4fb; color: #16224a; }
+.ci-tier.t3 { background: #e7eaf1; color: #44506f; }
+.ci-tier.t0 { background: #3b3f4a; color: #fff; }
+.ci-early { margin-bottom: 10px; padding: 10px 12px; border-radius: 9px;
+  background: color-mix(in oklch, var(--a-danger) 12%, transparent);
+  border: 1.5px solid color-mix(in oklch, var(--a-danger) 45%, transparent);
+  font-size: .9rem; font-weight: 600; }
+
+/* 집계표 머리글의 작은 설명 */
+.wk-table thead th span { display: block; font-weight: 400; font-size: .66rem;
+  letter-spacing: 0; text-transform: none; color: var(--a-mute); margin-top: 2px; }

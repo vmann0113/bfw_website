@@ -1072,6 +1072,7 @@
       initWalkin();
       ciInited = true;
     }
+    renderCiStage();
     renderWalkinStats();
     $("ciInput").focus();
   }
@@ -1137,20 +1138,41 @@
       });
     });
   }
+  /* 입장을 네 갈래로 나눠 센다 — 최종 보고가 이 표 그대로 나간다.
+     사전등록 / 브랜드 초청권 / 주최측 내빈 / 현장등록.
+     '예약'은 받은 수, '입장'은 실제로 들어온 수다. 현장등록은 등록이 곧 입장이라 한 칸이다. */
   function renderWalkinStats() {
     var box = $("wkStats");
     if (!box) return;
     box.innerHTML = '<div class="empty-state">불러오는 중…</div>';
-    BFWApi.attendanceStats().then(function (rows) {
-      if (!rows || !rows.length) { box.innerHTML = '<div class="empty-state">집계할 자료가 없습니다.</div>'; return; }
-      var tR = 0, tE = 0, tW = 0;
-      var h = '<table class="wk-table"><thead><tr><th>쇼</th><th>예약</th><th>입장 확인</th><th>현장</th><th>합계</th></tr></thead><tbody>';
+    BFWApi.attendanceReport().then(function (d) {
+      var rows = (d && d.ok && d.shows) || [];
+      if (!rows.length) { box.innerHTML = '<div class="empty-state">집계할 자료가 없습니다.</div>'; return; }
+      var t = { wb: 0, we: 0, bb: 0, be: 0, ib: 0, ie: 0, wk: 0 };
+      var h = '<table class="wk-table"><thead><tr>' +
+        '<th>쇼</th><th>사전등록<br><span>예약 / 입장</span></th><th>초청권<br><span>예약 / 입장</span></th>' +
+        '<th>내빈<br><span>예약 / 입장</span></th><th>현장등록</th><th>입장 합계</th></tr></thead><tbody>';
       rows.forEach(function (r) {
-        tR += +r.reserved; tE += +r.entered; tW += +r.walkin;
-        h += '<tr><td><b>' + esc(r.show_id) + '</b> · ' + esc(r.title_ko || "") + (r.note ? ' <span class="wk-note">' + esc(r.note) + '</span>' : "") + '</td>' +
-             '<td>' + r.reserved + '</td><td>' + r.entered + '</td><td>' + r.walkin + '</td><td><b>' + r.total + '</b></td></tr>';
+        var w = r.web || {}, b = r.brand || {}, iv = r.invite || {}, wk = r.walkin || {};
+        t.wb += +w.booked || 0; t.we += +w.entered || 0;
+        t.bb += +b.booked || 0; t.be += +b.entered || 0;
+        t.ib += +iv.booked || 0; t.ie += +iv.entered || 0;
+        t.wk += +wk.entered || 0;
+        var sum = (+w.entered || 0) + (+b.entered || 0) + (+iv.entered || 0) + (+wk.entered || 0);
+        h += "<tr><td><b>" + esc(r.id) + "</b> · " + esc(r.titleKo || "") +
+             (r.walkinManual != null ? ' <span class="wk-note">수기 ' + r.walkinManual + "</span>" : "") + "</td>" +
+             "<td>" + (+w.booked || 0) + " / " + (+w.entered || 0) + "</td>" +
+             "<td>" + (+b.booked || 0) + " / " + (+b.entered || 0) + "</td>" +
+             "<td>" + (+iv.booked || 0) + " / " + (+iv.entered || 0) + "</td>" +
+             "<td>" + (+wk.entered || 0) + "</td>" +
+             "<td><b>" + sum + "</b></td></tr>";
       });
-      h += '</tbody><tfoot><tr><td>전체 합계</td><td>' + tR + '</td><td>' + tE + '</td><td>' + tW + '</td><td><b>' + (tE + tW) + '</b></td></tr></tfoot></table>';
+      h += "</tbody><tfoot><tr><td>전체 합계</td>" +
+           "<td>" + t.wb + " / " + t.we + "</td>" +
+           "<td>" + t.bb + " / " + t.be + "</td>" +
+           "<td>" + t.ib + " / " + t.ie + "</td>" +
+           "<td>" + t.wk + "</td>" +
+           "<td><b>" + (t.we + t.be + t.ie + t.wk) + "</b></td></tr></tfoot></table>";
       box.innerHTML = h;
     });
   }
@@ -1195,15 +1217,54 @@
       });
     });
   }
+  /* ---------- 입장 순서 ----------
+     브랜드 초청권 → 사전등록 → 현장등록 순으로 들여보낸다.
+     시스템이 막지는 않는다. 현장에서 줄이 섞일 때 기계가 가로막으면 더 큰 사고가 난다.
+     지금 단계보다 늦은 순위가 찍히면 빨간 경고만 띄우고, 통과 여부는 스태프가 정한다. */
+  var TIER = {
+    brand:  { n: 1, label: "초청권",   full: "브랜드 초청권 · 1순위" },
+    web:    { n: 2, label: "사전등록", full: "사전등록 · 2순위" },
+    walkin: { n: 3, label: "현장등록", full: "현장등록 · 3순위" },
+    invite: { n: 0, label: "내빈",     full: "주최측 내빈 · 지정석" }
+  };
+  var ciStage = (function () {
+    try { return parseInt(localStorage.getItem("bfw_ci_stage") || "2", 10) || 2; }
+    catch (e) { return 2; }
+  })();
+
+  function renderCiStage() {
+    var box = $("ciStage");
+    if (!box) return;
+    box.innerHTML = [1, 2, 3].map(function (n) {
+      var t = n === 1 ? "① 초청권" : n === 2 ? "② 사전등록" : "③ 현장등록";
+      return '<button type="button" class="cis' + (n === ciStage ? " on" : "") + '" data-stage="' + n + '">' + t + "</button>";
+    }).join("") + '<span class="cis-hint">지금 들여보내는 순서입니다. 늦은 순위가 찍히면 경고만 뜹니다.</span>';
+    box.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        ciStage = parseInt(b.getAttribute("data-stage"), 10);
+        try { localStorage.setItem("bfw_ci_stage", String(ciStage)); } catch (e) {}
+        renderCiStage();
+      });
+    });
+  }
+
+  function tierOf(r) { return TIER[r && r.source] || TIER.web; }
+
   function showCiCard(r, mode) {
     var res = $("ciResult");
     var already = r.checkedIn;
+    var t = tierOf(r);
+    var early = t.n > 0 && t.n > ciStage;   // 아직 차례가 아닌 순위
     var cls = (mode === "entered") ? "ok" : (already ? "warn" : "ok");
     var status = (mode === "entered") ? "✓ 입장 완료"
                : already ? "⚠ 이미 입장한 예약입니다"
                : "✓ 유효한 예약";
     res.innerHTML =
       '<div class="ci-card ' + cls + '">' +
+        '<div class="ci-tier t' + t.n + '">' + esc(t.full) + "</div>" +
+        (early ? '<div class="ci-early">지금은 ' +
+          (ciStage === 1 ? "초청권" : ciStage === 2 ? "사전등록" : "현장등록") +
+          ' 차례입니다 — 이분은 <b>' + esc(t.label) + '</b> 입니다</div>' : "") +
         '<div class="ci-status">' + status + '</div>' +
         '<div class="ci-name">' + esc(r.name) + '</div>' +
         '<div class="ci-show">' + esc(r.showId) + ' · ' + esc(r.titleKo || r.showTitle || "") + ' · ' + esc(r.time || "") + '</div>' +
