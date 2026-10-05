@@ -430,6 +430,14 @@
       } catch (e) {}
       return Promise.resolve({ ok: true });
     },
+    /* 구분 집계 : 사전등록 · 브랜드 초청권 · 주최측 내빈 · 현장등록 */
+    attendanceReport: function () {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("attendance_report", {})
+        .then(function (d) { return d || { ok: false }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
+
     attendanceStats: function () {
       if (BACKEND) {
         return rpc("attendance_stats", {}).then(function (rows) { return rows || []; })
