@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>초청권 신청 | 2026 부산패션위크</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+
+<style>
+  /* 이 화면은 메인 사이트 설정에 기대지 않는다. 링크를 받은 손님만 들어오고,
+     하는 일이 하나(초청권 신청)뿐이라 필요한 것만 담았다. */
+  :root{
+    --navy:#0a1f54; --navy-2:#13306f; --mint:#5ee0c8; --ink:#16224a;
+    --mute:#5d6a8c; --line:#dfe4f0; --bg:#f4f6fb; --warn:#8a5300;
+    --kr:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;
+    --num:'Oswald',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--kr);background:var(--bg);color:var(--ink);
+       line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px 56px}
+
+  header{background:var(--navy);color:#fff;margin:0 -16px 20px;padding:30px 24px 26px;position:relative;overflow:hidden}
+  header::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;
+    background:linear-gradient(140deg,rgba(94,224,200,.34),transparent 70%);transform:rotate(18deg)}
+  .brandline{font-family:var(--num);font-size:12px;letter-spacing:.2em;color:var(--mint)}
+  header h1{margin-top:10px;font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1.3}
+  .first{display:inline-flex;align-items:center;gap:7px;margin-top:14px;background:var(--mint);
+    color:#06204a;font-weight:700;font-size:13.5px;border-radius:999px;padding:7px 14px}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:14px}
+  .show dt{font-family:var(--num);font-size:11px;letter-spacing:.12em;color:#8e9ab8}
+  .show dd{font-size:15px;font-weight:600;margin-bottom:12px}
+  .show dd:last-child{margin-bottom:0}
+  .left-tag{float:right;font-family:var(--num);font-size:13px;color:var(--navy);font-weight:600}
+
+  label{display:block;font-size:13.5px;font-weight:600;margin:14px 0 6px}
+  input[type=text],input[type=tel],input[type=email]{width:100%;border:1.5px solid var(--line);
+    border-radius:10px;padding:13px 14px;font-family:inherit;font-size:16px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--navy)}
+  input.bad{border-color:#d7263d;background:#fff5f6}
+  .agree{display:flex;gap:9px;align-items:flex-start;margin-top:18px;font-size:13.5px;color:var(--mute)}
+  .agree input{width:17px;height:17px;margin-top:2px;accent-color:var(--navy);flex:none}
+  .agree b{color:var(--ink)}
+  .privacy{margin-top:8px;font-size:12.5px;color:var(--mute);background:var(--bg);
+    border-radius:9px;padding:11px 13px;line-height:1.55}
+  button.go{width:100%;margin-top:18px;background:var(--navy);color:#fff;border:0;border-radius:11px;
+    padding:16px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer}
+  button.go:disabled{opacity:.5;cursor:not-allowed}
+  .err{margin-top:12px;color:#b3122a;font-size:14px;display:none}
+
+  /* 완료 */
+  .done{text-align:center}
+  .done .ok{font-size:21px;font-weight:800;margin-bottom:6px}
+  .qr{width:208px;height:208px;margin:18px auto 10px;background:#fff;border:1px solid var(--line);
+      border-radius:12px;display:flex;align-items:center;justify-content:center;padding:10px}
+  .qr svg{width:100%;height:100%}
+  .code{font-family:var(--num);font-size:19px;letter-spacing:.04em;color:var(--navy);font-weight:600}
+  .lineup-note{margin-top:16px;background:var(--navy);color:#fff;border-radius:12px;padding:15px}
+  .lineup-note b{display:block;font-size:16px;margin-bottom:3px}
+  .lineup-note span{font-size:13.5px;color:#cfe0ff}
+  .tlink{display:inline-block;margin-top:14px;color:var(--navy);font-weight:700;font-size:14.5px}
+
+  .notice{text-align:center;padding:40px 20px}
+  .notice h2{font-size:19px;margin-bottom:8px}
+  .notice p{color:var(--mute);font-size:14.5px}
+  .hidden{display:none}
+  footer{margin-top:26px;text-align:center;font-size:12px;color:#8e9ab8;line-height:1.7}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brandline">INVITATION</div>
+  <h1 id="hTitle">초청권 신청</h1>
+  <span class="first">가장 먼저 입장하는 초청권입니다</span>
+</header>
+
+<div class="wrap">
+
+  <!-- 불러오는 중 -->
+  <div class="notice" id="loading"><p>불러오는 중…</p></div>
+
+  <!-- 신청 -->
+  <div id="form" class="hidden">
+    <div class="card show">
+      <span class="left-tag" id="leftTag"></span>
+      <dl>
+        <dt>SHOW</dt><dd id="sTitle"></dd>
+        <dt>WHEN</dt><dd id="sWhen"></dd>
+        <dt>PLACE</dt><dd id="sVenue"></dd>
+        <dt>SEAT</dt><dd>자유석 · 원하시는 자리에 앉으시면 됩니다</dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <label for="iName">이름</label>
+      <input type="text" id="iName" placeholder="홍길동" autocomplete="name" />
+      <label for="iPhone">연락처</label>
+      <input type="tel" id="iPhone" placeholder="010-0000-0000" autocomplete="tel" inputmode="numeric" />
+      <label for="iEmail">이메일 <span style="font-weight:400;color:#8e9ab8">(선택)</span></label>
+      <input type="email" id="iEmail" placeholder="name@email.com" autocomplete="email" />
+
+      <label class="agree"><input type="checkbox" id="iAgree" />
+        <span><b>[필수]</b> 개인정보 수집·이용에 동의합니다</span></label>
+      <div class="privacy">
+        수집 항목 : 이름 · 연락처(이메일은 선택)<br>
+        이용 목적 : 입장 확인과 관람 안내<br>
+        보관 기간 : 행사 종료 후 1년
+      </div>
+
+      <button class="go" id="goBtn" type="button">초청권 받기</button>
+      <div class="err" id="errBox"></div>
+    </div>
+  </div>
+
+  <!-- 완료 -->
+  <div id="done" class="hidden">
+    <div class="card done">
+      <div class="ok">초청권이 발급되었습니다</div>
+      <p style="color:#5d6a8c;font-size:14px">아래 QR을 저장해 두세요. 문자(알림톡)로도 보내드렸습니다.</p>
+      <div class="qr" id="qrBox"></div>
+      <div class="code" id="dCode"></div>
+      <div class="lineup-note">
+        <b>초청권 입장줄로 와 주세요</b>
+        <span>사전등록 관람객보다 먼저 입장하십니다</span>
+      </div>
+      <a class="tlink" id="tLink" href="#">모바일 입장권 열기 →</a>
+    </div>
+  </div>
+
+  <!-- 마감·오류 -->
+  <div id="notice" class="notice hidden">
+    <h2 id="nTitle"></h2>
+    <p id="nBody"></p>
+  </div>
+
+  <footer>
+    2026 부산패션위크 · 10.29(목) – 10.31(토) 벡스코 제1전시장 3B홀<br>
+    주최 부산광역시 · 주관 (사)부산섬유패션산업연합회
+  </footer>
+</div>
+
+<script src="js/qrcode.js?v=1.4.4"></script>
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/invite.js?v=20261005"></script>
+</body>
+</html>
