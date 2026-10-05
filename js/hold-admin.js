@@ -356,22 +356,26 @@
   }
 
   /* 초청권 장수 정하기 (사무국).
+     브라우저가 prompt 대화상자를 막는 경우가 있어 화면 안에서 입력받는다.
      0 을 넣으면 초청권을 쓰지 않는다는 뜻이라 신청 창구도 함께 닫는다.
      이미 나간 장수보다 적게 줄이는 것은 서버가 막는다 — 발급된 초청권은 유효해야 한다. */
-  function setInviteQuota(id) {
+  var inviteEditing = null;   // 지금 장수를 고치고 있는 참여사 id
+
+  function openInviteBox(id) {
+    inviteEditing = inviteEditing === id ? null : id;
+    renderHolders();
+    if (inviteEditing) {
+      var el = $("invQty");
+      if (el) { el.focus(); el.select(); }
+    }
+  }
+
+  function saveInviteQuota(id) {
     var x = holderById(id);
-    if (!x) return;
-    var cur = x.inviteQuota || 0;
-    var ans = window.prompt(
-      x.name + " 초청권을 몇 장 드릴까요?\n\n" +
-      "· 좌석 없는 자유석 초대이고, 가장 먼저 입장합니다\n" +
-      "· 지금 " + (cur > 0 ? cur + "장 (" + (x.inviteUsed || 0) + "장 나감)" : "쓰지 않는 중") + "\n" +
-      "· 0 을 넣으면 초청권을 쓰지 않습니다",
-      String(cur)
-    );
-    if (ans === null) return;
-    var n = parseInt(String(ans).replace(/[^0-9]/g, ""), 10);
-    if (isNaN(n)) { toast("숫자를 넣어 주세요", true); return; }
+    var el = $("invQty");
+    if (!x || !el) return;
+    var n = parseInt(String(el.value).replace(/[^0-9]/g, ""), 10);
+    if (isNaN(n)) { toast("숫자를 넣어 주세요", true); el.focus(); return; }
 
     rpc("holder_invite_set", { p_id: id, p_quota: n, p_open: n > 0 }).then(function (d) {
       if (!d || !d.ok) {
@@ -383,8 +387,23 @@
         return;
       }
       toast(n > 0 ? x.name + " 초청권 " + n + "장을 열었습니다" : x.name + " 초청권을 닫았습니다");
+      inviteEditing = null;
       loadShow();
     }).catch(function () { toast("바꾸지 못했습니다", true); });
+  }
+
+  /* 참여사 줄 아래에 펼쳐지는 입력칸 */
+  function inviteBox(x) {
+    var cur = x.inviteQuota || 0, used = x.inviteUsed || 0;
+    return '<div class="invbox">' +
+      "<label>초청권 장수" +
+        '<input type="number" id="invQty" min="' + used + '" max="300" step="1" value="' + cur + '" />' +
+      "</label>" +
+      '<button class="btn sm go" data-act="inviteSave" data-id="' + esc(x.id) + '" type="button">저장</button>' +
+      '<button class="btn sm" data-act="inviteCancel" type="button">취소</button>' +
+      '<div class="invhint">좌석 없는 자유석 초대입니다. 가장 먼저 입장합니다.' +
+        (used ? " 이미 <b>" + used + "장</b>이 나가 그보다 적게는 줄일 수 없습니다." : " 0 을 넣으면 쓰지 않습니다.") +
+      "</div></div>";
   }
 
   function renderHolders() {
@@ -424,7 +443,9 @@
           '<button class="btn sm" data-act="pickAllot" data-id="' + esc(x.id) + '" type="button">배정 보기</button>' +
           '<button class="btn sm" data-act="edit" data-id="' + esc(x.id) + '" type="button">수정</button>' +
           '<button class="btn sm bad" data-act="del" data-id="' + esc(x.id) + '" type="button">삭제</button>' +
-        "</div></div>");
+        "</div>" +
+        (x.id === inviteEditing ? inviteBox(x) : "") +
+        "</div>");
     });
     $("holderList").innerHTML = h.join("");
   }
@@ -656,7 +677,11 @@
       var iurl = location.origin + location.pathname.replace(/[^/]*$/, "") + "invite.html?t=" + b.getAttribute("data-token");
       copyText(iurl).then(function () { toast("초청 링크를 복사했습니다"); }).catch(function () { window.prompt("아래 링크를 복사하세요", iurl); });
     } else if (act === "invite") {
-      setInviteQuota(b.getAttribute("data-id"));
+      openInviteBox(b.getAttribute("data-id"));
+    } else if (act === "inviteSave") {
+      saveInviteQuota(b.getAttribute("data-id"));
+    } else if (act === "inviteCancel") {
+      inviteEditing = null; renderHolders();
     } else if (act === "pickAllot") {
       var x = holderById(b.getAttribute("data-id"));
       if (!x) return;
