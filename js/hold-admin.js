@@ -456,16 +456,15 @@
             : "") +
         "</div>" +
         '<div class="acts">' +
-          '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">초청권' +
-            (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
+          '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">초청권' + (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
           (x.inviteQuota > 0
-            ? '<button class="btn sm pri" data-act="inviteCopy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">초청 링크</button>'
+            ? '<button class="btn sm pri" data-act="inviteCopy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">초청링크</button>'
             : "") +
           (x.isOpen
             ? '<button class="btn sm bad" data-act="open" data-open="0" data-id="' + esc(x.id) + '" type="button">닫기</button>'
             : '<button class="btn sm go" data-act="open" data-open="1" data-id="' + esc(x.id) + '" type="button">열기</button>') +
           '<button class="btn sm pri" data-act="copy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">링크</button>' +
-          '<button class="btn sm" data-act="pickAllot" data-id="' + esc(x.id) + '" type="button">배정 보기</button>' +
+          '<button class="btn sm" data-act="pickAllot" data-id="' + esc(x.id) + '" type="button">배정</button>' +
           '<button class="btn sm" data-act="edit" data-id="' + esc(x.id) + '" type="button">수정</button>' +
           '<button class="btn sm bad" data-act="del" data-id="' + esc(x.id) + '" type="button">삭제</button>' +
         "</div>" +
