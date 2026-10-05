@@ -290,9 +290,25 @@
 
   function loadShow() {
     $("mapTitle").textContent = "불러오는 중…";
-    return rpc("holds_show_map", { p_show_id: showId }).then(function (d) {
+    /* 좌석 지도와 초청권 현황을 함께 받는다. 초청권은 따로 읽어 와서
+       참여사 목록에 붙인다 — 지도 함수는 건드리지 않는다. */
+    return Promise.all([
+      rpc("holds_show_map", { p_show_id: showId }),
+      rpc("invite_board", { p_show_id: showId }).catch(function () { return null; })
+    ]).then(function (res) {
+      var d = res[0], inv = res[1];
       if (!d || !d.ok) { toast("지도를 불러오지 못했습니다", true); return; }
       mapData = d;
+      if (inv && inv.ok) {
+        var by = {};
+        (inv.holders || []).forEach(function (x) { by[x.id] = x; });
+        (mapData.holders || []).forEach(function (h) {
+          var v = by[h.id] || {};
+          h.inviteQuota = v.quota || 0;
+          h.inviteOpen = !!v.open;
+          h.inviteUsed = v.used || 0;
+        });
+      }
       renderShow();
     }).catch(function () { toast("지도를 불러오지 못했습니다", true); });
   }
@@ -339,6 +355,38 @@
     renderMap();
   }
 
+  /* 초청권 장수 정하기 (사무국).
+     0 을 넣으면 초청권을 쓰지 않는다는 뜻이라 신청 창구도 함께 닫는다.
+     이미 나간 장수보다 적게 줄이는 것은 서버가 막는다 — 발급된 초청권은 유효해야 한다. */
+  function setInviteQuota(id) {
+    var x = holderById(id);
+    if (!x) return;
+    var cur = x.inviteQuota || 0;
+    var ans = window.prompt(
+      x.name + " 초청권을 몇 장 드릴까요?\n\n" +
+      "· 좌석 없는 자유석 초대이고, 가장 먼저 입장합니다\n" +
+      "· 지금 " + (cur > 0 ? cur + "장 (" + (x.inviteUsed || 0) + "장 나감)" : "쓰지 않는 중") + "\n" +
+      "· 0 을 넣으면 초청권을 쓰지 않습니다",
+      String(cur)
+    );
+    if (ans === null) return;
+    var n = parseInt(String(ans).replace(/[^0-9]/g, ""), 10);
+    if (isNaN(n)) { toast("숫자를 넣어 주세요", true); return; }
+
+    rpc("holder_invite_set", { p_id: id, p_quota: n, p_open: n > 0 }).then(function (d) {
+      if (!d || !d.ok) {
+        if (d && d.reason === "belowused") {
+          toast("이미 " + d.used + "장이 나갔습니다. 그보다 적게 줄일 수 없습니다", true);
+        } else {
+          toast("바꾸지 못했습니다", true);
+        }
+        return;
+      }
+      toast(n > 0 ? x.name + " 초청권 " + n + "장을 열었습니다" : x.name + " 초청권을 닫았습니다");
+      loadShow();
+    }).catch(function () { toast("바꾸지 못했습니다", true); });
+  }
+
   function renderHolders() {
     var d = mapData;
     if (!d.holders.length) {
@@ -357,8 +405,18 @@
             (x.maxSeats != null ? " · 한도 <b>" + x.maxSeats + "</b>" : "") +
             (x.contactName ? " · " + esc(x.contactName) : "") +
             (x.savedAt ? " · " + when(x.savedAt) : "") + "</div>" +
+          /* 초청권(좌석 없는 자유석 초대) — 장수를 정해두면 그만큼만 나간다 */
+          (x.inviteQuota > 0
+            ? '<div class="meta">초청권 <b>' + x.inviteUsed + " / " + x.inviteQuota + "</b>장 나감" +
+              (x.inviteOpen ? "" : " · <b>신청 닫힘</b>") + "</div>"
+            : "") +
         "</div>" +
         '<div class="acts">' +
+          '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">초청권' +
+            (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
+          (x.inviteQuota > 0
+            ? '<button class="btn sm pri" data-act="inviteCopy" data-token="' + esc(x.token) + '" type="button">초청 링크</button>'
+            : "") +
           (x.isOpen
             ? '<button class="btn sm bad" data-act="open" data-open="0" data-id="' + esc(x.id) + '" type="button">닫기</button>'
             : '<button class="btn sm go" data-act="open" data-open="1" data-id="' + esc(x.id) + '" type="button">열기</button>') +
@@ -594,6 +652,11 @@
     if (act === "copy") {
       var url = location.origin + location.pathname.replace(/[^/]*$/, "") + "hold.html?t=" + b.getAttribute("data-token");
       copyText(url).then(function () { toast("링크를 복사했습니다"); }).catch(function () { window.prompt("아래 링크를 복사하세요", url); });
+    } else if (act === "inviteCopy") {
+      var iurl = location.origin + location.pathname.replace(/[^/]*$/, "") + "invite.html?t=" + b.getAttribute("data-token");
+      copyText(iurl).then(function () { toast("초청 링크를 복사했습니다"); }).catch(function () { window.prompt("아래 링크를 복사하세요", iurl); });
+    } else if (act === "invite") {
+      setInviteQuota(b.getAttribute("data-id"));
     } else if (act === "pickAllot") {
       var x = holderById(b.getAttribute("data-id"));
       if (!x) return;
