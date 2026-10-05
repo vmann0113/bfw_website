@@ -54,7 +54,22 @@ async function maybeOpen(dry) {
   } catch (e) {
     return { acted: false, why: "켜지 못함", detail: String(e && e.message), now: now };
   }
-  return { acted: true, why: "관람 예약을 열었습니다", now: now };
+
+  /* 오픈 전 주최측이 시연으로 만든 예약(source='demo')을 지운다.
+     사람이 지우는 걸 잊어도 깨끗한 숫자로 시작하게 하려는 것이다.
+     지우지 못해도 오픈 자체는 이미 끝났으므로 결과만 적어 돌려준다. */
+  let purged = null;
+  try {
+    const rows = await L.sb("/rest/v1/reservations?source=eq.demo&select=id", {
+      method: "DELETE",
+      headers: { Prefer: "return=representation" }
+    });
+    purged = Array.isArray(rows) ? rows.length : 0;
+  } catch (e) {
+    purged = "실패: " + String(e && e.message);
+  }
+
+  return { acted: true, why: "관람 예약을 열었습니다", now: now, demoPurged: purged };
 }
 
 module.exports = { OPEN_AT, kstNow, maybeOpen };
