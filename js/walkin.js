@@ -77,6 +77,13 @@
         d.nextAt + " 부터");
       return;
     }
+    /* 한도가 0 이면 애초에 받지 않는 패션쇼다 ('다 찼다'와 구분해서 알린다) */
+    if (d.cap <= 0) {
+      notice("이 패션쇼는 현장등록을 받지 않습니다",
+        "<b>" + esc(d.show.titleKo || d.show.title) + "</b> 는 현장등록 대상이 아닙니다.<br>" +
+        "다른 패션쇼를 이용해 주세요.");
+      return;
+    }
     if (d.left <= 0) {
       notice("현장등록이 마감되었습니다",
         "<b>" + esc(d.show.titleKo || d.show.title) + "</b> 의 현장등록 " + d.cap + "명이 모두 찼습니다.<br>" +
