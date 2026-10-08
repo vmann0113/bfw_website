@@ -952,6 +952,7 @@
         "<td>" + esc(r.phone) + "</td>" +
         '<td><span class="pill ' + (r.checkedIn ? "entered" : "reserved") + '">' + (r.checkedIn ? "입장완료" : "예약") + "</span></td>" +
         '<td><div class="row-acts">' +
+          '<button class="btn ghost sm" data-act="edit">수정</button>' +
           '<button class="btn ghost sm" data-act="toggle">' + (r.checkedIn ? "입장취소" : "입장처리") + "</button>" +
           '<button class="btn danger sm" data-act="cancel">취소</button>' +
         "</div></td>";
@@ -961,9 +962,82 @@
       tr.querySelector('[data-act=cancel]').addEventListener("click", function () {
         if (confirm("이 예약을 취소할까요?")) BFWApi.cancel(r.id).then(renderResv);
       });
+      tr.querySelector('[data-act=edit]').addEventListener("click", function () { editRow(tr, r); });
       body.appendChild(tr);
     });
   }
+  /* 명단 오타 수정 — 그 줄을 그 자리에서 입력칸으로 바꾼다.
+     쇼·좌석·상태는 건드리지 않는다. 바꿀 수 있는 건 이름·연락처·이메일 셋뿐이다.
+     이미 보낸 알림톡의 이름은 바뀌지 않는다(다시 보내지 않는다). */
+  var EDIT_REASON = {
+    forbidden: "스태프 로그인이 필요합니다.",
+    notfound: "이 예약을 찾을 수 없습니다. 목록을 새로 불러와 주세요.",
+    badname: "이름을 두 자 이상 적어 주세요.",
+    badphone: "연락처를 정확히 적어 주세요.",
+    dup: "이 쇼에 같은 연락처로 된 예약이 이미 있습니다.",
+    network: "연결이 고르지 않습니다. 잠시 후 다시 시도해 주세요."
+  };
+  function editRow(tr, r) {
+    if (tr.dataset.editing === "1") return;
+    tr.dataset.editing = "1";
+    var tds = tr.children;           // 0 신청시각 · 1 예약번호 · 2 쇼 · 3 이름 · 4 연락처 · 5 상태 · 6 작업
+    var keep = [tds[3].innerHTML, tds[4].innerHTML, tds[6].innerHTML];
+
+    tds[3].innerHTML = '<input class="ed-in" data-f="name" value="' + esc(r.name || "") + '" placeholder="이름">';
+    tds[4].innerHTML =
+      '<input class="ed-in" data-f="phone" inputmode="numeric" value="' + esc(r.phone || "") + '" placeholder="010-0000-0000">' +
+      '<input class="ed-in ed-sub" data-f="email" value="' + esc(r.email || "") + '" placeholder="이메일 (없으면 비움)">';
+    tds[6].innerHTML =
+      '<div class="row-acts"><button class="btn sm" data-act="save">저장</button>' +
+      '<button class="btn ghost sm" data-act="undo">되돌리기</button></div>' +
+      '<div class="ed-err" style="display:none"></div>';
+
+    function field(f) { return tr.querySelector('[data-f=' + f + ']'); }
+    function restore() {
+      tds[3].innerHTML = keep[0]; tds[4].innerHTML = keep[1]; tds[6].innerHTML = keep[2];
+      tr.dataset.editing = "";
+      tr.querySelector('[data-act=toggle]').addEventListener("click", function () {
+        (r.checkedIn ? BFWApi.undoCheckIn(r.id) : BFWApi.checkIn("BFW-" + r.code)).then(renderResv);
+      });
+      tr.querySelector('[data-act=cancel]').addEventListener("click", function () {
+        if (confirm("이 예약을 취소할까요?")) BFWApi.cancel(r.id).then(renderResv);
+      });
+      tr.querySelector('[data-act=edit]').addEventListener("click", function () { editRow(tr, r); });
+    }
+    tr.querySelector('[data-act=undo]').addEventListener("click", restore);
+    field("name").focus();
+
+    tr.querySelector('[data-act=save]').addEventListener("click", function () {
+      var btn = this;
+      var err = tr.querySelector(".ed-err");
+      var name = field("name").value.trim();
+      var phone = field("phone").value.trim();
+      var email = field("email").value.trim();
+      err.style.display = "none";
+
+      // 바뀐 것만 보낸다. 아무것도 안 바뀌었으면 그냥 닫는다.
+      var patch = {};
+      if (name !== (r.name || "")) patch.name = name;
+      if (phone !== (r.phone || "")) patch.phone = phone;
+      if (email !== (r.email || "")) patch.email = email;
+      if (!Object.keys(patch).length) { restore(); return; }
+
+      btn.disabled = true;
+      btn.textContent = "저장 중…";
+      BFWApi.editReservation(r.id, patch).then(function (res) {
+        btn.disabled = false;
+        btn.textContent = "저장";
+        if (!res.ok) {
+          err.textContent = EDIT_REASON[res.reason] || "지금 수정하지 못했습니다.";
+          err.style.display = "block";
+          return;
+        }
+        toast("수정했습니다 — BFW-" + r.code);
+        renderResv();
+      });
+    });
+  }
+
   $("resvRefresh").addEventListener("click", renderResv);
   $("resvClear").addEventListener("click", function () {
     if (confirm("모든 예약 내역을 삭제할까요? 되돌릴 수 없습니다.")) BFWApi.clearAll().then(renderResv);

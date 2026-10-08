@@ -399,6 +399,23 @@
       }
       return Promise.resolve(BFW.cancelResv(id));
     },
+    /* 명단 오타 수정 (스태프 전용) — 이름·연락처·이메일만 고친다.
+       patch 에 담지 않은 항목은 그대로 둔다. email 에 "" 를 주면 지운다. */
+    editReservation: function (id, patch) {
+      var p = patch || {};
+      if (BACKEND) {
+        return rpc("reservation_edit", {
+          p_id: id,
+          p_name: p.name == null ? null : p.name,
+          p_phone: p.phone == null ? null : p.phone,
+          p_email: p.email == null ? null : p.email
+        }).then(function (d) {
+          if (d && d.ok) return { ok: true, entry: d };
+          return { ok: false, reason: (d && d.reason) || "error" };
+        }).catch(function () { return { ok: false, reason: "network" }; });
+      }
+      return Promise.resolve({ ok: false, reason: "offline" });
+    },
 
     /* ---- admin: list all (optionally one show) ---- */
     /* 내보내기용 : 사전등록·초청권·내빈(reserved) 에 더해 현장등록(entered)까지 담는다.

@@ -254,6 +254,12 @@ tr:last-child td { border-bottom: 0; }
 .pill.entered { background: color-mix(in oklch, var(--a-ok) 16%, transparent); color: var(--a-ok); }
 td .row-acts { display: flex; gap: 6px; }
 
+/* 명단 오타 수정 — 그 줄 안에서 바로 고친다 */
+.ed-in { width: 100%; min-width: 108px; font: inherit; color: var(--a-ink); background: var(--a-bg); border: 1.5px solid var(--a-accent); border-radius: 8px; padding: 7px 9px; }
+.ed-in:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--a-accent) 18%, transparent); }
+.ed-in.ed-sub { margin-top: 5px; font-size: .82rem; border-color: var(--a-line); }
+.ed-err { margin-top: 6px; font-size: .78rem; line-height: 1.45; color: var(--a-danger, #b3122a); }
+
 /* check-in */
 .checkin-search { display: flex; gap: 10px; flex-wrap: wrap; }
 .checkin-search input { flex: 1; min-width: 240px; font-family: var(--a-mono); font-size: 1rem; color: var(--a-ink); background: var(--a-bg); border: 1.5px solid var(--a-line); border-radius: 10px; padding: 14px 16px; }
