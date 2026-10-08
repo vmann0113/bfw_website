@@ -893,6 +893,7 @@
       renderResvStats();
       populateFilter();
       renderResvTable();
+      renderEditLog();
     });
   }
   function renderResvStats() {
@@ -1037,6 +1038,39 @@
       });
     });
   }
+
+  /* 수정 이력 — 되돌릴 때 원래 값을 찾아보는 표다 */
+  var ED_FIELD = { name: "이름", phone: "연락처", email: "이메일" };
+  function renderEditLog() {
+    var body = $("edlogBody");
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">불러오는 중…</div></td></tr>';
+    BFWApi.editHistory(200).then(function (rows) {
+      body.innerHTML = "";
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5"><div class="empty-state">수정한 기록이 없습니다.</div></td></tr>';
+        return;
+      }
+      rows.forEach(function (l) {
+        var ch = l.changed || {};
+        var parts = Object.keys(ED_FIELD).filter(function (k) { return ch[k]; }).map(function (k) {
+          var from = ch[k].from == null || ch[k].from === "" ? "(없음)" : ch[k].from;
+          var to = ch[k].to == null || ch[k].to === "" ? "(지움)" : ch[k].to;
+          return '<div><b>' + ED_FIELD[k] + '</b> ' + esc(from) + " → " + esc(to) + "</div>";
+        });
+        var s = (cfg.shows || []).find(function (x) { return x.id === l.show_id; }) || {};
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + fmtDate(l.created_at) + "</td>" +
+          '<td style="font-family:var(--a-mono)">BFW-' + esc(l.code) + "</td>" +
+          "<td>" + esc(l.show_id) + (s.titleKo ? " · " + esc(s.titleKo) : "") + "</td>" +
+          '<td class="edlog-chg">' + (parts.join("") || "—") + "</td>" +
+          "<td>" + esc(l.actor_email || "—") + "</td>";
+        body.appendChild(tr);
+      });
+    });
+  }
+  if ($("edlogRefresh")) $("edlogRefresh").addEventListener("click", renderEditLog);
 
   $("resvRefresh").addEventListener("click", renderResv);
   $("resvClear").addEventListener("click", function () {

@@ -416,6 +416,15 @@
       }
       return Promise.resolve({ ok: false, reason: "offline" });
     },
+    /* 명단 수정 이력 (스태프 전용) */
+    editHistory: function (limit) {
+      if (BACKEND) {
+        return rpc("resv_edit_history", { p_limit: limit || 100 })
+          .then(function (d) { return (d && d.ok && d.rows) || []; })
+          .catch(function () { return []; });
+      }
+      return Promise.resolve([]);
+    },
 
     /* ---- admin: list all (optionally one show) ---- */
     /* 내보내기용 : 사전등록·초청권·내빈(reserved) 에 더해 현장등록(entered)까지 담는다.

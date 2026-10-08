@@ -259,6 +259,8 @@ td .row-acts { display: flex; gap: 6px; }
 .ed-in:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--a-accent) 18%, transparent); }
 .ed-in.ed-sub { margin-top: 5px; font-size: .82rem; border-color: var(--a-line); }
 .ed-err { margin-top: 6px; font-size: .78rem; line-height: 1.45; color: var(--a-danger, #b3122a); }
+td.edlog-chg { font-size: .84rem; line-height: 1.6; }
+td.edlog-chg b { color: var(--a-mute); font-weight: 600; margin-right: 4px; }
 
 /* check-in */
 .checkin-search { display: flex; gap: 10px; flex-wrap: wrap; }
