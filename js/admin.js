@@ -8,6 +8,46 @@
   var dirty = false;
 
   var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- 관리자 화면 전체 잠금 ----------
+     admin.html 은 주소만 알면 누구나 열 수 있었다. 명단·집계는 서버가
+     스태프만 내주므로 자료가 샌 적은 없지만, 화면 자체도 막아둔다.
+     세션이 끊기면(api.js 의 bfw-staff-expired) 다시 잠긴다. */
+  (function adminGate() {
+    var gate = $("adminGate");
+    if (!gate) return;
+    function unlock() { if (gate.parentNode) gate.parentNode.removeChild(gate); }
+    function lock() {
+      if (!gate.parentNode) document.body.appendChild(gate);
+      $("agErr").textContent = "";
+      $("agPw").value = "";
+    }
+    if (window.BFWApi && BFWApi.hasStaff()) { unlock(); }
+    else { setTimeout(function () { $("agEmail").focus(); }, 60); }
+
+    $("adminGateForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var btn = this.querySelector("button");
+      btn.disabled = true;
+      btn.textContent = "확인 중…";
+      BFWApi.staffSignIn($("agEmail").value.trim(), $("agPw").value).then(function (r) {
+        btn.disabled = false;
+        btn.textContent = "로그인";
+        if (r && r.ok) { unlock(); return; }
+        $("agErr").textContent = (r && r.error) || "로그인 실패";
+        $("agPw").value = "";
+      });
+    });
+    window.addEventListener("bfw-staff-expired", lock);
+
+    var out = $("logoutBtn");
+    if (out) out.addEventListener("click", function (e) {
+      e.preventDefault();
+      BFWApi.staffSignOut();
+      lock();
+    });
+  })();
+
   var saveState = $("saveState");
 
   function markDirty() {

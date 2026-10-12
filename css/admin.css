@@ -199,6 +199,8 @@ tr:last-child td { border-bottom: 0; }
 /* staff login gate */
 .staff-gate { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: color-mix(in oklch, var(--a-ink) 60%, transparent); backdrop-filter: blur(4px); }
 .staff-card { background: var(--a-panel); border: 1px solid var(--a-line); border-radius: 16px; padding: 28px; width: min(380px, 90vw); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 30px 70px -20px rgba(0,0,0,.5); }
+/* 화면 전체 잠금은 반투명이 아니라 완전히 덮는다 — 뒤가 비쳐 보이면 안 된다 */
+#adminGate { z-index: 9999; background: var(--a-bg); backdrop-filter: none; }
 .staff-card h3 { margin: 0; font-size: 1.2rem; }
 .staff-card p { margin: 0 0 4px; font-size: .86rem; color: var(--a-mute); }
 .staff-card input { font: inherit; padding: 12px 14px; border: 1px solid var(--a-line); border-radius: 10px; background: var(--a-bg); color: var(--a-ink); }
