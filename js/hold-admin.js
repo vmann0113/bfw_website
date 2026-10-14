@@ -290,7 +290,7 @@
 
   function loadShow() {
     $("mapTitle").textContent = "불러오는 중…";
-    /* 좌석 지도와 초청권 현황을 함께 받는다. 초청권은 따로 읽어 와서
+    /* 좌석 지도와 확보좌석 현황을 함께 받는다. 확보좌석은 따로 읽어 와서
        참여사 목록에 붙인다 — 지도 함수는 건드리지 않는다. */
     return Promise.all([
       rpc("holds_show_map", { p_show_id: showId }),
@@ -355,10 +355,10 @@
     renderMap();
   }
 
-  /* 초청권 장수 정하기 (사무국).
+  /* 확보좌석 장수 정하기 (사무국).
      브라우저가 prompt 대화상자를 막는 경우가 있어 화면 안에서 입력받는다.
-     0 을 넣으면 초청권을 쓰지 않는다는 뜻이라 신청 창구도 함께 닫는다.
-     이미 나간 장수보다 적게 줄이는 것은 서버가 막는다 — 발급된 초청권은 유효해야 한다. */
+     0 을 넣으면 확보좌석을 쓰지 않는다는 뜻이라 신청 창구도 함께 닫는다.
+     이미 나간 장수보다 적게 줄이는 것은 서버가 막는다 — 발급된 확보좌석은 유효해야 한다. */
   var inviteEditing = null;   // 지금 장수를 고치고 있는 참여사 id
 
   function openInviteBox(id) {
@@ -386,7 +386,7 @@
         }
         return;
       }
-      toast(n > 0 ? x.name + " 초청권 " + n + "장을 열었습니다" : x.name + " 초청권을 닫았습니다");
+      toast(n > 0 ? x.name + " 확보좌석 " + n + "석을 열었습니다" : x.name + " 확보좌석을 닫았습니다");
       inviteEditing = null;
       loadShow();
     }).catch(function () { toast("바꾸지 못했습니다", true); });
@@ -421,7 +421,7 @@
   function inviteBox(x) {
     var cur = x.inviteQuota || 0, used = x.inviteUsed || 0;
     return '<div class="invbox">' +
-      "<label>초청권 장수" +
+      "<label>확보좌석 수" +
         '<input type="number" id="invQty" min="' + used + '" max="300" step="1" value="' + cur + '" />' +
       "</label>" +
       '<button class="btn sm go" data-act="inviteSave" data-id="' + esc(x.id) + '" type="button">저장</button>' +
@@ -449,16 +449,16 @@
             (x.maxSeats != null ? " · 한도 <b>" + x.maxSeats + "</b>" : "") +
             (x.contactName ? " · " + esc(x.contactName) : "") +
             (x.savedAt ? " · " + when(x.savedAt) : "") + "</div>" +
-          /* 초청권(좌석 없는 자유석 초대) — 장수를 정해두면 그만큼만 나간다 */
+          /* 확보좌석(좌석 없는 자유석 초대) — 장수를 정해두면 그만큼만 나간다 */
           (x.inviteQuota > 0
-            ? '<div class="meta">초청권 <b>' + x.inviteUsed + " / " + x.inviteQuota + "</b>장 나감" +
+            ? '<div class="meta">확보좌석 <b>' + x.inviteUsed + " / " + x.inviteQuota + "</b>석 사용" +
               (x.inviteOpen ? "" : " · <b>신청 닫힘</b>") + "</div>"
             : "") +
         "</div>" +
         '<div class="acts">' +
-          '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">초청권' + (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
+          '<button class="btn sm" data-act="invite" data-id="' + esc(x.id) + '" type="button">확보좌석' + (x.inviteQuota > 0 ? " " + x.inviteQuota : "") + "</button>" +
           (x.inviteQuota > 0
-            ? '<button class="btn sm pri" data-act="inviteCopy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">초청링크</button>'
+            ? '<button class="btn sm pri" data-act="inviteCopy" data-id="' + esc(x.id) + '" data-token="' + esc(x.token) + '" type="button">확보링크</button>'
             : "") +
           (x.isOpen
             ? '<button class="btn sm bad" data-act="open" data-open="0" data-id="' + esc(x.id) + '" type="button">닫기</button>'
@@ -703,7 +703,7 @@
     if (act === "copy") {
       showLink(b.getAttribute("data-id"), "hold.html?t=" + b.getAttribute("data-token"), "좌석 확보 링크");
     } else if (act === "inviteCopy") {
-      showLink(b.getAttribute("data-id"), "invite.html?t=" + b.getAttribute("data-token"), "초청 링크");
+      showLink(b.getAttribute("data-id"), "invite.html?t=" + b.getAttribute("data-token"), "확보좌석 링크");
     } else if (act === "linkClose") {
       linkBox = null; renderHolders();
     } else if (act === "invite") {

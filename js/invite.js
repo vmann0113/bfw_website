@@ -1,5 +1,5 @@
 /* ===========================================================
-   BUSAN FASHION WEEK — 브랜드 초청권 신청 (invite.html)
+   BUSAN FASHION WEEK — 브랜드 확보좌석 신청 (invite.html)
 
    참여사가 받은 링크(invite.html?t=토큰)를 손님에게 뿌리면,
    손님이 이름·연락처만 넣고 사전등록과 똑같은 QR 입장권을 받는다.
@@ -62,16 +62,16 @@
       return;
     }
     SHOW = d.show || {};
-    document.title = d.brand + " 초청권 | 2026 부산패션위크";
-    $("hTitle").innerHTML = esc(d.brand) + "<br>초청권 신청";
+    document.title = d.brand + " 확보좌석 | 2026 부산패션위크";
+    $("hTitle").innerHTML = esc(d.brand) + "<br>확보좌석 신청";
 
     if (!d.open || d.quota <= 0) {
-      notice("아직 신청을 받지 않습니다", "초청권 신청이 열리면 다시 안내해 드립니다.");
+      notice("아직 신청을 받지 않습니다", "확보좌석 신청이 열리면 다시 안내해 드립니다.");
       return;
     }
     if (d.left <= 0) {
-      notice("초청권이 모두 나갔습니다",
-        esc(d.brand) + " 초청권 " + d.quota + "장이 모두 신청되었습니다.<br>초대해 주신 곳으로 문의해 주세요.");
+      notice("확보좌석이 모두 나갔습니다",
+        esc(d.brand) + " 확보좌석 " + d.quota + "장이 모두 신청되었습니다.<br>초대해 주신 곳으로 문의해 주세요.");
       return;
     }
 
@@ -92,8 +92,8 @@
 
   var REASON = {
     badtoken: "링크가 올바르지 않습니다. 받으신 주소를 다시 확인해 주세요.",
-    closed:   "지금은 초청권 신청을 받지 않습니다.",
-    full:     "초청권이 모두 나갔습니다. 초대해 주신 곳으로 문의해 주세요.",
+    closed:   "지금은 확보좌석 신청을 받지 않습니다.",
+    full:     "확보좌석이 모두 나갔습니다. 초대해 주신 곳으로 문의해 주세요.",
     badname:  "이름을 정확히 적어 주세요.",
     badphone: "연락처를 정확히 적어 주세요.",
     dup:      "이 연락처로 같은 패션쇼를 이미 신청하셨습니다.",
@@ -126,7 +126,7 @@
     Api.inviteClaim(token, { name: name, phone: phone, email: email, marketing: false })
       .then(function (res) {
         btn.disabled = false;
-        btn.textContent = "초청권 받기";
+        btn.textContent = "확보좌석 받기";
         if (!res.ok) {
           err.textContent = REASON[res.reason] || "지금 발급하지 못했습니다. 잠시 후 다시 시도해 주세요.";
           err.style.display = "block";

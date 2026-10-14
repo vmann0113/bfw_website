@@ -1118,7 +1118,7 @@
   });
   /* 명단 내보내기 — 네 갈래를 한 파일에 담는다.
      화면 목록은 예약만 보여주지만, 파일에는 현장등록까지 들어간다(최종 보고용). */
-  var SRC_LABEL = { web: "사전등록", brand: "브랜드 초청권", invite: "주최측 내빈", walkin: "현장등록" };
+  var SRC_LABEL = { web: "사전등록", brand: "브랜드 확보좌석", invite: "주최측 내빈", walkin: "현장등록" };
 
   $("resvCsv").addEventListener("click", function () {
     var btn = $("resvCsv");
@@ -1128,7 +1128,7 @@
       var list = res[0] || [], names = res[1] || {};
       if (!list.length) { toast("내보낼 내역이 없습니다.", true); return; }
 
-      var head = ["구분", "초청브랜드", "예약번호", "쇼", "쇼이름", "일자", "시간",
+      var head = ["구분", "확보브랜드", "예약번호", "쇼", "쇼이름", "일자", "시간",
                   "이름", "연락처", "이메일", "마케팅동의", "입장", "입장시각", "신청시각"];
       var rows = [head.join(",")].concat(list.map(function (r) {
         var cells = [
@@ -1313,7 +1313,7 @@
     });
   }
   /* 입장을 네 갈래로 나눠 센다 — 최종 보고가 이 표 그대로 나간다.
-     사전등록 / 브랜드 초청권 / 주최측 내빈 / 현장등록.
+     사전등록 / 브랜드 확보좌석 / 주최측 내빈 / 현장등록.
      '예약'은 받은 수, '입장'은 실제로 들어온 수다. 현장등록은 등록이 곧 입장이라 한 칸이다. */
   function renderWalkinStats() {
     var box = $("wkStats");
@@ -1324,7 +1324,7 @@
       if (!rows.length) { box.innerHTML = '<div class="empty-state">집계할 자료가 없습니다.</div>'; return; }
       var t = { wb: 0, we: 0, bb: 0, be: 0, ib: 0, ie: 0, wk: 0 };
       var h = '<table class="wk-table"><thead><tr>' +
-        '<th>쇼</th><th>사전등록<br><span>예약 / 입장</span></th><th>초청권<br><span>예약 / 입장</span></th>' +
+        '<th>쇼</th><th>사전등록<br><span>예약 / 입장</span></th><th>확보좌석<br><span>예약 / 입장</span></th>' +
         '<th>내빈<br><span>예약 / 입장</span></th><th>현장등록</th><th>입장 합계</th></tr></thead><tbody>';
       rows.forEach(function (r) {
         var w = r.web || {}, b = r.brand || {}, iv = r.invite || {}, wk = r.walkin || {};
@@ -1392,11 +1392,11 @@
     });
   }
   /* ---------- 입장 순서 ----------
-     브랜드 초청권 → 사전등록 → 현장등록 순으로 들여보낸다.
+     브랜드 확보좌석 → 사전등록 → 현장등록 순으로 들여보낸다.
      시스템이 막지는 않는다. 현장에서 줄이 섞일 때 기계가 가로막으면 더 큰 사고가 난다.
      지금 단계보다 늦은 순위가 찍히면 빨간 경고만 띄우고, 통과 여부는 스태프가 정한다. */
   var TIER = {
-    brand:  { n: 1, label: "초청권",   full: "브랜드 초청권 · 1순위" },
+    brand:  { n: 1, label: "확보좌석",   full: "브랜드 확보좌석 · 1순위" },
     web:    { n: 2, label: "사전등록", full: "사전등록 · 2순위" },
     walkin: { n: 3, label: "현장등록", full: "현장등록 · 3순위" },
     invite: { n: 0, label: "내빈",     full: "주최측 내빈 · 지정석" }
@@ -1410,7 +1410,7 @@
     var box = $("ciStage");
     if (!box) return;
     box.innerHTML = [1, 2, 3].map(function (n) {
-      var t = n === 1 ? "① 초청권" : n === 2 ? "② 사전등록" : "③ 현장등록";
+      var t = n === 1 ? "① 확보좌석" : n === 2 ? "② 사전등록" : "③ 현장등록";
       return '<button type="button" class="cis' + (n === ciStage ? " on" : "") + '" data-stage="' + n + '">' + t + "</button>";
     }).join("") + '<span class="cis-hint">지금 들여보내는 순서입니다. 늦은 순위가 찍히면 경고만 뜹니다.</span>';
     box.querySelectorAll("button").forEach(function (b) {
@@ -1437,7 +1437,7 @@
       '<div class="ci-card ' + cls + '">' +
         '<div class="ci-tier t' + t.n + '">' + esc(t.full) + "</div>" +
         (early ? '<div class="ci-early">지금은 ' +
-          (ciStage === 1 ? "초청권" : ciStage === 2 ? "사전등록" : "현장등록") +
+          (ciStage === 1 ? "확보좌석" : ciStage === 2 ? "사전등록" : "현장등록") +
           ' 차례입니다 — 이분은 <b>' + esc(t.label) + '</b> 입니다</div>' : "") +
         '<div class="ci-status">' + status + '</div>' +
         '<div class="ci-name">' + esc(r.name) + '</div>' +

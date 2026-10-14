@@ -271,7 +271,7 @@
         .catch(function () { return { ok: false, reason: "network" }; });
     },
 
-    /* ---- 브랜드 초청권 : 좌석 없는 사전등록 ---- */
+    /* ---- 브랜드 확보좌석 : 좌석 없는 사전등록 ---- */
     inviteView: function (token) {
       if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
       return rpc("invite_view", { p_token: token })
@@ -318,7 +318,7 @@
       return Promise.resolve({ ok: true });
     },
 
-    /* ---- 스태프: 초청자 배정 ---- */
+    /* ---- 스태프: 확보 참여사 배정 ---- */
     inviteAssign: function (e) {
       if (BACKEND) {
         return rpc("invite_assign", {
@@ -427,7 +427,7 @@
     },
 
     /* ---- admin: list all (optionally one show) ---- */
-    /* 내보내기용 : 사전등록·초청권·내빈(reserved) 에 더해 현장등록(entered)까지 담는다.
+    /* 내보내기용 : 사전등록·확보좌석·내빈(reserved) 에 더해 현장등록(entered)까지 담는다.
        화면 목록은 지금처럼 예약만 보여주고, 파일에만 네 갈래가 모두 들어간다. */
     listForExport: function () {
       if (!BACKEND) return Promise.resolve([]);
@@ -435,7 +435,7 @@
         .then(function (rows) { return (rows || []).map(fromRow); })
         .catch(function () { return []; });
     },
-    /* 초청권을 준 참여사 이름 (id → 이름). holder_list 에는 id 가 없어 현황판을 쓴다. */
+    /* 확보좌석을 준 참여사 이름 (id → 이름). holder_list 에는 id 가 없어 현황판을 쓴다. */
     holderNames: function () {
       if (!BACKEND) return Promise.resolve({});
       return rpc("holds_board", {}).then(function (d) {
@@ -474,7 +474,7 @@
       } catch (e) {}
       return Promise.resolve({ ok: true });
     },
-    /* 구분 집계 : 사전등록 · 브랜드 초청권 · 주최측 내빈 · 현장등록 */
+    /* 구분 집계 : 사전등록 · 브랜드 확보좌석 · 주최측 내빈 · 현장등록 */
     attendanceReport: function () {
       if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
       return rpc("attendance_report", {})
