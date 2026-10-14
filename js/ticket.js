@@ -46,16 +46,17 @@
            (r.end_time ? "–" + r.end_time : "");
   }
 
-  /* 어느 줄로 와야 하는지. 입장 순서가 셋으로 나뉘므로 입장권에 적어 둔다.
-     브랜드 확보좌석 → 사전등록 → 현장등록 순으로 들어온다. */
+  /* 어느 줄로 와야 하는지.
+     확보좌석은 사전등록과 입장 방식이 같아 같은 줄로 안내한다.
+     우선 입장은 VIP 초청장뿐이고, 그분들은 지정석이라 줄을 서지 않는다. */
   function lineBar(source) {
-    if (source === "brand") {
-      return '<div class="t-line first"><b>확보좌석 입장줄</b><span>가장 먼저 입장합니다</span></div>';
-    }
     if (source === "invite") {
       return '<div class="t-line"><b>내빈 입장</b><span>지정된 좌석으로 안내해 드립니다</span></div>';
     }
-    return '<div class="t-line"><b>사전등록 입장줄</b><span>확보좌석 다음으로 입장합니다</span></div>';
+    if (source === "walkin") {
+      return '<div class="t-line"><b>현장등록 입장줄</b><span>사전등록 관람객 다음으로 입장합니다</span></div>';
+    }
+    return '<div class="t-line"><b>사전등록 입장줄</b><span>시작 20분 전까지 입장대기해 주세요</span></div>';
   }
 
   function ticketEl(r) {

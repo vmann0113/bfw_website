@@ -426,8 +426,8 @@
       "</label>" +
       '<button class="btn sm go" data-act="inviteSave" data-id="' + esc(x.id) + '" type="button">저장</button>' +
       '<button class="btn sm" data-act="inviteCancel" type="button">취소</button>' +
-      '<div class="invhint">좌석 없는 자유석 초대입니다. 가장 먼저 입장합니다.' +
-        (used ? " 이미 <b>" + used + "장</b>이 나가 그보다 적게는 줄일 수 없습니다." : " 0 을 넣으면 쓰지 않습니다.") +
+      '<div class="invhint">좌석 없는 자유석이며, 입장은 사전등록과 같습니다.' +
+        (used ? " 이미 <b>" + used + "석</b>이 나가 그보다 적게는 줄일 수 없습니다." : " 0 을 넣으면 쓰지 않습니다.") +
       "</div></div>";
   }
 

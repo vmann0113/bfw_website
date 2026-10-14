@@ -1392,31 +1392,35 @@
     });
   }
   /* ---------- 입장 순서 ----------
-     브랜드 확보좌석 → 사전등록 → 현장등록 순으로 들여보낸다.
+     사전등록 → 현장등록 두 단계뿐이다.
+     브랜드 확보좌석은 사전등록과 입장 방식이 같아 같은 단계로 본다.
+     우선 입장은 VIP 초청장뿐이고, 그분들은 지정석이라 줄을 서지 않는다.
      시스템이 막지는 않는다. 현장에서 줄이 섞일 때 기계가 가로막으면 더 큰 사고가 난다.
-     지금 단계보다 늦은 순위가 찍히면 빨간 경고만 띄우고, 통과 여부는 스태프가 정한다. */
+     지금 단계보다 늦은 순서가 찍히면 빨간 경고만 띄우고, 통과 여부는 스태프가 정한다. */
   var TIER = {
-    brand:  { n: 1, label: "확보좌석",   full: "브랜드 확보좌석 · 1순위" },
-    web:    { n: 2, label: "사전등록", full: "사전등록 · 2순위" },
-    walkin: { n: 3, label: "현장등록", full: "현장등록 · 3순위" },
-    invite: { n: 0, label: "내빈",     full: "주최측 내빈 · 지정석" }
+    brand:  { n: 1, label: "확보좌석", full: "브랜드 확보좌석 · 사전등록과 같은 입장" },
+    web:    { n: 1, label: "사전등록", full: "사전등록" },
+    walkin: { n: 2, label: "현장등록", full: "현장등록 · 사전등록 다음" },
+    invite: { n: 0, label: "내빈",     label2: "", full: "주최측 내빈 · 지정석" }
   };
+  /* 단계 번호가 3개에서 2개로 바뀌었다. 예전 값(최대 3)이 남은 기기가
+     엉뚱한 단계로 열리지 않도록 저장 키를 새로 쓴다. */
   var ciStage = (function () {
-    try { return parseInt(localStorage.getItem("bfw_ci_stage") || "2", 10) || 2; }
-    catch (e) { return 2; }
+    try { return parseInt(localStorage.getItem("bfw_ci_stage2") || "1", 10) || 1; }
+    catch (e) { return 1; }
   })();
 
   function renderCiStage() {
     var box = $("ciStage");
     if (!box) return;
-    box.innerHTML = [1, 2, 3].map(function (n) {
-      var t = n === 1 ? "① 확보좌석" : n === 2 ? "② 사전등록" : "③ 현장등록";
+    box.innerHTML = [1, 2].map(function (n) {
+      var t = n === 1 ? "① 사전등록 · 확보좌석" : "② 현장등록";
       return '<button type="button" class="cis' + (n === ciStage ? " on" : "") + '" data-stage="' + n + '">' + t + "</button>";
-    }).join("") + '<span class="cis-hint">지금 들여보내는 순서입니다. 늦은 순위가 찍히면 경고만 뜹니다.</span>';
+    }).join("") + '<span class="cis-hint">지금 들여보내는 순서입니다. 늦은 순서가 찍히면 경고만 뜹니다.</span>';
     box.querySelectorAll("button").forEach(function (b) {
       b.addEventListener("click", function () {
         ciStage = parseInt(b.getAttribute("data-stage"), 10);
-        try { localStorage.setItem("bfw_ci_stage", String(ciStage)); } catch (e) {}
+        try { localStorage.setItem("bfw_ci_stage2", String(ciStage)); } catch (e) {}
         renderCiStage();
       });
     });
@@ -1437,7 +1441,7 @@
       '<div class="ci-card ' + cls + '">' +
         '<div class="ci-tier t' + t.n + '">' + esc(t.full) + "</div>" +
         (early ? '<div class="ci-early">지금은 ' +
-          (ciStage === 1 ? "확보좌석" : ciStage === 2 ? "사전등록" : "현장등록") +
+          (ciStage === 1 ? "사전등록" : "현장등록") +
           ' 차례입니다 — 이분은 <b>' + esc(t.label) + '</b> 입니다</div>' : "") +
         '<div class="ci-status">' + status + '</div>' +
         '<div class="ci-name">' + esc(r.name) + '</div>' +
