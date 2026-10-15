@@ -738,6 +738,7 @@
       var first = !data;
       data = d;
       render();
+      renderInvite();
       if (msg) { $("msg").textContent = msg.t; $("msg").className = msg.c; }
       // 처음 들어왔을 때 한 번 자동으로 안내한다. 수정할 수 없는 기간엔 띄우지 않는다.
       if (first && !d.holder.closed && window.HoldTour) {
@@ -747,6 +748,45 @@
       fatal("연결할 수 없습니다", "통신이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.");
     });
   }
+
+  /* ---------- 모집 링크 ----------
+     참여사가 자기 네트워크에 뿌리는 주소다. 받은 사람은 이 참여사의 쇼만
+     신청할 수 있고, 확보한 자리가 다 차면 그 시점에 마감된다. */
+  function renderInvite() {
+    var box = $("inviteBox");
+    if (!box) return;
+    rpc("invite_view", { p_token: token }).then(function (d) {
+      if (!d || !d.ok || !d.open) { box.hidden = true; return; }
+      box.hidden = false;
+      $("inviteUrl").value = location.origin + "/invite.html?t=" + encodeURIComponent(token);
+      var left = d.left || 0, used = d.used || 0, st = $("inviteStat");
+      if (left > 0) {
+        st.className = "invstat";
+        st.innerHTML = "지금까지 <b>" + used + "명</b>이 등록했고, <b>" + left + "석</b> 더 받을 수 있습니다.";
+      } else {
+        st.className = "invstat full";
+        st.innerHTML = "<b>" + used + "명</b> 등록 완료 — 확보하신 좌석이 모두 찼습니다.";
+      }
+    }).catch(function () { box.hidden = true; });
+  }
+
+  (function () {
+    var b = $("inviteCopy");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var el = $("inviteUrl");
+      function done() {
+        b.textContent = "복사됨"; b.className = "done";
+        setTimeout(function () { b.textContent = "복사"; b.className = ""; }, 1600);
+      }
+      function fallback() {
+        try { el.select(); el.setSelectionRange(0, 99999); document.execCommand("copy"); done(); } catch (e) {}
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.value).then(done, fallback);
+      } else { fallback(); }
+    });
+  })();
 
   if (!window.HallMap) {
     fatal("화면을 열 수 없습니다", "좌석 지도를 불러오지 못했습니다. 새로고침해 주세요.");

@@ -89,6 +89,14 @@
              font-weight:700;background:#fdeceb;color:#b3261e;vertical-align:2px}
   .form input.bad{border-color:#b3261e;background:#fff8f7}
   .form p.sub{margin:0 0 14px;font-size:.85rem;color:var(--ink-mute)}
+  .linkrow{display:flex;gap:8px;align-items:center}
+  .linkrow input{flex:1;min-width:0;font-family:var(--mono);font-size:.8rem}
+  .linkrow button{flex:none;padding:11px 18px;border-radius:10px;border:0;
+    background:var(--navy);color:#fff;font-size:.88rem;font-family:var(--kr);cursor:pointer}
+  .linkrow button.done{background:var(--ok)}
+  .invstat{margin-top:12px;font-size:.88rem;color:var(--ink-mute)}
+  .invstat b{color:var(--ink)}
+  .invstat.full{color:var(--bad)}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   label{display:block;font-size:.8rem;color:var(--ink-mute);margin-bottom:5px}
   input[type=text],input[type=tel]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:var(--kr);font-size:.95rem;background:var(--paper)}
@@ -141,6 +149,20 @@
     </div>
 
     <div id="notices"></div>
+
+    <!-- 참여사가 자기 네트워크에 뿌리는 모집 링크.
+         이 주소로는 이 참여사의 쇼만 신청된다. -->
+    <div class="form" id="inviteBox" hidden>
+      <div class="formhead">
+        <h3>모집 링크</h3>
+        <p class="sub">확보하신 좌석을 채울 분들께 이 주소를 보내세요. 받으신 분이 이름과 연락처를 넣으면 <b>모바일 입장권이 바로 발급</b>됩니다. 이 주소로는 아래 쇼만 신청됩니다.</p>
+      </div>
+      <div class="linkrow">
+        <input type="text" id="inviteUrl" readonly onclick="this.select()" />
+        <button type="button" id="inviteCopy">복사</button>
+      </div>
+      <div class="invstat" id="inviteStat"></div>
+    </div>
 
     <!-- 담당자 칸은 좌석 지도 위에 둔다. 지도가 세로로 1,700px 가량이라
          아래에 두면 스크롤을 한참 내려야 보여서 사실상 못 찾는다. -->
