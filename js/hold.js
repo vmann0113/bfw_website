@@ -76,7 +76,7 @@
 
   var data = null;      // holder_view 응답
   var map = null;       // HallMap
-  var picked = {};      // 지금 화면에서 고른 좌석 : id → 'general'(일반초청석) | 'vip'(VIP석)
+  var picked = {};      // 지금 화면에서 고른 좌석 : id → 'general'(사전확보석) | 'vip'(VIP석)
   var saved = {};       // 서버에 저장된 상태 (되돌리기용) : id → 종류
   var guest = {};       // VIP석에 앉을 분 : id → {name, org, phone} (좌석을 뺐다 넣어도 적은 내용은 남긴다)
   var savedGuest = {};
@@ -216,7 +216,7 @@
       el.style.background = "#f1f4ff"; el.style.borderColor = "#b9c6f5"; el.style.color = "#3a4a86";
     }
     if (!canPick(s)) el.disabled = true;
-    var why = picked[s.id] === "vip" ? "VIP석 확보" : picked[s.id] ? "일반초청석 확보" : st === "other" ? "다른 참여사 확보" : st === "staff" ? "주최측 지정"
+    var why = picked[s.id] === "vip" ? "VIP석 확보" : picked[s.id] ? "사전확보석" : st === "other" ? "다른 참여사 확보" : st === "staff" ? "주최측 지정"
       : st === "reserved" ? "관람객 예약" : !inRange[s.id] ? "선택할 수 없는 좌석"
       : (grade === "vip" && !isFront(s)) ? "VIP석은 런웨이 쪽 첫 줄만 고를 수 있습니다" : "선택 가능";
     el.title = s.zone_code + "구역 " + s.num + "번 — " + why;
@@ -279,7 +279,7 @@
     if (map && map.setMode) map.setMode(mode);
   }
   var GRADE_HINT = {
-    general: "지금 고르는 좌석은 <b>일반초청석</b>입니다.",
+    general: "지금 고르는 좌석은 <b>사전확보석</b>입니다.",
     vip: "지금 고르는 좌석은 <b>VIP석</b>입니다. VIP석은 <b>런웨이에 가장 가까운 첫 줄</b>만 고를 수 있습니다.<br>오른쪽에 좌석마다 <b>이름·소속·연락처</b>를 적을 수 있습니다(선택)."
   };
   function syncGrade() {
@@ -327,7 +327,7 @@
     data.seats.forEach(function (s) {
       if (s.state !== "mine") return;
       var g = s.grade === "vip" ? "vip" : "general";
-      // 첫 줄 규칙 이전에 다른 줄에 잡힌 VIP석은 일반초청석으로 바꿔 보여주고 알린다
+      // 첫 줄 규칙 이전에 다른 줄에 잡힌 VIP석은 사전확보석으로 바꿔 보여주고 알린다
       if (g === "vip" && !isFront(s)) { g = "general"; notFront.push(s.zone_code + "구역 " + s.num + "번"); }
       saved[s.id] = g;
       if (g === "vip") {
@@ -363,7 +363,7 @@
       if (notFront.length) {
         nt.push('<div class="note warn"><h4>VIP석은 첫 줄만 가능합니다</h4>' +
           "VIP석은 런웨이에 가장 가까운 첫 줄만 지정할 수 있어, " + esc(notFront.join(", ")) +
-          " 좌석을 <b>일반초청석</b>으로 바꿔 두었습니다. 확인 후 저장해 주세요.</div>");
+          " 좌석을 <b>사전확보석</b>으로 바꿔 두었습니다. 확인 후 저장해 주세요.</div>");
       }
       if (outside.length) {
         nt.push('<div class="note warn"><h4>배정 범위가 바뀌었습니다</h4>' +
@@ -385,7 +385,7 @@
     syncGrade();
 
     $("legend").innerHTML =
-      '<span><i style="background:' + NAVY + ";border-color:" + NAVY + '"></i>일반초청석</span>' +
+      '<span><i style="background:' + NAVY + ";border-color:" + NAVY + '"></i>사전확보석</span>' +
       '<span><i style="background:' + GOLD + ";border-color:" + GOLD + '"></i>VIP석</span>' +
       (hasRange ? '<span><i style="background:#f1f4ff;border-color:#b9c6f5"></i>고를 수 있는 좌석</span>'
                 : '<span><i style="background:#fff"></i>고를 수 있는 좌석</span>') +
@@ -502,7 +502,7 @@
     var nm = esc(h.name);
     var legend = "<ul>" +
       "<li><span class='sw' style='background:" + (hasRange ? "#f1f4ff;border-color:#b9c6f5" : "#fff") + "'></span>고를 수 있는 좌석</li>" +
-      "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 일반초청석</li>" +
+      "<li><span class='sw' style='background:#0b2e9e;border-color:#0b2e9e'></span>우리가 확보한 사전확보석</li>" +
       "<li><span class='sw' style='background:#a86d00;border-color:#a86d00'></span>우리가 확보한 VIP석</li>" +
       "<li><span class='sw' style='background:#e8ebf1;border-color:#e8ebf1'></span>다른 참여사가 확보</li>" +
       "<li><span class='sw' style='background:#efe9dc;border-color:#e6dcc6'></span>주최측 지정(내빈석 등)</li>" +
@@ -545,9 +545,9 @@
         html: "확보 내용을 확인할 때 연락드릴 분입니다. <b>이름과 연락처가 없으면 저장되지 않습니다.</b><br>" +
               "연락처는 숫자만 누르시면 하이픈이 자동으로 들어갑니다." },
       { el: "#gradeSeg",
-        title: "일반초청석과 VIP석",
+        title: "사전확보석과 VIP석",
         html: "좌석은 두 종류로 확보합니다.<ul>" +
-              "<li><span class='k'>일반초청석</span> 좌석만 잡아둡니다 (<b>파란색</b>)</li>" +
+              "<li><span class='k'>사전확보석</span> 좌석만 잡아둡니다 (<b>파란색</b>)</li>" +
               "<li><span class='k'>VIP석</span> <b>런웨이에 가장 가까운 첫 줄</b>만 가능. 좌석마다 앉을 분의 <b>이름·소속·연락처</b>를 적을 수 있습니다 (<b>금색</b>)</li></ul>" +
               "종류를 먼저 누르고 지도에서 좌석을 고르세요. 이미 고른 좌석을 다른 종류로 누르면 <b>종류만 바뀝니다</b>." },
       { el: function () { return document.getElementById("tools"); },

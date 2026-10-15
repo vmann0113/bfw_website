@@ -616,7 +616,7 @@
           el.style.background = STAFF_COLOR; el.style.borderColor = STAFF_COLOR; el.style.color = "#fff"; how = "주최측 확보";
         } else if (x.lock) {
           var c = colorOf(x.lock); el.style.background = c; el.style.borderColor = c; el.style.color = "#fff";
-          who = holderById(x.lock); how = (who ? who.name : "참여사") + (x.g === "vip" ? " VIP석" : " 일반초청석") + " 확보";
+          who = holderById(x.lock); how = (who ? who.name : "참여사") + (x.g === "vip" ? " VIP석" : " 사전확보석") + " 확보";
           // VIP석은 금색 테두리로 구분한다
           if (x.g === "vip") { el.style.boxShadow = "inset 0 0 0 2px " + VIP_RING; how += " — " + (x.gn || "?") + " / " + (x.go || "?") + " / " + (x.gp || "?"); }
         } else if (x.res) {
@@ -642,7 +642,7 @@
     $("legend").innerHTML = '<div class="hm-legend">' +
       '<span><i style="background:#fff"></i>빈 좌석</span>' +
       '<span><i style="background:' + tint(PALETTE[0], 0.2) + ";border-color:" + tint(PALETTE[0], 0.6) + '"></i>배정(연한 색)</span>' +
-      '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + '"></i>일반초청석 확보(진한 색)</span>' +
+      '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + '"></i>사전확보석(진한 색)</span>' +
       '<span><i style="background:' + PALETTE[0] + ";border-color:" + PALETTE[0] + ";box-shadow:inset 0 0 0 2px " + VIP_RING + '"></i>VIP석 확보(금색 테두리)</span>' +
       '<span><i style="background:' + STAFF_COLOR + '"></i>주최측 확보</span>' +
       '<span><i style="background:' + RESERVED_COLOR + '"></i>일반 예약</span>' +
@@ -911,7 +911,7 @@
         lines.push([r.show_id, sh ? showName(sh.title_ko, sh.lineup) : r.title_ko, r.show_date, r.start_time, r.holder_name,
           r.kind === "univ" ? "대학" : r.kind === "brand" ? "브랜드" : "주최측",
           r.seat_id, r.zone_code, r.seat_num,
-          r.kind === "staff" ? "주최측" : r.grade === "vip" ? "VIP석" : "일반초청석",
+          r.kind === "staff" ? "주최측" : r.grade === "vip" ? "VIP석" : "사전확보석",
           r.grade === "vip" ? r.guest_name || "" : "", r.grade === "vip" ? r.guest_org || "" : "", r.grade === "vip" ? r.guest_phone || "" : "",
           r.contact_name || "", r.contact_phone || "", when(r.saved_at)]);
       });
