@@ -1263,7 +1263,28 @@
   var RESV_CODE = /^(?:BFW-?)?(S\d{2}-[A-Z0-9]{4,10})$/;
   var PRESS_CODE = /^(?:BFW-?)?(PRS-[A-Z0-9]{4,10})$/;
 
-  /* 스캔 즉시 입장 처리 — 클릭 없이 다음 사람으로 넘어간다 */
+  /* 조회만 한다 — 아무것도 바꾸지 않는다 */
+  function lookupResv(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
+    BFWApi.findByCode("BFW-" + code).then(function (r) {
+      if (r) showCiCard(r, "lookup");
+      else res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 예약 없음</div><div class="ci-show">‘BFW-' + esc(code) + '’ 에 해당하는 예약이 없습니다. 취소된 예약일 수 있습니다.</div></div>';
+      ciReset();
+    }).catch(function () { ciReset(); });
+  }
+  function lookupPress(code) {
+    var res = $("ciResult");
+    res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
+    BFWApi.pressFindByCode(code).then(function (p) {
+      if (p) showPressCiCard(p, "lookup");
+      else res.innerHTML = '<div class="ci-card warn"><div class="ci-status">✕ 프레스 승인 없음</div><div class="ci-show">‘' + esc(code) + '’ 에 해당하는 승인된 프레스가 없습니다.</div></div>';
+      ciReset();
+    }).catch(function () { ciReset(); });
+  }
+
+  /* 아래 둘은 쓰이지 않는다. 예전에 스캔 즉시 입장 처리하던 경로이며,
+     입구 처리는 gate.html 로 옮겼다. 실수로 다시 연결하지 말 것. */
   function autoCheckin(code) {
     var res = $("ciResult");
     res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">확인 중…</div></div>';
@@ -1364,12 +1385,13 @@
     }
     ciHint("");
 
-    // QR·예약번호 형태면 곧바로 입장 처리 (연속 스캔)
+    // 이 화면은 조회·정정용이다. QR·예약번호를 넣어도 입장 처리하지 않고
+    // 내용만 보여준다. 입구 입장 처리는 gate.html 이 맡는다.
     var up = q.toUpperCase().replace(/\s+/g, "");
     var mp = up.match(PRESS_CODE);
-    if (mp) { autoPressCheckin(mp[1]); return; }
+    if (mp) { lookupPress(mp[1]); return; }
     var mc = up.match(RESV_CODE);
-    if (mc) { autoCheckin(mc[1]); return; }
+    if (mc) { lookupResv(mc[1]); return; }
 
     // 코드가 아니면 이름·연락처 검색 — 자동 입장 처리하지 않는다
     res.innerHTML = '<div class="ci-card neutral"><div class="ci-status">조회 중…</div></div>';
@@ -1457,6 +1479,8 @@
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
+        /* 정정용이다. 입구에서 쓰는 화면이 아니므로 한 번 되묻는다. */
+        if (!confirm(r.name + "님을 입장 처리할까요? — " + (r.titleKo || r.showTitle || r.showId) + " " + (r.time || "") + " · 입구에서는 입장 확인 화면(gate.html)을 쓰세요.")) return;
         BFWApi.checkIn("BFW-" + r.code).then(function (out) {
           if (out.ok) { toast(r.name + "님 입장 처리됨 ✓"); reReadAndShow(r.code, "entered"); }
           else if (out.reason === "already") { toast("이미 입장한 예약입니다.", true); reReadAndShow(r.code, "already"); }
@@ -1492,6 +1516,7 @@
     } else {
       var go = mkBtn("btn primary", "입장 확인 →");
       go.addEventListener("click", function () {
+        if (!confirm(p.reporter + " 기자를 입장 처리할까요? · 입구에서는 입장 확인 화면(gate.html)을 쓰세요.")) return;
         BFWApi.pressCheckIn(p.code).then(function (out) {
           if (out.ok) { toast(p.reporter + " 기자 입장 처리됨 ✓"); reShowPress(p.code, "entered"); }
           else if (out.reason === "already") { toast("이미 입장했습니다.", true); reShowPress(p.code, "already"); }

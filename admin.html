@@ -52,7 +52,7 @@
       <button data-tab="seats"><span class="ico">▩</span> 좌석 · 초청석</button>
       <button data-tab="reservations"><span class="ico">☰</span> 예약 현황</button>
       <button data-tab="pressvisit"><span class="ico">◈</span> 프레스 방문</button>
-      <button data-tab="checkin"><span class="ico">◉</span> 현장 체크인</button>
+      <button data-tab="checkin"><span class="ico">◉</span> 입장 조회·정정</button>
     </nav>
     <div class="side__foot">
       <a href="index.html" target="_blank">사이트 보기 ↗</a>
@@ -504,8 +504,18 @@
       <!-- ===== CHECK-IN ===== -->
       <section class="panel" data-panel="checkin">
         <div class="panel__head">
-          <h2>현장 체크인</h2>
-          <p>입구에서 관람객의 <b>QR을 스캔</b>하거나 예약번호·이름·연락처로 검색해 입장 처리합니다.</p>
+          <h2>입장 조회·정정</h2>
+          <p>예약 내용을 확인하고, 잘못 처리된 입장을 바로잡는 화면입니다. <b>여기서는 스캔해도 입장 처리가 되지 않습니다.</b></p>
+        </div>
+        <div class="card" style="border:2px solid #0b2e9e;background:#eef2ff">
+          <div style="font-size:1rem;font-weight:700;color:#0b2e9e;margin-bottom:6px">입구에서는 입장 확인 화면을 쓰세요</div>
+          <p style="margin:0 0 10px;font-size:.9rem;line-height:1.6;color:#26356e">
+            입구용 화면은 <b>지금 입장 중인 쇼</b>를 대조해서, 다른 시간대 입장권이면 입장 처리하지 않고 막아 줍니다.
+            이 관리자 화면에는 그 대조가 없어 조회와 정정에만 씁니다.
+          </p>
+          <a href="gate.html" target="_blank" rel="noopener"
+             style="display:inline-block;padding:10px 18px;border-radius:9px;background:#0b2e9e;color:#fff;
+                    text-decoration:none;font-size:.92rem;font-weight:600">입장 확인 화면 열기 →</a>
         </div>
         <div class="card">
           <div class="checkin-search">
