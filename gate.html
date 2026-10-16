@@ -36,6 +36,11 @@
   .counts b{font-size:1.6rem;color:var(--ink)}
   .bar button{font-family:var(--kr);font-size:.85rem;padding:8px 14px;border:1px solid var(--line);
               border-radius:9px;background:#fff;color:var(--mute);cursor:pointer}
+  .bar button:disabled{opacity:.5;cursor:default}
+
+  .net{flex:1 0 100%;order:9;font-size:.86rem;color:var(--mute);padding-top:4px}
+  .net.warn{color:var(--warn);font-weight:600}
+  .net.off{color:var(--bad);font-weight:700}
 
   main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
        padding:18px 22px;transition:background .15s}
@@ -104,7 +109,10 @@
   <label for="showSel">지금 입장 중</label>
   <select id="showSel"></select>
   <div class="counts"><b id="cEnt">0</b> 입장 <span id="cRes">/ 0 예약</span></div>
+  <button type="button" id="btnRoster">명단 받기</button>
+  <button type="button" id="btnClear">자료 지우기</button>
   <button type="button" id="btnOut">로그아웃</button>
+  <div class="net" id="net">—</div>
 </div>
 
 <main id="stage" class="idle">
