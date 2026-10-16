@@ -379,9 +379,11 @@
     },
 
     /* ---- check in by code (atomic; blocks re-entry) ---- */
-    checkIn: function (code) {
+    /* showId 를 주면 그 쇼의 입장권이 아닐 때 서버가 입장 처리를 하지 않고
+       'wrongshow' 로 돌려준다. 안 주면 예전과 똑같이 동작한다. */
+    checkIn: function (code, showId) {
       if (BACKEND) {
-        return rpc("check_in", { p_code: BFW.normCode(code) }).then(function (d) {
+        return rpc("check_in", { p_code: BFW.normCode(code), p_show_id: showId || null }).then(function (d) {
           if (d && d.ok) return { ok: true, entry: fromRow(d.reservation) };
           return { ok: false, reason: (d && d.reason) || "error", entry: d && d.reservation ? fromRow(d.reservation) : null };
         }).catch(function () { return { ok: false, reason: "network" }; });

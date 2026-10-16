@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>입장 확인 | 2026 부산패션위크</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --ink:#1b2340; --mute:#6b7490; --line:#e3e7ef; --paper:#fff;
+    --navy:#0b2e9e; --ok:#1f7a4d; --ok-bg:#e9f7f0;
+    --bad:#b3261e; --bad-bg:#fdeceb; --warn:#8a5300; --warn-bg:#fff7e8;
+    --mono:"Space Mono",ui-monospace,monospace;
+    --kr:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:var(--kr);color:var(--ink);background:#f6f8fc;
+       display:flex;flex-direction:column;overflow:hidden}
+
+  header{flex:none;display:flex;align-items:center;justify-content:space-between;
+         padding:10px 22px;background:var(--ink);color:#fff}
+  header .bd{font-family:var(--mono);font-size:.78rem;letter-spacing:.14em}
+  header .clock{font-family:var(--mono);font-size:1rem}
+
+  .bar{flex:none;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+       padding:12px 22px;background:var(--paper);border-bottom:1px solid var(--line)}
+  .bar label{font-size:.82rem;color:var(--mute)}
+  .bar select{font-family:var(--kr);font-size:1.35rem;font-weight:600;color:var(--ink);
+              padding:8px 12px;border:2px solid var(--navy);border-radius:10px;background:#fff;max-width:62vw}
+  .counts{margin-left:auto;font-size:1.05rem;color:var(--mute);white-space:nowrap}
+  .counts b{font-size:1.6rem;color:var(--ink)}
+  .bar button{font-family:var(--kr);font-size:.85rem;padding:8px 14px;border:1px solid var(--line);
+              border-radius:9px;background:#fff;color:var(--mute);cursor:pointer}
+
+  main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+       padding:18px 22px;transition:background .15s}
+  main.idle{background:#f6f8fc}
+  main.ok{background:var(--ok-bg)}
+  main.bad{background:var(--bad-bg)}
+  main.warn{background:var(--warn-bg)}
+  .card{width:100%;max-width:1100px;text-align:center}
+  .big{font-size:clamp(2.6rem,7vw,5.2rem);font-weight:800;line-height:1.1;letter-spacing:-.02em}
+  main.ok .big{color:var(--ok)} main.bad .big{color:var(--bad)} main.warn .big{color:var(--warn)}
+  main.idle .big{color:var(--mute);font-weight:600}
+  .name{margin-top:14px;font-size:clamp(2rem,5.5vw,4rem);font-weight:700}
+  .sub{margin-top:10px;font-size:clamp(1.1rem,2.4vw,1.7rem);color:var(--ink);opacity:.85}
+  .meta{margin-top:14px;font-family:var(--mono);font-size:clamp(.9rem,1.6vw,1.15rem);color:var(--mute)}
+  .tag{display:inline-block;margin-top:14px;padding:7px 18px;border-radius:999px;
+       font-size:clamp(1rem,2vw,1.35rem);font-weight:700;background:var(--ink);color:#fff}
+  .tag.v{background:#a86d00} .tag.b{background:var(--navy)} .tag.w{background:#3a6ea5}
+
+  .picker{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:18px}
+  .picker button{font-family:var(--kr);font-size:1.15rem;padding:12px 18px;border:2px solid var(--navy);
+                 border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;text-align:left}
+  .picker button small{display:block;font-size:.82rem;color:var(--mute);margin-top:2px}
+
+  footer{flex:none;display:flex;align-items:center;gap:14px;padding:10px 22px;
+         background:var(--paper);border-top:1px solid var(--line)}
+  footer input{flex:1;font-family:var(--mono);font-size:1.05rem;padding:11px 14px;
+               border:2px solid var(--line);border-radius:10px;outline:none}
+  footer input:focus{border-color:var(--navy)}
+  footer .fh{font-size:.8rem;color:var(--mute);white-space:nowrap}
+
+  .overlay{position:fixed;inset:0;background:#f6f8fc;display:flex;align-items:center;
+           justify-content:center;z-index:50;padding:20px}
+  .lg{width:100%;max-width:380px;background:#fff;border:1px solid var(--line);
+      border-radius:16px;padding:24px}
+  .lg h1{margin:0 0 4px;font-size:1.25rem}
+  .lg p{margin:0 0 18px;font-size:.88rem;color:var(--mute)}
+  .lg label{display:block;font-size:.8rem;color:var(--mute);margin:12px 0 5px}
+  .lg input{width:100%;font-family:var(--kr);font-size:1rem;padding:11px 12px;
+            border:1px solid var(--line);border-radius:9px}
+  .lg button{width:100%;margin-top:18px;font-family:var(--kr);font-size:1rem;font-weight:600;
+             padding:12px;border:0;border-radius:10px;background:var(--navy);color:#fff;cursor:pointer}
+  .lg .err{margin-top:12px;font-size:.85rem;color:var(--bad);display:none}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="login">
+  <form class="lg" id="lgForm">
+    <h1>입장 확인</h1>
+    <p>2026 부산패션위크 · 스태프 전용</p>
+    <label for="lgEmail">이메일</label>
+    <input type="email" id="lgEmail" autocomplete="username" required />
+    <label for="lgPw">비밀번호</label>
+    <input type="password" id="lgPw" autocomplete="current-password" required />
+    <button type="submit">로그인</button>
+    <div class="err" id="lgErr"></div>
+  </form>
+</div>
+
+<header>
+  <div class="bd">2026 BUSAN FASHION WEEK · ENTRANCE</div>
+  <div class="clock" id="clock">—</div>
+</header>
+
+<div class="bar">
+  <label for="showSel">지금 입장 중</label>
+  <select id="showSel"></select>
+  <div class="counts"><b id="cEnt">0</b> 입장 <span id="cRes">/ 0 예약</span></div>
+  <button type="button" id="btnOut">로그아웃</button>
+</div>
+
+<main id="stage" class="idle">
+  <div class="card">
+    <div class="big" id="big">QR을 찍어 주세요</div>
+    <div class="name" id="who"></div>
+    <div class="sub" id="sub"></div>
+    <div id="tagWrap"></div>
+    <div class="meta" id="meta"></div>
+    <div class="picker" id="picker"></div>
+  </div>
+</main>
+
+<footer>
+  <input type="text" id="scan" placeholder="QR 스캔 · 예약번호 · 이름 · 연락처" autocomplete="off" />
+  <div class="fh" id="fh">리더기로 찍으면 자동 처리됩니다</div>
+</footer>
+
+<script src="js/config.js?v=20261017"></script>
+<script src="js/api.js?v=20261017"></script>
+<script src="js/gate.js?v=20261017"></script>
+</body>
+</html>
