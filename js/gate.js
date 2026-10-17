@@ -44,7 +44,11 @@
     try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : dflt; }
     catch (e) { return dflt; }
   }
-  function writeJson(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  /* 저장이 막히거나 가득 차면 기록이 사라진다. 묻지 말고 알려야 한다. */
+  function writeJson(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch (e) { return false; }
+  }
 
   function loadRoster() {
     var o = readJson(ROSTER_KEY, null);
@@ -53,7 +57,7 @@
     return o;
   }
   function loadQueue() { var q = readJson(QUEUE_KEY, []); return Array.isArray(q) ? q : []; }
-  function saveQueue(q) { writeJson(QUEUE_KEY, q); }
+  function saveQueue(q) { return writeJson(QUEUE_KEY, q); }
 
   function clearLocal() {
     try { localStorage.removeItem(ROSTER_KEY); localStorage.removeItem(QUEUE_KEY); } catch (e) {}
@@ -220,25 +224,48 @@
     if (r.checkedIn || queuedCodes()[normCode(r.code)]) return already(r);
     var q = loadQueue();
     q.push({ code: normCode(r.code), showId: curShow, at: Date.now() });
-    saveQueue(q);
+    if (!saveQueue(q)) {
+      /* 저장이 막히면 이 입장은 어디에도 남지 않는다. 통과시키면 안 된다. */
+      beep("bad");
+      return paint("bad", "✕ 기록하지 못했습니다", r.name,
+        "이 노트북에 기록을 저장할 수 없습니다. <b>입장을 종이에 적어 두세요.</b><br>" +
+        "브라우저 저장 공간이 가득 찼거나 시크릿 창일 수 있습니다.",
+        tierTag(r), "BFW-" + r.code);
+    }
     okCard(r, true);
   }
 
   /* 쌓인 기록을 서버에 올린다. 이미 처리된 건(already)·다른 쇼(wrongshow)도
      더 보낼 필요가 없으므로 목록에서 뺀다. */
+  /* 쌓인 기록을 올린다. 오프라인이라고 지레 멈추지 않는다 — 한 번 보내 보고
+     그 결과로 연결 상태를 다시 판단한다. (끊김은 신호 없이 복구되기도 한다) */
   function syncQueue() {
     var q = loadQueue();
-    if (!q.length || !online) { netBar(); return Promise.resolve(); }
+    if (!q.length) { netBar(); return Promise.resolve(); }
     var one = q[0];
     return Api.checkIn(one.code, one.showId).then(function (out) {
+      if (out.reason === "network") { online = false; netBar(); return null; }
+      if (!online) { online = true; netBar(); loadStats(); }
       if (out.ok || out.reason === "already" || out.reason === "wrongshow" || out.reason === "notfound") {
         saveQueue(loadQueue().filter(function (x) { return normCode(x.code) !== normCode(one.code); }));
         netBar();
         return syncQueue();
       }
-      if (out.reason === "network") { online = false; netBar(); }
+      /* forbidden 등은 더 보내도 소용없다 — 목록은 그대로 두고 멈춘다 */
       return null;
     }).catch(function () { online = false; netBar(); return null; });
+  }
+
+  /* 연결이 돌아왔는지 스스로 확인한다. 브라우저가 'online' 신호를 주지 않는
+     경우(끊긴 줄 몰랐거나, 공유기만 살아난 경우)가 있어 이 확인이 없으면
+     한 번 끊긴 뒤 행사 내내 오프라인으로 굳는다. */
+  function probe() {
+    return fetch("gate-sw.js?p=" + Date.now(), { method: "HEAD", cache: "no-store" })
+      .then(function (r) {
+        if (!r || !r.ok) throw new Error("bad");
+        if (!online) { online = true; netBar(); loadStats(); syncQueue(); }
+      })
+      .catch(function () { if (online) { online = false; netBar(); } });
   }
 
   /* ---------- 명단 받기 ---------- */
@@ -416,6 +443,10 @@
     setInterval(loadStats, 60000);
     setInterval(function () { if (loadQueue().length) syncQueue(); }, 20000);
     setInterval(netBar, 30000);
+    setInterval(probe, 15000);
+    /* 명단을 주기적으로 새로 받는다. 그래야 24시간 만료에 걸리지 않고,
+       받아둔 뒤 들어온 예약도 오프라인에서 확인된다. */
+    setInterval(function () { if (online) fetchRoster(); }, 30 * 60 * 1000);
 
     window.addEventListener("online", function () { online = true; netBar(); syncQueue(); loadStats(); });
     window.addEventListener("offline", function () { online = false; netBar(); });
