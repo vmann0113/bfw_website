@@ -73,6 +73,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var token = (new URLSearchParams(location.search).get("t") || "").trim();
+  var inviteUsed = 0;   // 링크로 이미 등록된 인원 (하단 요약에 쓴다)
 
   var data = null;      // holder_view 응답
   var map = null;       // HallMap
@@ -581,12 +582,19 @@
   function paintCounts() {
     var n = keys(picked).length;
     var nv = vipIds().length;
-    $("nVip").textContent = nv ? "(VIP " + nv + ")" : "";
     renderVip(false);
     syncLater();
     var max = data.holder.maxSeats;
-    $("nMine").textContent = n;
+
+    /* 담당자가 가장 많이 묻는 것이 "우리 몇 석 남았냐" 다.
+       링크로 등록된 분은 자리가 사람으로 바뀌어 지도에서 빠지므로,
+       지도에 남은 수만 보여주면 확보량이 줄어든 것처럼 보인다.
+       그래서 '확보 = 남은 + VIP + 등록' 을 한 줄에 다 적는다. */
+    $("nTotal").textContent = n + inviteUsed;
+    $("nMine").textContent = Math.max(0, n - nv);
     $("nMax").textContent = max != null ? " / " + max + "석" : "석";
+    $("nVip").textContent = nv ? " · VIP " + nv + "석" : "";
+    $("nUsed").textContent = inviteUsed ? " · 등록 " + inviteUsed + "명" : "";
     var otherLocks = data.seats.filter(function (s) { return s.state === "other" || s.state === "staff"; }).length;
     $("nPublic").textContent = Math.max(0, data.show.capacity - otherLocks - n);
 
@@ -756,6 +764,7 @@
     var box = $("inviteBox");
     if (!box) return;
     rpc("invite_view", { p_token: token }).then(function (d) {
+      if (d && d.ok) { inviteUsed = d.used || 0; if (data) paintCounts(); }
       if (!d || !d.ok || !d.open) { box.hidden = true; return; }
       box.hidden = false;
       $("inviteUrl").value = location.origin + "/invite.html?t=" + encodeURIComponent(token);
