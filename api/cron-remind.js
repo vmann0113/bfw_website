@@ -66,6 +66,36 @@ module.exports = async (req, res) => {
     });
   }
 
+  /* 예약 안내를 끝내 못 받은 사람에게 보낸다.
+     발송은 관람객 브라우저가 부르는 구조라, 등록 직후 신호가 끊기면
+     아무 기록 없이 누락된다. 날마다 한 번 훑어 메운다. */
+  async function catchUp() {
+    let miss = [];
+    try { miss = await L.missedTargets(); } catch (e) { return { error: "조회 실패" }; }
+    if (!miss.length) return { count: 0 };
+    if (dry) return { count: miss.length, codes: miss.slice(0, 20).map(function (r) { return r.code; }) };
+
+    const its = miss.map(function (r) {
+      return { to: L.digits(r.phone), name: r.name || "", msg: L.buildMessage("reserved", r), row: r };
+    });
+    let bs;
+    try { bs = await L.deliverBulk("reserved", its); } catch (e) { return { count: miss.length, error: "발송 실패" }; }
+    const lg = [], sm = [];
+    bs.forEach(function (b) {
+      const st = b.result.ok ? (b.result.test ? "test" : "sent") : "failed";
+      sm.push({ count: b.items.length, status: st, detail: b.result.detail });
+      b.items.forEach(function (it) {
+        lg.push({
+          reservation_id: it.row.id, code: it.row.code, kind: "reserved",
+          channel: b.result.channel, to_phone: it.row.phone,
+          status: st, detail: b.result.detail || null
+        });
+      });
+    });
+    await L.logNotiMany(lg);
+    return { count: miss.length, batches: sm };
+  }
+
   if (dry) {
     return L.json(res, 200, {
       ok: true, date: date, mode: L.mode(), open: open,
@@ -74,12 +104,18 @@ module.exports = async (req, res) => {
         acc[r.show_id] = (acc[r.show_id] || 0) + 1;
         return acc;
       }, {}),
+      missed: await catchUp(),
       note: secret ? "보안키 설정됨" : "CRON_SECRET 미설정 — 설정을 권합니다"
     });
   }
 
+  const missed = await catchUp();
+
   if (!targets.length) {
-    return L.json(res, 200, { ok: true, date: date, open: open, count: 0, note: "보낼 대상이 없습니다" });
+    return L.json(res, 200, {
+      ok: true, date: date, open: open, count: 0,
+      missed: missed, note: "전날 안내 대상은 없습니다"
+    });
   }
 
   const items = targets.map(function (r) {
@@ -111,6 +147,6 @@ module.exports = async (req, res) => {
 
   return L.json(res, 200, {
     ok: true, date: date, mode: L.mode(),
-    count: targets.length, batches: summary
+    count: targets.length, batches: summary, missed: missed
   });
 };

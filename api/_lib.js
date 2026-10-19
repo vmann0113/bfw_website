@@ -157,6 +157,23 @@ async function reminderTargets(dateStr) {
   return rows.filter(function (r) { return !skip[r.id]; });
 }
 
+/* 예약 안내를 끝내 못 받은 사람.
+
+   안내 발송은 관람객 브라우저가 등록 직후 /api/notify 를 부르는 구조다.
+   그 사이 신호가 끊기거나 창을 닫으면 발송이 일어나지 않고, 실패 기록조차
+   남지 않는다. 그래서 날마다 한 번 훑어 빠진 사람에게 보낸다. */
+async function missedTargets() {
+  const rows = await sbAll(
+    "/rest/v1/reservations?select=" + RESV_COLS + "&status=eq.reserved&order=created_at"
+  );
+  const done = await sbAll(
+    "/rest/v1/notifications?select=reservation_id&kind=eq.reserved&status=eq.sent"
+  );
+  const skip = {};
+  done.forEach(function (d) { if (d.reservation_id) skip[d.reservation_id] = true; });
+  return rows.filter(function (r) { return !skip[r.id]; });
+}
+
 /* ---------- 문구 만들기 ----------
    알림톡은 "승인된 템플릿과 한 글자라도 다르면" 발송이 거부된다.
    그래서 아래 tmplText() 는 등록한 템플릿의 고정 문구를 그대로 두고
@@ -516,6 +533,6 @@ function health() {
 
 module.exports = {
   json, digits, sb, sbAll, findByCodes, findPress, aligoHistory, aligoTemplate, alreadySent, alreadySentPress, logNoti, logNotiMany,
-  reminderTargets, buildMessage, deliver, deliverBulk,
+  reminderTargets, missedTargets, buildMessage, deliver, deliverBulk,
   hasSms, hasAlimtalk, mode, health, resolveTest, ALIGO, SITE
 };
