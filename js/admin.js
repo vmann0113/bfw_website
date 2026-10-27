@@ -16,26 +16,34 @@
   (function adminGate() {
     var gate = $("adminGate");
     if (!gate) return;
+    /* 잠금 화면 안쪽 요소는 미리 붙잡아 둔다. unlock() 이 잠금 화면을 통째로
+       떼어내면 그 뒤로 document.getElementById 는 null 을 돌려주기 때문이다.
+       (이미 로그인한 사람이 화면을 다시 열면 여기서 멈춰 관리자가 통째로
+        먹통이 됐다.) */
+    var form  = gate.querySelector("#adminGateForm");
+    var email = gate.querySelector("#agEmail");
+    var pw    = gate.querySelector("#agPw");
+    var err   = gate.querySelector("#agErr");
+    if (!form || !email || !pw || !err) return;
+
     function unlock() { if (gate.parentNode) gate.parentNode.removeChild(gate); }
     function lock() {
       if (!gate.parentNode) document.body.appendChild(gate);
-      $("agErr").textContent = "";
-      $("agPw").value = "";
+      err.textContent = "";
+      pw.value = "";
     }
-    if (window.BFWApi && BFWApi.hasStaff()) { unlock(); }
-    else { setTimeout(function () { $("agEmail").focus(); }, 60); }
 
-    $("adminGateForm").addEventListener("submit", function (e) {
+    form.addEventListener("submit", function (e) {
       e.preventDefault();
       var btn = this.querySelector("button");
       btn.disabled = true;
       btn.textContent = "확인 중…";
-      BFWApi.staffSignIn($("agEmail").value.trim(), $("agPw").value).then(function (r) {
+      BFWApi.staffSignIn(email.value.trim(), pw.value).then(function (r) {
         btn.disabled = false;
         btn.textContent = "로그인";
         if (r && r.ok) { unlock(); return; }
-        $("agErr").textContent = (r && r.error) || "로그인 실패";
-        $("agPw").value = "";
+        err.textContent = (r && r.error) || "로그인 실패";
+        pw.value = "";
       });
     });
     window.addEventListener("bfw-staff-expired", lock);
@@ -46,6 +54,10 @@
       BFWApi.staffSignOut();
       lock();
     });
+
+    /* 듣는 자리를 모두 붙인 뒤에 연다 */
+    if (window.BFWApi && BFWApi.hasStaff()) unlock();
+    else setTimeout(function () { email.focus(); }, 60);
   })();
 
   var saveState = $("saveState");
