@@ -1248,6 +1248,7 @@
     }
     renderCiStage();
     renderWalkinStats();
+    renderWalkinList();
     $("ciInput").focus();
   }
 
@@ -1332,6 +1333,122 @@
         } else toast(r.reason === "forbidden" ? "스태프 로그인이 필요합니다." : "저장하지 못했습니다.", true);
       });
     });
+    initWalkinCap();
+    initWalkinList();
+  }
+
+  /* ---------- 현장등록 한도 ---------- */
+  /* 쇼마다 배너 QR 로 받을 인원을 정한다. 0 이면 그 쇼는 아예 받지 않는다. */
+  var wkCaps = {};
+  function showLabel(s2) {
+    return "D" + s2.day + " · " + (s2.time || "") + " · " + (s2.titleKo || s2.title || s2.id);
+  }
+  function wcPaint() {
+    var id = $("wcShow").value, c = wkCaps[id];
+    if (!c) { $("wcHint").textContent = ""; return; }
+    $("wcHint").textContent = "지금 한도 " + c.cap + "명 · 등록된 인원 " + c.used + "명" +
+      (c.cap === 0 ? " (이 쇼는 현장등록을 받지 않습니다)" : "");
+  }
+  function initWalkinCap() {
+    var sel = $("wcShow");
+    if (!sel) return;
+    sel.innerHTML = (cfg.shows || []).map(function (s2) {
+      return '<option value="' + esc(s2.id) + '">' + esc(showLabel(s2)) + "</option>";
+    }).join("");
+    sel.addEventListener("change", function () { $("wcCap").value = ""; wcPaint(); });
+    $("wcSave").addEventListener("click", function () {
+      var id = sel.value, n = parseInt($("wcCap").value, 10);
+      if (!id || isNaN(n) || n < 0) { toast("인원수를 숫자로 입력해 주세요.", true); return; }
+      BFWApi.walkinCapSet(id, n).then(function (r) {
+        if (r.ok) {
+          toast(id + " 현장등록 한도 " + n + "명 ✓");
+          $("wcCap").value = "";
+          renderWalkinStats();
+        } else if (r.reason === "below") {
+          toast("이미 " + r.used + "명이 등록해 그보다 적게 줄일 수 없습니다.", true);
+        } else {
+          toast(r.reason === "forbidden" ? "스태프 로그인이 필요합니다." : "저장하지 못했습니다.", true);
+        }
+      });
+    });
+  }
+
+  /* ---------- 현장등록 명단 ---------- */
+  /* 예약 현황 목록은 '예약' 상태만 불러온다. 현장등록은 등록과 동시에
+     '입장완료'가 되어 그 표에 뜨지 않으므로 여기서 따로 보여준다. */
+  var wlCache = [];
+  function initWalkinList() {
+    var sel = $("wlFilter");
+    if (!sel) return;
+    sel.innerHTML = '<option value="">전체 쇼</option>' + (cfg.shows || []).map(function (s2) {
+      return '<option value="' + esc(s2.id) + '">' + esc(s2.id) + " · " + esc(s2.titleKo || s2.title || "") + "</option>";
+    }).join("");
+    sel.addEventListener("change", renderWalkinList);
+    $("wlSearch").addEventListener("input", paintWalkinList);
+    $("wlRefresh").addEventListener("click", renderWalkinList);
+    $("wlCsv").addEventListener("click", walkinCsv);
+  }
+  function renderWalkinList() {
+    var body = $("wlBody");
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">불러오는 중…</div></td></tr>';
+    BFWApi.walkinList($("wlFilter").value).then(function (d) {
+      if (!d || !d.ok) {
+        wlCache = [];
+        body.innerHTML = '<tr><td colspan="5"><div class="empty-state">' +
+          (d && d.reason === "forbidden" ? "스태프 로그인이 필요합니다." : "불러오지 못했습니다.") +
+          "</div></td></tr>";
+        $("wlCount").textContent = "";
+        return;
+      }
+      wlCache = d.rows || [];
+      paintWalkinList();
+    });
+  }
+  function paintWalkinList() {
+    var body = $("wlBody");
+    var q = $("wlSearch").value.trim().toLowerCase();
+    var digits = q.replace(/[^0-9]/g, "");
+    var list = wlCache.filter(function (r) {
+      if (!q) return true;
+      if (String(r.name || "").toLowerCase().indexOf(q) >= 0) return true;
+      return digits && String(r.phone || "").replace(/[^0-9]/g, "").indexOf(digits) >= 0;
+    });
+    $("wlCount").textContent = "전체 " + wlCache.length + "명" +
+      (q ? " · 검색 " + list.length + "명" : "");
+    body.innerHTML = "";
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">' +
+        (wlCache.length ? "찾는 분이 없습니다." : "현장등록 내역이 없습니다.") + "</div></td></tr>";
+      return;
+    }
+    list.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + esc(r.at || "") + "</td>" +
+        '<td style="font-family:var(--a-mono)">BFW-' + esc(r.code) + "</td>" +
+        "<td>" + esc(r.showId) + (r.titleKo ? " · " + esc(r.titleKo) : "") + "</td>" +
+        "<td>" + esc(r.name) + "</td>" +
+        "<td>" + esc(r.phone) + "</td>";
+      body.appendChild(tr);
+    });
+  }
+  function walkinCsv() {
+    if (!wlCache.length) { toast("내보낼 내역이 없습니다.", true); return; }
+    var head = ["등록시각", "등록번호", "쇼", "쇼이름", "일자", "시간", "이름", "연락처", "마케팅동의"];
+    var rows = [head.join(",")].concat(wlCache.map(function (r) {
+      return [r.at, "BFW-" + r.code, r.showId, r.titleKo || "", r.date || "", r.startTime || "",
+              r.name, r.phone, r.marketing ? "동의" : ""].map(function (v) {
+        return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+      }).join(",");
+    }));
+    var blob = new Blob([String.fromCharCode(65279) + rows.join(String.fromCharCode(10))],
+                        { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bfw_현장등록_" + new Date().toISOString().slice(0, 10).replace(/-/g, "") + ".csv";
+    a.click();
+    toast(wlCache.length + "명을 내려받았습니다");
   }
   /* 입장을 네 갈래로 나눠 센다 — 최종 보고가 이 표 그대로 나간다.
      사전등록 / 브랜드 확보좌석 / 주최측 내빈 / 현장등록.
@@ -1349,6 +1466,7 @@
         '<th>내빈<br><span>예약 / 입장</span></th><th>현장등록</th><th>입장 합계</th></tr></thead><tbody>';
       rows.forEach(function (r) {
         var w = r.web || {}, b = r.brand || {}, iv = r.invite || {}, wk = r.walkin || {};
+        wkCaps[r.id] = { cap: +wk.cap || 0, used: +wk.entered || 0 };
         t.wb += +w.booked || 0; t.we += +w.entered || 0;
         t.bb += +b.booked || 0; t.be += +b.entered || 0;
         t.ib += +iv.booked || 0; t.ie += +iv.entered || 0;
@@ -1369,6 +1487,7 @@
            "<td>" + t.wk + "</td>" +
            "<td><b>" + (t.we + t.be + t.ie + t.wk) + "</b></td></tr></tfoot></table>";
       box.innerHTML = h;
+      wcPaint();
     });
   }
   function doCheckinSearch(q) {

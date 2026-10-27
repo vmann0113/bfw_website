@@ -476,6 +476,21 @@
       } catch (e) {}
       return Promise.resolve({ ok: true });
     },
+    /* 현장등록 명단 — 읽기만 한다. 예약 현황 목록은 '예약' 상태만 보여서
+       등록 즉시 '입장완료'가 되는 현장등록은 그 표에 뜨지 않는다. */
+    walkinList: function (showId) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("walkin_list", { p_show_id: showId || null })
+        .then(function (d) { return d || { ok: false, reason: "error" }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
+    /* 쇼별 현장등록 한도 (shows.walkin_cap) */
+    walkinCapSet: function (showId, cap) {
+      if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });
+      return rpc("walkin_cap_set", { p_show_id: showId, p_cap: cap })
+        .then(function (d) { return d || { ok: false, reason: "error" }; })
+        .catch(function () { return { ok: false, reason: "network" }; });
+    },
     /* 구분 집계 : 사전등록 · 브랜드 확보좌석 · 주최측 내빈 · 현장등록 */
     attendanceReport: function () {
       if (!BACKEND) return Promise.resolve({ ok: false, reason: "nobackend" });

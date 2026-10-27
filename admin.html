@@ -542,6 +542,39 @@
           </div>
           <div id="wkStats" class="wk-stats"></div>
         </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="panel__head" style="margin-bottom:12px">
+            <h2 style="font-size:17px">현장등록 한도</h2>
+            <p>배너 QR 로 받을 수 있는 쇼별 최대 인원입니다. 0 으로 두면 그 쇼는 현장등록을 받지 않습니다.</p>
+          </div>
+          <div class="checkin-search">
+            <select id="wcShow" class="mini-select"></select>
+            <input type="number" id="wcCap" min="0" step="1" placeholder="인원수" style="max-width:130px" />
+            <button class="btn primary" id="wcSave">저장</button>
+          </div>
+          <div id="wcHint" class="hint" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card" style="margin-top:18px">
+          <div class="panel__head" style="margin-bottom:12px">
+            <h2 style="font-size:17px">현장등록 명단</h2>
+            <p>배너 QR 로 직접 등록한 분들입니다. 등록과 동시에 입장 처리되며 좌석은 없습니다.</p>
+          </div>
+          <div class="subs-tools">
+            <select id="wlFilter" class="mini-select"><option value="">전체 쇼</option></select>
+            <input type="text" id="wlSearch" placeholder="이름 또는 연락처" style="max-width:200px" />
+            <button class="btn ghost sm" id="wlRefresh">새로고침</button>
+            <button class="btn ghost sm" id="wlCsv">CSV 내보내기</button>
+            <span id="wlCount" class="hint"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="wlTable">
+              <thead><tr><th>등록시각</th><th>등록번호</th><th>쇼</th><th>이름</th><th>연락처</th></tr></thead>
+              <tbody id="wlBody"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
     </div>
