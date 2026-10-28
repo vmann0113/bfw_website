@@ -399,15 +399,7 @@ async function aligoToken() {
 
 /* 알림톡 다건 발송. 알리고는 한 번에 최대 500명까지 받는다.
    items : [{ to, name, msg }]  — msg 는 buildMessage() 결과
-   응답은 건별이 아니라 묶음 단위(성공/실패 건수)로만 온다.
-
-   다만 우리는 중계 서버(카페24 절약형)를 거쳐 나간다. 500명짜리 호출 하나는
-   그쪽에서 처리가 길어져 중간에 끊기고, 알리고 응답 대신 호스팅의
-   "페이지 로딩이 잠시 지연되었습니다" 안내 화면이 돌아온다.
-   2026-10-28 전날 안내 640건이 이렇게 두 묶음 모두 통째로 실패했다.
-   그래서 알리고 한도보다 훨씬 낮은 50으로 끊는다. 묶음이 늘어나는 대신
-   한 묶음이 실패해도 그 50명만 다시 보내면 된다. */
-const ALIMTALK_BATCH = 50;
+   응답은 건별이 아니라 묶음 단위(성공/실패 건수)로만 온다. */
 
 async function sendAlimtalkBulk(kind, items, tmode) {
   let token;
@@ -484,27 +476,48 @@ async function deliver(kind, to, name, msg, opts) {
   return { ok: true, channel: "dryrun", test: true, detail: "발송 설정이 없어 미리보기만 했습니다" };
 }
 
-/* 다건 발송. 500명씩 끊어서 보낸다. 반환값은 묶음별 결과 배열. */
+/* 다건 발송 — 한 건씩 보낸다. 반환값은 묶음별 결과 배열(묶음 하나에 한 명).
+
+   예전에는 한 호출에 여러 명을 담아 보냈다. 그런데 우리는 고정 IP 중계
+   서버(카페24 절약형)를 거쳐 나가고, 여러 명짜리 호출은 그쪽에서 처리가
+   길어져 호스팅이 중간에 끊어 버린다. 알리고 응답 대신
+   "페이지 로딩이 잠시 지연되었습니다" 안내 화면이 돌아오고, 그 묶음은
+   통째로 실패한다. 2026-10-28 전날 안내에서 500명짜리도 50명짜리도 전부
+   이렇게 죽었고, 5명짜리 하나만 통과했다. 같은 날 한 건씩 655건을 보냈을
+   때는 실패가 0이었다.
+
+   그래서 건별로 deliver() 를 부른다. 알림톡이 거부되면 문자로 대체되는
+   처리까지 그대로 따라간다. 한 건이 3~4초 걸리므로 몇 건씩 나란히 보낸다.
+   한 명이 실패해도 그 한 명만 실패로 남는다. */
+const ALIMTALK_PARALLEL = 6;
+
 async function deliverBulk(kind, items, opts) {
-  const tmode = resolveTest(opts);
-  const out = [];
-  for (let i = 0; i < items.length; i += ALIMTALK_BATCH) {
-    const chunk = items.slice(i, i + ALIMTALK_BATCH);
-    let r;
-    if (hasAlimtalk(kind)) r = await sendAlimtalkBulk(kind, chunk, tmode);
-    else if (hasSms()) {
-      // 문자 API 는 다건 형식이 달라, 여기서는 한 건씩 보낸다
-      const each = [];
-      for (const it of chunk) each.push(await sendSms(it.to, it.msg, tmode));
-      r = {
-        ok: each.every(function (x) { return x.ok; }),
-        channel: "sms", test: tmode === "Y",
-        detail: `성공${each.filter(function (x) { return x.ok; }).length}/${each.length}`
-      };
-    } else r = { ok: true, channel: "dryrun", test: true, detail: "발송 설정이 없어 미리보기만 했습니다" };
-    out.push({ result: r, items: chunk });
+  const out = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      const it = items[i];
+      let r;
+      try {
+        r = await deliver(kind, it.to, it.name, it.msg, opts);
+      } catch (e) {
+        r = {
+          ok: false, channel: "alimtalk",
+          detail: String((e && e.message) || e).slice(0, 180)
+        };
+      }
+      out[i] = { result: r, items: [it] };
+    }
   }
-  return out;
+
+  const n = Math.max(1, Math.min(ALIMTALK_PARALLEL, items.length));
+  const crew = [];
+  for (let i = 0; i < n; i++) crew.push(worker());
+  await Promise.all(crew);
+  return out.filter(Boolean);
 }
 
 /* 지금 어떤 경로로 나가는지 알려준다 — 점검용.

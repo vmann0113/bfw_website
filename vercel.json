@@ -64,10 +64,27 @@
       "permanent": true
     }
   ],
+  "functions": {
+    "api/cron-remind.js": {
+      "maxDuration": 300
+    }
+  },
   "crons": [
     {
       "path": "/api/cron-remind",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron-remind",
+      "schedule": "10 1 * * *"
+    },
+    {
+      "path": "/api/cron-remind",
+      "schedule": "20 1 * * *"
+    },
+    {
+      "path": "/api/cron-remind",
+      "schedule": "30 1 * * *"
     },
     {
       "path": "/api/cron-open",

@@ -66,6 +66,16 @@ module.exports = async (req, res) => {
     });
   }
 
+  /* 한 건씩 보내므로 한 사람에 3~4초가 걸린다. 수백 명을 한 번에 돌리면
+     실행 시간 제한에 걸려 중간에 끊긴다. 그래서 한 번에 이만큼만 보내고
+     나머지는 다음 실행이 이어받는다. 이미 보낸 사람은 대상에서 빠지므로
+     몇 번을 더 불러도 같은 사람에게 두 번 가지 않는다.
+     vercel.json 에 같은 주소를 10분 간격으로 몇 번 더 걸어 두었다. */
+  const LIMIT = Math.max(1, Math.min(1000, parseInt(qs(url, "limit") || "250", 10) || 250));
+  const waiting = targets.length;
+  targets = targets.slice(0, LIMIT);
+  const left = waiting - targets.length;
+
   /* 예약 안내를 끝내 못 받은 사람에게 보낸다.
      발송은 관람객 브라우저가 부르는 구조라, 등록 직후 신호가 끊기면
      아무 기록 없이 누락된다. 날마다 한 번 훑어 메운다. */
@@ -99,7 +109,7 @@ module.exports = async (req, res) => {
   if (dry) {
     return L.json(res, 200, {
       ok: true, date: date, mode: L.mode(), open: open,
-      count: targets.length,
+      count: targets.length, waiting: waiting, left: left,
       shows: targets.reduce(function (acc, r) {
         acc[r.show_id] = (acc[r.show_id] || 0) + 1;
         return acc;
@@ -147,6 +157,9 @@ module.exports = async (req, res) => {
 
   return L.json(res, 200, {
     ok: true, date: date, mode: L.mode(),
-    count: targets.length, batches: summary, missed: missed
+    count: targets.length, left: left,
+    sent: summary.filter(function (b) { return b.status === "sent"; }).length,
+    failed: summary.filter(function (b) { return b.status === "failed"; }).length,
+    missed: missed
   });
 };
