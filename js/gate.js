@@ -129,9 +129,14 @@
     return null;
   }
 
+  /* 이름·연락처로 찾은 결과. 고르기 전에는 입장 처리를 하지 않는다.
+     스태프가 목록에서 번호를 눌러 엔터를 치거나 항목을 직접 눌러야 들어간다. */
+  var pending = null;
+
   /* ---------- 화면 ---------- */
   function paint(cls, big, who, sub, tag, meta) {
     clearTimeout(holdTimer);
+    pending = null;
     $("stage").className = cls;
     $("big").textContent = big;
     $("who").textContent = who || "";
@@ -308,6 +313,13 @@
   function handle(raw) {
     var q = String(raw || "").trim();
     if (!q || busy) return;
+    /* 찾은 목록이 떠 있을 때 번호만 치면 그 분을 입장 처리한다 */
+    if (pending && /^[1-9]$/.test(q)) {
+      var pick = pending[parseInt(q, 10) - 1];
+      clearScan();
+      if (pick) { doResv(pick.code); return; }
+      return;
+    }
     var mr = RESV.exec(q), mp = PRESS.exec(q);
     if (mr) { doResv(mr[1].toUpperCase()); return; }
     if (mp) { doPress(mp[1].toUpperCase()); return; }
@@ -366,16 +378,24 @@
 
   /* 이름·연락처로 찾기 — 휴대폰이 꺼졌거나 QR이 안 읽힐 때 */
   function pickFrom(list, q) {
+    var rows = list.slice(0, 6);
     beep("warn");
-    paint("warn", "여러 명이 찾아졌습니다", "", "입장하실 분을 눌러 주세요.", "", "검색 " + q);
-    $("picker").innerHTML = list.slice(0, 6).map(function (r) {
-      return '<button type="button" data-code="' + esc(r.code) + '">' + esc(r.name) +
-             "<small>" + esc(r.phone || "") + " · BFW-" + esc(r.code) +
+    paint("warn",
+      rows.length === 1 ? "찾았습니다" : "여러 명이 찾아졌습니다", "",
+      rows.length === 1
+        ? "맞으면 <b>1</b> 을 누르고 엔터, 또는 아래를 눌러 주세요."
+        : "입장하실 분의 <b>번호</b>를 누르고 엔터, 또는 아래를 눌러 주세요.",
+      "", "검색 " + q);
+    $("picker").innerHTML = rows.map(function (r, i) {
+      return '<button type="button" data-code="' + esc(r.code) + '"><b>' + (i + 1) + "</b> " +
+             esc(r.name) + "<small>" + esc(r.phone || "") + " · BFW-" + esc(r.code) +
              (r.checkedIn ? " · 이미 입장" : "") + "</small></button>";
     }).join("");
     $("picker").querySelectorAll("button").forEach(function (b) {
       b.addEventListener("click", function () { doResv(b.getAttribute("data-code")); });
     });
+    /* paint() 가 pending 을 비우므로 그 뒤에 담는다 */
+    pending = rows;
   }
   function searchResult(rows, q) {
     var mine = (rows || []).filter(function (r) { return r.showId === curShow; });
@@ -392,7 +412,8 @@
         "이 분의 예약은 <b>" + esc(s0 ? showLabel(s0) : r0.showId) + "</b> 입니다.",
         tierTag(r0), "BFW-" + r0.code);
     }
-    if (mine.length === 1) { doResv(mine[0].code); return; }
+    /* 한 명만 찾아져도 바로 입장시키지 않는다. 이름이 겹치는 분이 있을 수 있어
+       스태프가 눈으로 확인하고 고르게 한다. QR 과 예약번호는 종전대로 바로 처리된다. */
     pickFrom(mine, q);
   }
   function offlineSearch(q) {

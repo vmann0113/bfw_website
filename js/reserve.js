@@ -491,8 +491,12 @@
         '<div class="code">' + esc(dispCode(r.code)) + "</div>" +
         '<div class="badge ' + (r.checkedIn ? "entered" : "ok") + '">' + (r.checkedIn ? "입장 완료" : "예약 완료") + "</div>" +
       "</div>" +
-      (withCancel && !r.checkedIn ? '<button type="button" class="tcancel">예약취소</button>' : "");
-    if (withCancel && !r.checkedIn) {
+      /* VIP 초청석은 관람객이 취소할 수 없다. 한 장이 좌석 여러 개를 대표하는
+         경우가 있어 잘못 눌리면 그 자리가 통째로 풀린다. 서버에서도 막고 있다. */
+      (r.source === "vip"
+        ? '<div class="tnote">VIP 초청석은 홈페이지에서 취소하실 수 없습니다.<br>변경이 필요하시면 담당자에게 연락해 주세요.</div>'
+        : (withCancel && !r.checkedIn ? '<button type="button" class="tcancel">예약취소</button>' : ""));
+    if (withCancel && !r.checkedIn && r.source !== "vip") {
       el.querySelector(".tcancel").addEventListener("click", function () {
         if (!confirm("‘" + (r.titleKo || r.showTitle) + "’ 예약을 취소할까요?")) return;
         Api.cancel(r.id, $("lookupName").value.trim(), $("lookupPhone").value.trim()).then(function (ok) {
