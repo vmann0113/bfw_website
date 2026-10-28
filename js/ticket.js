@@ -50,6 +50,9 @@
      확보좌석은 사전등록과 입장 방식이 같아 같은 줄로 안내한다.
      우선 입장은 VIP 초청장뿐이고, 그분들은 지정석이라 줄을 서지 않는다. */
   function lineBar(source) {
+    if (source === "vip") {
+      return '<div class="t-line vip"><b>VIP 우선 입장</b><span>일반 관람객보다 먼저 입장하시며, 지정된 좌석으로 안내해 드립니다</span></div>';
+    }
     if (source === "invite") {
       return '<div class="t-line"><b>내빈 입장</b><span>지정된 좌석으로 안내해 드립니다</span></div>';
     }
@@ -113,6 +116,15 @@
     $("list").innerHTML = "";
     rows.forEach(function (r) { $("list").appendChild(ticketEl(r)); });
     $("guide").style.display = "";
+    /* VIP 는 먼저 입장하고 좌석이 정해져 있다. 선착순 안내를 그대로 두면 틀린 말이 된다.
+       VIP 입장권일 때만 안내 문단을 통째로 바꾼다. 사전등록자 입장권은 ticket.html 에
+       적힌 문구가 그대로 쓰이며 이 자리를 지나가지 않는다. */
+    if (rows.some(function (r) { return r.source === "vip"; })) {
+      $("guide").innerHTML =
+        "· 입구에서 이 화면을 <b>그대로</b> 보여주세요. QR <b>테두리 색이 계속 바뀌어야</b> 유효한 입장권입니다.<br>" +
+        "· 캡처한 사진은 테두리 색이 하나로 멈춰 있어 입장이 제한될 수 있습니다.<br>" +
+        "· 시작 <b>20분 전</b>까지 입구로 와 주세요. VIP 초청객은 일반 관람객보다 <b>먼저 입장</b>하시며 좌석이 <b>지정</b>되어 있습니다.";
+    }
   }).catch(function () {
     show('<div class="msg">입장권을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>');
   });
