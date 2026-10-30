@@ -162,10 +162,24 @@
     return '<span class="tag ' + t.c + '">' + t.t + "</span>";
   }
 
+  /* 좌석과 일행 인원.
+
+     한 분이 여러 자리를 잡은 입장권이 있다. 좌석 칸이
+     'F구역 14-16번 · 총 3석' 처럼 적히고, 그 한 장으로 세 분이 함께 들어온다.
+     스태프가 인원을 세어 들여보내야 하므로 숫자를 크게 띄운다. */
+  function seatLine(r) {
+    var s = r.seatLabel || "";
+    if (!s) return "";
+    var m = /총\s*(\d+)\s*석/.exec(s);
+    return '<div class="seat">' + esc(s) + "</div>" +
+           (m ? '<div class="party">일행 ' + esc(m[1]) + "명</div>" : "");
+  }
+
   function okCard(r, offlineMark) {
     beep("ok");
     paint("ok", "✓ 입장 확인", r.name,
       esc(r.titleKo || r.showTitle || "") + " · " + esc(r.time || "") +
+      seatLine(r) +
       (offlineMark ? '<br><b style="color:#8a5300">오프라인으로 확인했습니다 — 연결되면 서버에 올립니다</b>' : ""),
       tierTag(r), "BFW-" + r.code);
     if (!offlineMark) loadStats();
@@ -281,7 +295,7 @@
       var slim = (rows || []).map(function (r) {
         return { code: r.code, showId: r.showId, name: r.name, phone: r.phone,
                  source: r.source, titleKo: r.titleKo, showTitle: r.showTitle,
-                 time: r.time, checkedIn: !!r.checkedIn };
+                 time: r.time, checkedIn: !!r.checkedIn, seatLabel: r.seatLabel };
       });
       if (slim.length) { writeJson(ROSTER_KEY, { at: Date.now(), rows: slim }); online = true; }
       netBar();
