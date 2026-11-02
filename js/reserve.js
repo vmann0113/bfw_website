@@ -45,6 +45,14 @@
     return m ? decodeURIComponent(m[1]) : "";
   })();
 
+  /* 행사가 끝났으면 여기서 멈춘다. 메인에서 링크를 지우는 것만으로는
+     부족하고, 주소를 직접 친 사람이 예약 화면을 만나면 안 된다. */
+  var CLOSING = BFW.baked().closing || {};
+  if (CLOSING.enabled) {
+    lockAfterEnd();
+    return;
+  }
+
   if (!DEMO && !(BFW.baked().reserve || {}).published) {
     lockUntilOpen();
     return;
@@ -69,6 +77,30 @@
     document.body.appendChild(bar);
     document.body.classList.add("has-demo-bar");
   }
+  /* 행사 종료 안내로 화면을 대체한다. 예약도 조회도 열지 않는다. */
+  function lockAfterEnd() {
+    var tabs = document.querySelector(".tabs-row");
+    if (tabs) tabs.style.display = "none";
+    var navCta = document.querySelector(".nav .nav-cta");
+    if (navCta) navCta.style.display = "none";
+    var look = $("lookupPane");
+    if (look) look.classList.add("hidden");
+    var bar = $("selBar");
+    if (bar) bar.style.display = "none";
+    var px = document.querySelector(".press-x");
+    if (px) px.style.display = "none";
+    var book = $("bookPane");
+    if (book) {
+      book.innerHTML =
+        '<div class="closed-note end-note">' +
+          '<span class="os-tag">THANK YOU</span>' +
+          '<b class="os-h">' + esc(CLOSING.message || "행사가 종료되었습니다. 감사합니다.") + "</b>" +
+          '<span class="os-p">2026 부산패션위크는 10월 31일 모든 일정을 마쳤습니다.<br>' +
+          '다음 행사 소식은 이 홈페이지와 카카오톡 채널로 알려드리겠습니다.</span>' +
+        "</div>";
+    }
+  }
+
   function lockUntilOpen() {
     var tabs = document.querySelector(".tabs-row");
     if (tabs) tabs.style.display = "none";

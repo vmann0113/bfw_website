@@ -19,6 +19,16 @@
     });
   }
 
+  /* 행사가 끝났는지. baked() 로 읽어 브라우저에 남은 저장본이
+     종료 상태를 덮어쓰지 못하게 한다. */
+  function ended() {
+    var c = (window.BFW.baked().closing) || {};
+    return !!c.enabled;
+  }
+  function endMessage() {
+    return (window.BFW.baked().closing || {}).message || "행사가 종료되었습니다. 감사합니다.";
+  }
+
   /* ---------- BRAND (nav + footer) ---------- */
   function applyBrand() {
     var b = cfg.brand;
@@ -442,6 +452,14 @@
     var box = document.getElementById("dday");
     if (!box) return;
     if (ddTimer) { clearInterval(ddTimer); ddTimer = null; }
+    /* 행사가 끝났으면 남은 시간 대신 인사말을 둔다 */
+    if (ended()) {
+      box.style.display = "";
+      box.classList.add("is-end");
+      box.innerHTML = '<div class="dd-end">' + esc(endMessage()) + "</div>";
+      document.body.classList.add("is-ended");
+      return;
+    }
     var t = cd.target ? new Date(cd.target).getTime() : NaN;
     if (!cd.enabled || isNaN(t)) { box.style.display = "none"; return; }
     box.style.display = "";
@@ -474,6 +492,18 @@
     var soon = document.getElementById("ctaSoon");
     var live = !!r.published;
     if (soon) soon.style.display = live ? "none" : "";
+
+    /* 행사가 끝나면 예약·프레스 진입점을 모두 닫는다.
+       아래 켜짐/꺼짐 처리를 아예 건너뛴다. */
+    if (ended()) {
+      var btns = document.getElementById("ctaBtns");
+      if (btns) btns.style.display = "none";
+      if (soon) soon.style.display = "none";
+      if (navCta) navCta.style.display = "none";
+      document.querySelectorAll('a[href="register.html"], a[href="press.html"]')
+        .forEach(function (a) { a.style.display = "none"; });
+      return;
+    }
 
     // Fixed bottom CTA bar: countdown + two buttons ("예정" ↔ active).
     if (cbReserve) {

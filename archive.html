@@ -79,9 +79,11 @@
     if (b.logo) nav.innerHTML = '<img class="brand-logo" src="' + b.logo + '" alt="">';
     else nav.innerHTML = "<b>" + b.textPrimary + '</b><span class="bul">●</span><b>' + b.textSecondary + "</b>";
 
-    // hide the reserve CTA until reservation is published on the main site
+    // hide the reserve CTA until reservation is published on the main site,
+    // and again once the event has ended
     var rcta = document.getElementById("navReserve");
-    if (rcta && !(cfg.reserve && cfg.reserve.published)) rcta.style.display = "none";
+    var closed = (window.BFW.baked().closing || {}).enabled;
+    if (rcta && (closed || !(cfg.reserve && cfg.reserve.published))) rcta.style.display = "none";
 
     var grid = document.getElementById("galGrid");
     var items = cfg.archive || [];

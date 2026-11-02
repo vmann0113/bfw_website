@@ -16,6 +16,26 @@
     else nav.innerHTML = "<b>" + esc(b.textPrimary) + '</b><span class="bul">●</span><b>' + esc(b.textSecondary) + "</b>";
   })();
 
+  /* ---- 행사 종료 : register.html 과 같은 이유 ---- */
+  var CLOSING = BFW.baked().closing || {};
+  if (CLOSING.enabled) {
+    var endNav = document.querySelector(".nav .nav-cta");
+    if (endNav) endNav.style.display = "none";
+    var endTabs = document.querySelector(".tabs-row");
+    if (endTabs) endTabs.style.display = "none";
+    var endPane = document.getElementById("applyPane");
+    if (endPane) {
+      endPane.innerHTML =
+        '<div class="closed-note end-note">' +
+          '<span class="os-tag">THANK YOU</span>' +
+          '<b class="os-h">' + esc(CLOSING.message || "행사가 종료되었습니다. 감사합니다.") + "</b>" +
+          '<span class="os-p">2026 부산패션위크는 10월 31일 모든 일정을 마쳤습니다.<br>' +
+          '취재 문의는 사무국으로 연락해 주세요.</span>' +
+        "</div>";
+    }
+    return;
+  }
+
   /* ---- 오픈 전 잠금 : register.html 과 같은 이유 ----
      링크만 숨기면 주소를 직접 친 사람은 신청 폼을 만난다. ---- */
   if (!(BFW.baked().reserve || {}).published) {
