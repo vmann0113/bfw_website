@@ -18,6 +18,14 @@ function qs(url, key) {
 }
 
 module.exports = async (req, res) => {
+  /* 행사 종료 잠금 — api/cron-remind.js 와 같은 이유.
+     켜진 채로 두면 예약 스위치를 다시 켜고 demo 예약을 지운다.
+     다음 행사를 준비할 때 false 로 돌린다. */
+  const ENDED = true;
+  if (ENDED) {
+    return L.json(res, 200, { ok: true, skipped: "ended", note: "행사가 종료되었습니다" });
+  }
+
   const dry = qs(req.url || "", "dry") === "1";
 
   /* 바깥에서 함부로 켜지 못하게 막는다. Vercel 자동 실행은 CRON_SECRET 을 함께 보낸다.

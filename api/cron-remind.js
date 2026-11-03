@@ -36,6 +36,19 @@ function qs(url, key) {
 const OPEN = require("./_open");
 
 module.exports = async (req, res) => {
+  /* 행사 종료 잠금. 2026-11-03, 행사가 끝난 뒤에도 예약 완료 안내가
+     날마다 다시 나갔다. 아래 catchUp() 은 날짜를 보지 않고 '보낸 이력이 없는
+     예약' 을 모두 대상으로 삼기 때문이다. 발송이 실패한 건은 이력이 남지 않아
+     매일 다시 대상이 된다. vercel.json 의 자동 실행도 함께 지웠다.
+     다음 행사를 준비할 때 이 값을 false 로 돌린다. */
+  const ENDED = true;
+  if (ENDED) {
+    return L.json(res, 200, {
+      ok: true, skipped: "ended",
+      note: "행사가 종료되어 안내를 보내지 않습니다"
+    });
+  }
+
   const url = req.url || "";
   const dry = qs(url, "dry") === "1";
 
