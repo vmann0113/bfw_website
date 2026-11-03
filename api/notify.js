@@ -49,7 +49,7 @@ module.exports = async (req, res) => {
     }
     if (req.query && (req.query.mid || req.query.history)) {
       try {
-        const d = await L.aligoHistory(req.query.mid || "");
+        const d = await L.aligoHistory(req.query.mid || "", req.query.page, req.query.limit);
         return L.json(res, 200, { ok: true, history: d });
       } catch (e) {
         return L.json(res, 200, { ok: false, error: String(e && e.message) });

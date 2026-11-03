@@ -367,11 +367,15 @@ async function sendSms(to, msg, tmode) {
 
 /* 발송 결과 캐묻기 — 알림톡이 거부되면 대체문자로 나가는데,
    묶음 응답만으로는 그 사실을 알 수 없다. mid 로 건별 결과를 본다. */
-async function aligoHistory(mid) {
+async function aligoHistory(mid, page, limit) {
   const url = mid
     ? "https://kakaoapi.aligo.in/akv10/history/detail/"
     : "https://kakaoapi.aligo.in/akv10/history/list/";
-  const p = { apikey: ALIGO.key, userid: ALIGO.userId, page: 1, limit: 10 };
+  const p = {
+    apikey: ALIGO.key, userid: ALIGO.userId,
+    page: Math.max(1, parseInt(page || 1, 10) || 1),
+    limit: Math.max(1, Math.min(500, parseInt(limit || 10, 10) || 10))
+  };
   if (mid) p.mid = mid;
   return postForm(url, p);
 }
